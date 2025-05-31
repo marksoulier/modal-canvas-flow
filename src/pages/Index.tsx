@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Menu, HelpCircle, Plus, Save } from 'lucide-react';
+import { Menu, HelpCircle, Plus, Save, FileExport } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,11 +11,33 @@ import {
 import HelpModal from '../components/HelpModal';
 import SaveModal from '../components/SaveModal';
 import EventLibraryModal from '../components/EventLibraryModal';
+import AuthModal from '../components/AuthModal';
+import SettingsModal from '../components/SettingsModal';
+import SubscriptionModal from '../components/SubscriptionModal';
 
 const Index = () => {
   const [helpModalOpen, setHelpModalOpen] = useState(false);
   const [saveModalOpen, setSaveModalOpen] = useState(false);
   const [eventLibraryOpen, setEventLibraryOpen] = useState(false);
+  const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [settingsModalOpen, setSettingsModalOpen] = useState(false);
+  const [subscriptionModalOpen, setSubscriptionModalOpen] = useState(false);
+
+  // Mock authentication state - replace with real auth logic
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+  const handleExport = () => {
+    // Export functionality - placeholder for now
+    console.log('Exporting financial plan...');
+  };
+
+  const handleSettings = () => {
+    if (isAuthenticated) {
+      setSettingsModalOpen(true);
+    } else {
+      setAuthModalOpen(true);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-white relative overflow-hidden">
@@ -41,12 +63,19 @@ const Index = () => {
             <Save className="mr-2 h-4 w-4" />
             Save
           </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem className="cursor-pointer">
-            Settings
+          <DropdownMenuItem 
+            onClick={handleExport}
+            className="cursor-pointer"
+          >
+            <FileExport className="mr-2 h-4 w-4" />
+            Export
           </DropdownMenuItem>
-          <DropdownMenuItem className="cursor-pointer">
-            Preferences
+          <DropdownMenuSeparator />
+          <DropdownMenuItem 
+            onClick={handleSettings}
+            className="cursor-pointer"
+          >
+            Settings
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -63,6 +92,31 @@ const Index = () => {
       <HelpModal isOpen={helpModalOpen} onClose={() => setHelpModalOpen(false)} />
       <SaveModal isOpen={saveModalOpen} onClose={() => setSaveModalOpen(false)} />
       <EventLibraryModal isOpen={eventLibraryOpen} onClose={() => setEventLibraryOpen(false)} />
+      <AuthModal 
+        isOpen={authModalOpen} 
+        onClose={() => setAuthModalOpen(false)}
+        onSignIn={() => {
+          setIsAuthenticated(true);
+          setAuthModalOpen(false);
+          setSettingsModalOpen(true);
+        }}
+        onUpgrade={() => {
+          setAuthModalOpen(false);
+          setSubscriptionModalOpen(true);
+        }}
+      />
+      <SettingsModal 
+        isOpen={settingsModalOpen} 
+        onClose={() => setSettingsModalOpen(false)}
+        onSignOut={() => {
+          setIsAuthenticated(false);
+          setSettingsModalOpen(false);
+        }}
+      />
+      <SubscriptionModal 
+        isOpen={subscriptionModalOpen} 
+        onClose={() => setSubscriptionModalOpen(false)}
+      />
     </div>
   );
 };
