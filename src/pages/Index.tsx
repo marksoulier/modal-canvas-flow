@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Menu, Help, Plus, Save } from 'lucide-react';
+import { Menu, HelpCircle, Plus, Save } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import HelpModal from '../components/HelpModal';
 import SaveModal from '../components/SaveModal';
@@ -27,7 +27,7 @@ const Index = () => {
         onClick={() => setHelpModalOpen(true)}
         className="absolute top-6 right-6 p-3 bg-blue-50 hover:bg-blue-100 rounded-lg shadow-sm transition-all duration-200 z-10"
       >
-        <Help size={20} className="text-blue-600" />
+        <HelpCircle size={20} className="text-blue-600" />
       </button>
 
       {/* Add Event Button - Center */}
