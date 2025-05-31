@@ -1,26 +1,55 @@
 
 import React, { useState } from 'react';
 import { Menu, HelpCircle, Plus, Save } from 'lucide-react';
-import Sidebar from '../components/Sidebar';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from '../components/ui/dropdown-menu';
 import HelpModal from '../components/HelpModal';
 import SaveModal from '../components/SaveModal';
 import EventLibraryModal from '../components/EventLibraryModal';
 
 const Index = () => {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [helpModalOpen, setHelpModalOpen] = useState(false);
   const [saveModalOpen, setSaveModalOpen] = useState(false);
   const [eventLibraryOpen, setEventLibraryOpen] = useState(false);
 
   return (
     <div className="min-h-screen bg-white relative overflow-hidden">
-      {/* Hamburger Menu Button - Top Left */}
-      <button
-        onClick={() => setSidebarOpen(true)}
-        className="absolute top-6 left-6 p-3 bg-gray-100 hover:bg-gray-200 rounded-lg shadow-sm transition-all duration-200 z-10"
-      >
-        <Menu size={20} className="text-gray-700" />
-      </button>
+      {/* Hamburger Dropdown Menu - Top Left */}
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button className="absolute top-6 left-6 p-3 bg-gray-100 hover:bg-gray-200 rounded-lg shadow-sm transition-all duration-200 z-10">
+            <Menu size={20} className="text-gray-700" />
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent className="w-56 bg-white border border-gray-200 shadow-lg">
+          <DropdownMenuItem 
+            onClick={() => setEventLibraryOpen(true)}
+            className="cursor-pointer"
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            Add Event
+          </DropdownMenuItem>
+          <DropdownMenuItem 
+            onClick={() => setSaveModalOpen(true)}
+            className="cursor-pointer"
+          >
+            <Save className="mr-2 h-4 w-4" />
+            Save
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem className="cursor-pointer">
+            Settings
+          </DropdownMenuItem>
+          <DropdownMenuItem className="cursor-pointer">
+            Preferences
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
 
       {/* Help Button - Top Right */}
       <button
@@ -29,33 +58,6 @@ const Index = () => {
       >
         <HelpCircle size={20} className="text-blue-600" />
       </button>
-
-      {/* Add Event Button - Center */}
-      <button
-        onClick={() => setEventLibraryOpen(true)}
-        className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 p-4 bg-green-500 hover:bg-green-600 rounded-xl shadow-lg transition-all duration-200 z-10"
-      >
-        <Plus size={24} className="text-white" />
-      </button>
-
-      {/* Save Button - Bottom Left */}
-      <button
-        onClick={() => setSaveModalOpen(true)}
-        className="absolute bottom-6 left-6 p-3 bg-purple-50 hover:bg-purple-100 rounded-lg shadow-sm transition-all duration-200 z-10"
-      >
-        <Save size={20} className="text-purple-600" />
-      </button>
-
-      {/* Additional Add Event Button - Bottom Right */}
-      <button
-        onClick={() => setEventLibraryOpen(true)}
-        className="absolute bottom-6 right-6 px-4 py-3 bg-orange-500 hover:bg-orange-600 rounded-lg shadow-sm transition-all duration-200 z-10 text-white font-medium text-sm"
-      >
-        Add Event
-      </button>
-
-      {/* Sidebar */}
-      <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
       {/* Modals */}
       <HelpModal isOpen={helpModalOpen} onClose={() => setHelpModalOpen(false)} />
