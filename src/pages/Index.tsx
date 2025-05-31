@@ -1,6 +1,5 @@
-
 import React, { useState } from 'react';
-import { Menu, HelpCircle, Plus, Save, FileExport } from 'lucide-react';
+import { Menu, HelpCircle, Plus, Save, FileText } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -67,7 +66,7 @@ const Index = () => {
             onClick={handleExport}
             className="cursor-pointer"
           >
-            <FileExport className="mr-2 h-4 w-4" />
+            <FileText className="mr-2 h-4 w-4" />
             Export
           </DropdownMenuItem>
           <DropdownMenuSeparator />
