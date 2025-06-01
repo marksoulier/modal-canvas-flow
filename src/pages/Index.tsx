@@ -1,5 +1,6 @@
+
 import React, { useState } from 'react';
-import { Menu, HelpCircle, Plus, Save, FileText } from 'lucide-react';
+import { Menu, HelpCircle, Plus, Save, FileText, FolderOpen, Settings } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,6 +14,8 @@ import EventLibraryModal from '../components/EventLibraryModal';
 import AuthModal from '../components/AuthModal';
 import SettingsModal from '../components/SettingsModal';
 import SubscriptionModal from '../components/SubscriptionModal';
+import TimelineAnnotation from '../components/TimelineAnnotation';
+import EventParametersModal from '../components/EventParametersModal';
 
 const Index = () => {
   const [helpModalOpen, setHelpModalOpen] = useState(false);
@@ -21,6 +24,7 @@ const Index = () => {
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [settingsModalOpen, setSettingsModalOpen] = useState(false);
   const [subscriptionModalOpen, setSubscriptionModalOpen] = useState(false);
+  const [eventParametersOpen, setEventParametersOpen] = useState(false);
 
   // Mock authentication state - replace with real auth logic
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -30,12 +34,21 @@ const Index = () => {
     console.log('Exporting financial plan...');
   };
 
+  const handleOpen = () => {
+    // Open functionality - placeholder for now
+    console.log('Opening file...');
+  };
+
   const handleSettings = () => {
     if (isAuthenticated) {
       setSettingsModalOpen(true);
     } else {
       setAuthModalOpen(true);
     }
+  };
+
+  const handleTimelineAnnotationClick = () => {
+    setEventParametersOpen(true);
   };
 
   return (
@@ -49,11 +62,11 @@ const Index = () => {
         </DropdownMenuTrigger>
         <DropdownMenuContent className="w-56 bg-white border border-gray-200 shadow-lg">
           <DropdownMenuItem 
-            onClick={() => setEventLibraryOpen(true)}
+            onClick={handleOpen}
             className="cursor-pointer"
           >
-            <Plus className="mr-2 h-4 w-4" />
-            Add Event
+            <FolderOpen className="mr-2 h-4 w-4" />
+            Open
           </DropdownMenuItem>
           <DropdownMenuItem 
             onClick={() => setSaveModalOpen(true)}
@@ -61,6 +74,13 @@ const Index = () => {
           >
             <Save className="mr-2 h-4 w-4" />
             Save
+          </DropdownMenuItem>
+          <DropdownMenuItem 
+            onClick={() => setEventLibraryOpen(true)}
+            className="cursor-pointer"
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            Add Event
           </DropdownMenuItem>
           <DropdownMenuItem 
             onClick={handleExport}
@@ -74,6 +94,7 @@ const Index = () => {
             onClick={handleSettings}
             className="cursor-pointer"
           >
+            <Settings className="mr-2 h-4 w-4" />
             Settings
           </DropdownMenuItem>
         </DropdownMenuContent>
@@ -85,6 +106,20 @@ const Index = () => {
         className="absolute top-6 right-6 p-3 bg-blue-50 hover:bg-blue-100 rounded-lg shadow-sm transition-all duration-200 z-10"
       >
         <HelpCircle size={20} className="text-blue-600" />
+      </button>
+
+      {/* Timeline Annotation Example - Bottom Center */}
+      <div className="absolute bottom-20 left-1/2 transform -translate-x-1/2">
+        <TimelineAnnotation onClick={handleTimelineAnnotationClick} />
+      </div>
+
+      {/* Add Event Button - Bottom Center */}
+      <button
+        onClick={() => setEventLibraryOpen(true)}
+        className="fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg shadow-lg transition-all duration-200 flex items-center gap-2 z-10"
+      >
+        <Plus size={20} />
+        Add Event
       </button>
 
       {/* Modals */}
@@ -115,6 +150,11 @@ const Index = () => {
       <SubscriptionModal 
         isOpen={subscriptionModalOpen} 
         onClose={() => setSubscriptionModalOpen(false)}
+      />
+      <EventParametersModal 
+        isOpen={eventParametersOpen} 
+        onClose={() => setEventParametersOpen(false)}
+        eventType="Financial Event"
       />
     </div>
   );
