@@ -5,9 +5,8 @@ import { LinePath } from '@visx/shape';
 import { localPoint } from '@visx/event';
 import { AxisLeft, AxisBottom } from '@visx/axis';
 import { extent, bisector } from 'd3-array';
-import { useFinancialSimulation } from '../hooks/useFinancialSimulator';
-import { useFinancialProblem, loadFinancialProblemFromFile } from '../hooks/useFinancialProblem';
-import type { FinancialProblem, FinancialEvent } from '../types/financial-types.ts.ts';
+import type { FinancialEvent } from '../types/financial-types.ts.ts';
+import { runSimulation } from '../hooks/simulationRunner';
 
 interface Datum {
   x: number;
@@ -19,61 +18,44 @@ export function Visualization() {
   const svgRef = useRef<SVGSVGElement>(null);
   const [hoverPos, setHoverPos] = useState<{ svgX: number; svgY: number } | null>(null);
   const [hoverData, setHoverData] = useState<Datum | null>(null);
-  const [hoverEvent, setHoverEvent] = useState<FinancialEvent | null>(null);
-  const [selectedEvent, setSelectedEvent] = useState<FinancialEvent | null>(null);
-  const [isDragging, setIsDragging] = useState(false);
-  const [initialData, setInitialData] = useState<FinancialProblem | null>(null);
   const [hoveredPoint, setHoveredPoint] = useState<Datum | null>(null);
   const [draggedPoint, setDraggedPoint] = useState<Datum | null>(null);
+  const [simulationData, setSimulationData] = useState<Datum[]>([]);
 
-  // Use the financial problem hook with initial data
-  const {
-    financialProblem,
-    updateEventTime,
-    updateEventAmount,
-    updateEventRate
-  } = useFinancialProblem(initialData);
-
-  // Load financial problem only once when component mounts
+  // Run simulation when component mounts
   useEffect(() => {
-    const loadData = async () => {
+    const runSim = async () => {
       try {
         setIsLoading(true);
-        const data = await loadFinancialProblemFromFile('/modal-canvas-flow/assets/financialproblem.json');
-        console.log('Loaded Financial Problem:', data);
-        setInitialData(data);
-      } catch (error) {
-        console.error('Error loading financial problem:', error);
+        const result = await runSimulation(
+          '/assets/plan.json',
+          '/assets/event_schema.json'
+        );
+        console.log('Loaded Financial Results:', result);
+        setSimulationData(result?.["Cash"] ?? []);
+      } catch (err) {
+        console.error('Simulation failed:', err);
       } finally {
         setIsLoading(false);
       }
     };
 
-    loadData();
-  }, []); // Empty dependency array means this only runs once on mount
-
-  // Get simulation data only when financial problem is loaded
-  const { simulationData } = useFinancialSimulation(
-    financialProblem || {
-      envelopes: [],
-      functions: [],
-      events: []
-    }, 60
-  );
+    runSim();
+  }, []);
 
   // Don't render visualization until data is loaded
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-background-DEFAULT">
-        <div className="text-background-900">Loading financial problem...</div>
+        <div className="text-background-900">Loading simulation data...</div>
       </div>
     );
   }
 
-  if (!financialProblem) {
+  if (!simulationData.length) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-background-DEFAULT">
-        <div className="text-background-900">Failed to load financial problem</div>
+        <div className="text-background-900">Failed to load simulation data</div>
       </div>
     );
   }
@@ -96,63 +78,31 @@ export function Visualization() {
 
   const bisectX = bisector((d: Datum) => d.x).left;
 
-  // Get time parameter from event
-  const getEventTime = (event: FinancialEvent): number => {
-    const timeParam = event.parameters.find(p => p.type === 'time');
-    return timeParam ? Number(timeParam.value) : 0;
-  };
-
-  // Sort events by time
-  const sortedEvents = [...financialProblem.events].sort((a, b) => getEventTime(a) - getEventTime(b));
-
-  // Handle event drag start
-  const handleEventDragStart = (event: FinancialEvent, e: React.MouseEvent) => {
-    e.stopPropagation(); // Prevent event from bubbling to canvas
-    setSelectedEvent(event);
-    setIsDragging(true);
-  };
-
-  // Handle event drag
-  const handleEventDrag = (e: React.MouseEvent, zoom: any) => {
-    if (!selectedEvent || !isDragging) return;
-    e.stopPropagation();
-
-    const point = localPoint(e) || { x: 0, y: 0 };
-    const transformedX = (point.x - zoom.transformMatrix.translateX) / zoom.transformMatrix.scaleX;
-    const newTime = Math.round(xScale.invert(transformedX - 60)); // Account for left padding
-
-    // Update the event time
-    updateEventTime(selectedEvent.id, newTime);
-  };
-
-  // Handle event drag end
-  const handleEventDragEnd = (e?: React.MouseEvent) => {
-    if (e) {
-      e.stopPropagation(); // Prevent event from bubbling to canvas
-    }
-    setIsDragging(false);
-    setSelectedEvent(null);
-  };
-
   // Format number with k/M suffix and dollar sign
-  const formatNumber = (value: number): string => {
-    if (value >= 1000000) {
-      return `$${(value / 1000000).toFixed(1)}M`;
+  const formatNumber = (value: { valueOf(): number }): string => {
+    const num = value.valueOf();
+    if (num >= 1000000) {
+      return `$${(num / 1000000).toFixed(1)}M`;
     }
-    if (value >= 1000) {
-      return `$${(value / 1000).toFixed(1)}k`;
+    if (num >= 1000) {
+      return `$${(num / 1000).toFixed(1)}k`;
     }
-    return `$${value.toFixed(0)}`;
+    return `$${num.toFixed(0)}`;
   };
 
-  // Format time (months to years/months)
-  const formatTime = (months: number): string => {
-    const years = Math.floor(months / 12);
-    const remainingMonths = months % 12;
-    if (years > 0) {
-      return `${years}y${remainingMonths > 0 ? ` ${remainingMonths}m` : ''}`;
-    }
-    return `${months}m`;
+  // Format time (days to years/months/days)
+  const formatTime = (value: { valueOf(): number }): string => {
+    const days = value.valueOf();
+    const years = Math.floor(days / 365);
+    const remainingDays = days % 365;
+    const months = Math.floor(remainingDays / 30);
+    const finalDays = remainingDays % 30;
+
+    const parts = [];
+    if (years > 0) parts.push(`${years}y`);
+    if (months > 0) parts.push(`${months}m`);
+    if (finalDays > 0 || parts.length === 0) parts.push(`${finalDays}d`);
+    return parts.join(' ');
   };
 
   return (
@@ -200,11 +150,9 @@ export function Visualization() {
               ref={svgRef}
               width={width}
               height={height}
-              style={{ cursor: isDragging ? 'grabbing' : 'crosshair' }}
+              style={{ cursor: 'crosshair' }}
               onMouseMove={(e) => {
-                if (isDragging) {
-                  handleEventDrag(e, zoom);
-                } else if (draggedPoint) {
+                if (draggedPoint) {
                   const point = localPoint(e) || { x: 0, y: 0 };
                   const transformedX = (point.x - zoom.transformMatrix.translateX) / zoom.transformMatrix.scaleX;
                   const transformedY = (point.y - zoom.transformMatrix.translateY) / zoom.transformMatrix.scaleY;
@@ -231,23 +179,15 @@ export function Visualization() {
                     svgX: xScale(d.x) + 60,
                     svgY: yScale(d.y)
                   });
-
-                  // Check if mouse is near any event
-                  const event = sortedEvents.find(event => {
-                    const eventX = xScale(getEventTime(event)) + 60;
-                    return Math.abs(eventX - transformedX) < 10;
-                  });
-                  setHoverEvent(event || null);
                 }
               }}
               onMouseLeave={() => {
                 setHoverData(null);
                 setHoverPos(null);
-                setHoverEvent(null);
-                handleEventDragEnd();
+                setHoveredPoint(null);
+                setDraggedPoint(null);
               }}
               onWheel={(e) => {
-                if (isDragging) return; // Prevent zooming while dragging
                 const point = localPoint(e) || { x: 0, y: 0 };
                 e.preventDefault();
 
@@ -259,20 +199,13 @@ export function Visualization() {
                 });
               }}
               onMouseDown={(e) => {
-                if (!isDragging) {
-                  zoom.dragStart(e);
-                }
+                zoom.dragStart(e);
               }}
               onMouseMoveCapture={(e) => {
-                if (!isDragging) {
-                  zoom.dragMove(e);
-                }
+                zoom.dragMove(e);
               }}
               onMouseUp={(e) => {
-                if (!isDragging) {
-                  zoom.dragEnd(e);
-                }
-                handleEventDragEnd(e);
+                zoom.dragEnd(e);
                 setDraggedPoint(null);
               }}
             >
@@ -335,48 +268,6 @@ export function Visualization() {
                             fontSize={12}
                           >
                             {formatTime(point.x)}, {formatNumber(point.y)}
-                          </text>
-                        )}
-                      </g>
-                    );
-                  })}
-
-                  {/* Event Markers */}
-                  {sortedEvents.map((event, index) => {
-                    const eventTime = getEventTime(event);
-                    const x = xScale(eventTime);
-                    const y = yScale(simulationData.find(d => d.x >= eventTime)?.y || 0) - 20;
-
-                    return (
-                      <g
-                        key={`${event.type}-${index}`}
-                        onMouseDown={(e) => handleEventDragStart(event, e)}
-                        style={{ cursor: 'grab' }}
-                      >
-                        <line
-                          x1={x}
-                          x2={x}
-                          y1={y}
-                          y2={y + 15}
-                          stroke="#f99207"
-                          strokeWidth={2}
-                        />
-                        <circle
-                          cx={x}
-                          cy={y}
-                          r={5}
-                          fill="#f99207"
-                          stroke="#fff"
-                          strokeWidth={1}
-                        />
-                        {hoverEvent === event && (
-                          <text
-                            x={x + 10}
-                            y={y - 10}
-                            fill="#f99207"
-                            fontSize={12}
-                          >
-                            {event.type}: {event.parameters.map(p => `${p.type}=${p.value}`).join(', ')}
                           </text>
                         )}
                       </g>

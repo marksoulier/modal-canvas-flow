@@ -103,12 +103,12 @@
                     "default": 0.0145
                 },
                 {
-                    "type": "401k_contribution",
+                    "type": "p_401k_contribution",
                     "description": "Percent of salary contributed to 401k.",
                     "default": 0.05
                 },
                 {
-                    "type": "401k_match",
+                    "type": "p_401k_match",
                     "description": "Employer match percent for 401k.",
                     "default": 0.05
                 },
@@ -164,7 +164,7 @@
                             "default": 0
                         },
                         {
-                            "type": "401k_contribution",
+                            "type": "p_401k_contribution",
                             "description": "New 401k contribution percentage.",
                             "default": 0.1
                         }
