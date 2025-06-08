@@ -1,0 +1,58 @@
+{
+  "events": [
+    {
+      "id": 2,
+      "type": "purchase",
+      "description": "Cash spending of $20",
+      "parameters": [
+        {
+          "id": 3,
+          "type": "time",
+          "value": 5
+        },
+        {
+          "id": 4,
+          "type": "money",
+          "value": 20
+        },
+        {
+          "id": 5,
+          "type": "from_key",
+          "value": "Cash"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "invest_money",
+      "description": "Invest $50 in compound interest account at 5%",
+      "parameters": [
+        {
+          "id": 7,
+          "type": "time",
+          "value": 3
+        },
+        {
+          "id": 8,
+          "type": "amount",
+          "value": 50
+        },
+        {
+          "id": 9,
+          "type": "from_key",
+          "value": "Cash"
+        },
+        {
+          "id": 10,
+          "type": "to_key",
+          "value": "Investments"
+        },
+        {
+          "id": 11,
+          "type": "expected_return",
+          "value": 0.05
+        }
+      ]
+    }
+  ]
+}

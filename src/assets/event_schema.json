@@ -1,0 +1,1204 @@
+{
+    "current_time_days": 0,
+    "inflation_rate": 0.03,
+    "adjust_for_inflation": true,
+    "envelopes": [
+        "Cash",
+        "House",
+        "Savings",
+        "Investments",
+        "Retirement"
+    ],
+    "events": [
+        {
+            "type": "purchase",
+            "category": "Living Expenses",
+            "description": "Basic purchase or spending of money",
+            "icon": "shopping-cart",
+            "parameters": [
+                {
+                    "type": "start_time",
+                    "description": "When the purchase occurs",
+                    "default": 0
+                },
+                {
+                    "type": "money",
+                    "description": "Amount of money spent",
+                    "default": 20
+                },
+                {
+                    "type": "from_key",
+                    "description": "Which envelope the money comes from",
+                    "default": "Cash"
+                }
+            ]
+        },
+        {
+            "type": "gift",
+            "category": "Living Expenses",
+            "description": " gift of money from something",
+            "icon": "gift",
+            "parameters": [
+                {
+                    "type": "start_time",
+                    "description": "When the gift is recieved",
+                    "default": 0
+                },
+                {
+                    "type": "money",
+                    "description": "Amount of money gained",
+                    "default": 20
+                },
+                {
+                    "type": "to_key",
+                    "description": "Which envelope the money goes to",
+                    "default": "Cash"
+                }
+            ]
+        },
+        {
+            "type": "get_job",
+            "category": "Income & Employment",
+            "description": "Start earning a salary from employment.",
+            "icon": "briefcase",
+            "parameters": [
+                {
+                    "type": "start_time",
+                    "description": "When the job starts",
+                    "default": 0
+                },
+                {
+                    "type": "end_time",
+                    "description": "When the job ends (optional)",
+                    "default": 3650
+                },
+                {
+                    "type": "salary",
+                    "description": "Annual salary before taxes.",
+                    "default": 60000
+                },
+                {
+                    "type": "pay_period",
+                    "description": "Number of pay periods per year.",
+                    "default": 26
+                },
+                {
+                    "type": "federal_income_tax",
+                    "description": "Federal income tax rate.",
+                    "default": 0.12
+                },
+                {
+                    "type": "state_income_tax",
+                    "description": "State income tax rate.",
+                    "default": 0.05
+                },
+                {
+                    "type": "social_security_tax",
+                    "description": "Social Security tax rate.",
+                    "default": 0.062
+                },
+                {
+                    "type": "medicare_tax",
+                    "description": "Medicare tax rate.",
+                    "default": 0.0145
+                },
+                {
+                    "type": "401k_contribution",
+                    "description": "Percent of salary contributed to 401k.",
+                    "default": 0.05
+                },
+                {
+                    "type": "401k_match",
+                    "description": "Employer match percent for 401k.",
+                    "default": 0.05
+                },
+                {
+                    "type": "to_key",
+                    "description": "Envelope where salary is deposited",
+                    "default": "Cash"
+                }
+            ],
+            "updating_events": [
+                {
+                    "type": "get_a_raise",
+                    "icon": "arrow-up",
+                    "description": "Receive an increase in salary.",
+                    "parameters": [
+                        {
+                            "type": "start_time",
+                            "description": "When the raise takes effect",
+                            "default": 365
+                        },
+                        {
+                            "type": "salary",
+                            "description": "New annual salary after raise.",
+                            "default": 65000
+                        }
+                    ]
+                },
+                {
+                    "type": "get_a_bonus",
+                    "icon": "dollar-sign",
+                    "description": "Receive a one-time cash bonus.",
+                    "parameters": [
+                        {
+                            "type": "start_time",
+                            "description": "When the bonus is received",
+                            "default": 365
+                        },
+                        {
+                            "type": "bonus",
+                            "description": "Bonus amount received.",
+                            "default": 5000
+                        }
+                    ]
+                },
+                {
+                    "type": "change_401k_contribution",
+                    "icon": "sliders-horizontal",
+                    "description": "Adjust the percentage of income contributed to 401k.",
+                    "parameters": [
+                        {
+                            "type": "start_time",
+                            "description": "When the new contribution rate takes effect",
+                            "default": 0
+                        },
+                        {
+                            "type": "401k_contribution",
+                            "description": "New 401k contribution percentage.",
+                            "default": 0.1
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "type": "start_business",
+            "category": "Income & Employment",
+            "description": "Start your own business by investing capital.",
+            "icon": "factory",
+            "parameters": [
+                {
+                    "type": "start_time",
+                    "description": "When the business starts",
+                    "default": 0
+                },
+                {
+                    "type": "initial_investment",
+                    "description": "Amount of money invested initially.",
+                    "default": 50000
+                },
+                {
+                    "type": "from_key",
+                    "description": "Which envelope the money comes from.",
+                    "default": "Cash"
+                },
+                {
+                    "type": "to_key",
+                    "description": "Envelope where business assets are tracked",
+                    "default": "Investments"
+                }
+            ],
+            "updating_events": [
+                {
+                    "type": "business_income",
+                    "icon": "bar-chart",
+                    "description": "Start receiving business revenue.",
+                    "parameters": [
+                        {
+                            "type": "start_time",
+                            "description": "When business income starts",
+                            "default": 0
+                        },
+                        {
+                            "type": "end_time",
+                            "description": "When business income ends",
+                            "default": 0
+                        },
+                        {
+                            "type": "monthly_income",
+                            "description": "Monthly income earned by the business.",
+                            "default": 5000
+                        },
+                        {
+                            "type": "to_key",
+                            "description": "Envelope where business income is deposited",
+                            "default": "Cash"
+                        }
+                    ]
+                },
+                {
+                    "type": "business_loss",
+                    "icon": "x-octagon",
+                    "description": "Incur a business loss from operations.",
+                    "parameters": [
+                        {
+                            "type": "start_time",
+                            "description": "When the loss occurs",
+                            "default": 0
+                        },
+                        {
+                            "type": "loss_amount",
+                            "description": "Amount lost due to business expense or failure.",
+                            "default": 20000
+                        },
+                        {
+                            "type": "from_key",
+                            "description": "Envelope where loss is deducted from",
+                            "default": "Cash"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "type": "retirement",
+            "category": "Income & Employment",
+            "description": "Transition from employment to retirement with withdrawals.",
+            "icon": "moon",
+            "parameters": [
+                {
+                    "type": "start_time",
+                    "description": "When retirement begins",
+                    "default": 0
+                },
+                {
+                    "type": "end_time",
+                    "description": "When retirement ends",
+                    "default": 36500
+                },
+                {
+                    "type": "amount",
+                    "description": "When retirement begins",
+                    "default": 0
+                },
+                {
+                    "type": "frequency_days",
+                    "description": "How often withdraws happen",
+                    "default": 30
+                },
+                {
+                    "type": "from_key",
+                    "description": "Envelope to withdraw from (e.g., Retirement).",
+                    "default": "Retirement"
+                },
+                {
+                    "type": "to_key",
+                    "description": "Envelope where withdrawals are deposited",
+                    "default": "Cash"
+                }
+            ]
+        },
+        {
+            "type": "buy_house",
+            "category": "Major Purchases",
+            "description": "Purchase a home with mortgage terms.",
+            "icon": "home",
+            "parameters": [
+                {
+                    "type": "start_time",
+                    "description": "When the house is purchased",
+                    "default": 0
+                },
+                {
+                    "type": "end_time",
+                    "description": "When the house is purchased",
+                    "default": 0
+                },
+                {
+                    "type": "home_value",
+                    "description": "Total price of the house.",
+                    "default": 300000
+                },
+                {
+                    "type": "loan_term_years",
+                    "description": "Length of mortgage in years.",
+                    "default": 30
+                },
+                {
+                    "type": "loan_rate",
+                    "description": "Annual interest rate on the mortgage.",
+                    "default": 0.03
+                },
+                {
+                    "type": "appreciation_rate",
+                    "description": "Estimated yearly value increase.",
+                    "default": 0.05
+                },
+                {
+                    "type": "downpayment",
+                    "description": "Amount paid upfront.",
+                    "default": 60000
+                },
+                {
+                    "type": "from_key",
+                    "description": "Envelope where downpayment comes from",
+                    "default": "Cash"
+                },
+                {
+                    "type": "to_key",
+                    "description": "Envelope where house value is tracked",
+                    "default": "House"
+                },
+                {
+                    "type": "property_tax_rate",
+                    "description": "Annual tax as a percentage of home value.",
+                    "default": 0.015
+                }
+            ],
+            "updating_events": [
+                {
+                    "type": "new_appraisal",
+                    "icon": "clipboard-check",
+                    "description": "New professional appraisal of home value.",
+                    "parameters": [
+                        {
+                            "type": "start_time",
+                            "description": "When the new appraisal takes effect",
+                            "default": 0
+                        },
+                        {
+                            "type": "appraised_value",
+                            "description": "New home valuation.",
+                            "default": 450000
+                        }
+                    ]
+                },
+                {
+                    "type": "extra_mortgage_payment",
+                    "icon": "plus",
+                    "description": "Make an extra one-time payment toward principal.",
+                    "parameters": [
+                        {
+                            "type": "start_time",
+                            "description": "When the extra payment is made",
+                            "default": 0
+                        },
+                        {
+                            "type": "amount",
+                            "description": "Extra amount paid.",
+                            "default": 10000
+                        },
+                        {
+                            "type": "from_key",
+                            "description": "Envelope where payment comes from",
+                            "default": "Cash"
+                        },
+                        {
+                            "type": "month_index",
+                            "description": "Which month the payment applies to.",
+                            "default": 60
+                        }
+                    ]
+                },
+                {
+                    "type": "late_payment",
+                    "icon": "clock",
+                    "description": "Make a mortgage payment late.",
+                    "parameters": [
+                        {
+                            "type": "start_time",
+                            "description": "When the late payment occurs",
+                            "default": 0
+                        },
+                        {
+                            "type": "amount",
+                            "description": "Missed payment amount.",
+                            "default": 1500
+                        },
+                        {
+                            "type": "from_key",
+                            "description": "Envelope where payment comes from",
+                            "default": "Cash"
+                        },
+                        {
+                            "type": "month_index",
+                            "description": "Which month was missed.",
+                            "default": 85
+                        }
+                    ]
+                },
+                {
+                    "type": "sell_house",
+                    "icon": "dollar-sign",
+                    "description": "Sell your home and receive proceeds.",
+                    "parameters": [
+                        {
+                            "type": "start_time",
+                            "description": "When the house is sold",
+                            "default": 0
+                        },
+                        {
+                            "type": "sale_price",
+                            "description": "Final sale value of the house.",
+                            "default": 400000
+                        },
+                        {
+                            "type": "from_key",
+                            "description": "Envelope where house value is tracked",
+                            "default": "House"
+                        },
+                        {
+                            "type": "to_key",
+                            "description": "Envelope where sale proceeds are deposited",
+                            "default": "Cash"
+                        }
+                    ]
+                },
+                {
+                    "type": "buy_home_insurance",
+                    "icon": "shield-check",
+                    "description": "Purchase insurance policy for the house.",
+                    "parameters": [
+                        {
+                            "type": "start_time",
+                            "description": "When insurance coverage begins",
+                            "default": 0
+                        },
+                        {
+                            "type": "monthly_premium",
+                            "description": "Monthly cost of the insurance.",
+                            "default": 100
+                        },
+                        {
+                            "type": "deductible",
+                            "description": "Out-of-pocket amount before coverage.",
+                            "default": 2000
+                        },
+                        {
+                            "type": "coverage_percentage",
+                            "description": "Percentage of damage the policy covers.",
+                            "default": 0.9
+                        },
+                        {
+                            "type": "from_key",
+                            "description": "Envelope where premiums are paid from",
+                            "default": "Cash"
+                        }
+                    ],
+                    "updating_events": [
+                        {
+                            "type": "tornado_damage",
+                            "icon": "wind",
+                            "description": "Damage to property due to tornado.",
+                            "parameters": [
+                                {
+                                    "type": "start_time",
+                                    "description": "When the damage occurs",
+                                    "default": 0
+                                },
+                                {
+                                    "type": "damage_cost",
+                                    "description": "Cost of tornado-related damages.",
+                                    "default": 75000
+                                },
+                                {
+                                    "type": "insurance_coverage",
+                                    "description": "Percentage reimbursed by insurance.",
+                                    "default": 0.9
+                                },
+                                {
+                                    "type": "to_key",
+                                    "description": "Envelope where insurance payout is received",
+                                    "default": "Cash"
+                                }
+                            ]
+                        },
+                        {
+                            "type": "house_fire",
+                            "icon": "flame",
+                            "description": "Damage to property due to fire.",
+                            "parameters": [
+                                {
+                                    "type": "start_time",
+                                    "description": "When the damage occurs",
+                                    "default": 0
+                                },
+                                {
+                                    "type": "damage_cost",
+                                    "description": "Repair cost after fire.",
+                                    "default": 100000
+                                },
+                                {
+                                    "type": "insurance_coverage",
+                                    "description": "Coverage from insurance.",
+                                    "default": 0.95
+                                },
+                                {
+                                    "type": "to_key",
+                                    "description": "Envelope where insurance payout is received",
+                                    "default": "Cash"
+                                }
+                            ]
+                        },
+                        {
+                            "type": "flood_damage",
+                            "icon": "waves",
+                            "description": "Damage to home due to flood.",
+                            "parameters": [
+                                {
+                                    "type": "start_time",
+                                    "description": "When the damage occurs",
+                                    "default": 0
+                                },
+                                {
+                                    "type": "damage_cost",
+                                    "description": "Repair cost after flooding.",
+                                    "default": 50000
+                                },
+                                {
+                                    "type": "insurance_coverage",
+                                    "description": "Percent of cost covered.",
+                                    "default": 0.8
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "type": "buy_car",
+            "category": "Major Purchases",
+            "description": "Purchase a car with or without a loan.",
+            "icon": "car",
+            "parameters": [
+                {
+                    "type": "start_time",
+                    "description": "When the car is purchased",
+                    "default": 0
+                },
+                {
+                    "type": "car_value",
+                    "description": "Price of the car.",
+                    "default": 35000
+                },
+                {
+                    "type": "loan_term_years",
+                    "description": "Length of car loan in years.",
+                    "default": 5
+                },
+                {
+                    "type": "loan_rate",
+                    "description": "Annual interest rate for the loan.",
+                    "default": 0.045
+                },
+                {
+                    "type": "downpayment",
+                    "description": "Upfront payment toward the car.",
+                    "default": 7000
+                },
+                {
+                    "type": "from_key",
+                    "description": "Which envelope the money comes from.",
+                    "default": "Cash"
+                },
+                {
+                    "type": "to_key",
+                    "description": "Envelope where car value is tracked",
+                    "default": "Investments"
+                }
+            ],
+            "updating_events": [
+                {
+                    "type": "pay_loan_early",
+                    "icon": "badge-dollar-sign",
+                    "description": "Pay off the car loan ahead of schedule.",
+                    "parameters": [
+                        {
+                            "type": "start_time",
+                            "description": "When the early payment is made",
+                            "default": 0
+                        },
+                        {
+                            "type": "amount",
+                            "description": "Remaining balance paid off.",
+                            "default": 20000
+                        },
+                        {
+                            "type": "from_key",
+                            "description": "Envelope where payment comes from",
+                            "default": "Cash"
+                        }
+                    ]
+                },
+                {
+                    "type": "car_repair",
+                    "icon": "wrench",
+                    "description": "Pay for major car repairs.",
+                    "parameters": [
+                        {
+                            "type": "start_time",
+                            "description": "When the repair occurs",
+                            "default": 0
+                        },
+                        {
+                            "type": "cost",
+                            "description": "Repair bill total.",
+                            "default": 3000
+                        },
+                        {
+                            "type": "from_key",
+                            "description": "Envelope where repair cost is paid from",
+                            "default": "Cash"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "type": "have_kid",
+            "category": "Life Events",
+            "description": "Have a child and incur related early-life costs.",
+            "icon": "baby",
+            "parameters": [
+                {
+                    "type": "start_time",
+                    "description": "When the child is born",
+                    "default": 0
+                },
+                {
+                    "type": "initial_costs",
+                    "description": "One-time costs for childbirth, setup, etc.",
+                    "default": 15000
+                },
+                {
+                    "type": "from_key",
+                    "description": "Which envelope the cost is paid from.",
+                    "default": "Cash"
+                }
+            ],
+            "updating_events": [
+                {
+                    "type": "childcare_costs",
+                    "icon": "hand-coins",
+                    "description": "Monthly childcare expenses after birth.",
+                    "parameters": [
+                        {
+                            "type": "start_time",
+                            "description": "When childcare costs begin",
+                            "default": 0
+                        },
+                        {
+                            "type": "monthly_cost",
+                            "description": "Monthly cost for daycare or other care.",
+                            "default": 1200
+                        },
+                        {
+                            "type": "from_key",
+                            "description": "Envelope where childcare costs are paid from",
+                            "default": "Cash"
+                        },
+                        {
+                            "type": "end_days",
+                            "description": "When childcare costs end.",
+                            "default": 2190
+                        }
+                    ]
+                },
+                {
+                    "type": "college_fund",
+                    "icon": "graduation-cap",
+                    "description": "Start saving for your child's college education.",
+                    "parameters": [
+                        {
+                            "type": "start_time",
+                            "description": "When college fund contributions begin",
+                            "default": 0
+                        },
+                        {
+                            "type": "initial_contribution",
+                            "description": "Starting amount deposited.",
+                            "default": 5000
+                        },
+                        {
+                            "type": "monthly_contribution",
+                            "description": "Recurring monthly contribution.",
+                            "default": 200
+                        },
+                        {
+                            "type": "from_key",
+                            "description": "Envelope where contributions come from",
+                            "default": "Cash"
+                        },
+                        {
+                            "type": "to_key",
+                            "description": "Envelope where college fund is tracked",
+                            "default": "Savings"
+                        },
+                        {
+                            "type": "end_days",
+                            "description": "End of contribution period.",
+                            "default": 6570
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "type": "marriage",
+            "category": "Life Events",
+            "description": "Get married and incur event-related expenses.",
+            "icon": "ring",
+            "parameters": [
+                {
+                    "type": "start_time",
+                    "description": "When the marriage occurs",
+                    "default": 0
+                },
+                {
+                    "type": "cost",
+                    "description": "Total cost of wedding and related expenses.",
+                    "default": 30000
+                },
+                {
+                    "type": "from_key",
+                    "description": "Envelope where wedding costs are paid from",
+                    "default": "Cash"
+                }
+            ]
+        },
+        {
+            "type": "divorce",
+            "category": "Life Events",
+            "description": "Divorce settlement and legal costs.",
+            "icon": "split",
+            "parameters": [
+                {
+                    "type": "start_time",
+                    "description": "When the divorce occurs",
+                    "default": 0
+                },
+                {
+                    "type": "settlement_amount",
+                    "description": "Lump sum paid in settlement.",
+                    "default": 25000
+                },
+                {
+                    "type": "attorney_fees",
+                    "description": "Legal costs paid to attorneys.",
+                    "default": 10000
+                },
+                {
+                    "type": "from_key",
+                    "description": "Envelope where divorce costs are paid from",
+                    "default": "Cash"
+                }
+            ]
+        },
+        {
+            "type": "pass_away",
+            "category": "Life Events",
+            "description": "Death of the individual and end-of-life costs.",
+            "icon": "skull",
+            "parameters": [
+                {
+                    "type": "start_time",
+                    "description": "When death occurs",
+                    "default": 0
+                }
+            ]
+        },
+        {
+            "type": "buy_health_insurance",
+            "category": "Health & Insurance",
+            "description": "Purchase a health insurance plan with monthly payments.",
+            "icon": "stethoscope",
+            "parameters": [
+                {
+                    "type": "start_time",
+                    "description": "When health insurance coverage begins",
+                    "default": 0
+                },
+                {
+                    "type": "monthly_premium",
+                    "description": "Cost of health insurance per month.",
+                    "default": 500
+                },
+                {
+                    "type": "deductible",
+                    "description": "Amount paid out-of-pocket before insurance applies.",
+                    "default": 2000
+                },
+                {
+                    "type": "coverage_percentage",
+                    "description": "Percent of expenses covered after deductible.",
+                    "default": 0.8
+                },
+                {
+                    "type": "from_key",
+                    "description": "Envelope where premiums are paid from",
+                    "default": "Cash"
+                }
+            ],
+            "updating_events": [
+                {
+                    "type": "medical_expense",
+                    "icon": "pill",
+                    "description": "Major medical procedure or cost covered by insurance.",
+                    "parameters": [
+                        {
+                            "type": "start_time",
+                            "description": "When the medical expense occurs",
+                            "default": 0
+                        },
+                        {
+                            "type": "total_cost",
+                            "description": "Full amount billed by the hospital or provider.",
+                            "default": 25000
+                        },
+                        {
+                            "type": "from_key",
+                            "description": "Envelope to cover the out-of-pocket portion.",
+                            "default": "Cash"
+                        },
+                        {
+                            "type": "insurance_coverage",
+                            "description": "Insurance reimbursement percentage.",
+                            "default": 0.8
+                        },
+                        {
+                            "type": "deductible",
+                            "description": "How much must be paid first by the user.",
+                            "default": 2000
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "type": "buy_life_insurance",
+            "category": "Health & Insurance",
+            "description": "Buy term life insurance to protect dependents.",
+            "icon": "heart-pulse",
+            "parameters": [
+                {
+                    "type": "start_time",
+                    "description": "When life insurance coverage begins",
+                    "default": 0
+                },
+                {
+                    "type": "coverage_amount",
+                    "description": "Total coverage paid out upon death.",
+                    "default": 500000
+                },
+                {
+                    "type": "monthly_premium",
+                    "description": "Recurring payment for the policy.",
+                    "default": 100
+                },
+                {
+                    "type": "term_years",
+                    "description": "Duration of the term policy in years.",
+                    "default": 20
+                },
+                {
+                    "type": "from_key",
+                    "description": "Funding envelope for premium payments.",
+                    "default": "Cash"
+                }
+            ],
+            "updating_events": [
+                {
+                    "type": "increase_coverage",
+                    "icon": "plus-circle",
+                    "description": "Change to a higher coverage amount and premium.",
+                    "parameters": [
+                        {
+                            "type": "start_time",
+                            "description": "When the coverage increase takes effect",
+                            "default": 0
+                        },
+                        {
+                            "type": "new_coverage_amount",
+                            "description": "Updated payout amount.",
+                            "default": 750000
+                        },
+                        {
+                            "type": "new_monthly_premium",
+                            "description": "New monthly cost of policy.",
+                            "default": 150
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "type": "receive_government_aid",
+            "category": "Taxes & Government",
+            "description": "Regular cash benefits from government programs.",
+            "icon": "hand-coins",
+            "parameters": [
+                {
+                    "type": "start_time",
+                    "description": "When government aid begins",
+                    "default": 0
+                },
+                {
+                    "type": "amount",
+                    "description": "Amount received per interval.",
+                    "default": 600
+                },
+                {
+                    "type": "frequency_days",
+                    "description": "Number of days between each benefit payment.",
+                    "default": 30
+                },
+                {
+                    "type": "to_key",
+                    "description": "Envelope where aid payments are received",
+                    "default": "Cash"
+                },
+                {
+                    "type": "end_days",
+                    "description": "When the payments end.",
+                    "default": 730
+                }
+            ]
+        },
+        {
+            "type": "invest_money",
+            "category": "Investments & Assets",
+            "description": "Invest a lump sum into the stock market or similar vehicle.",
+            "icon": "trending-up",
+            "parameters": [
+                {
+                    "type": "start_time",
+                    "description": "When the investment is made",
+                    "default": 0
+                },
+                {
+                    "type": "amount",
+                    "description": "Amount of money to invest.",
+                    "default": 10000
+                },
+                {
+                    "type": "from_key",
+                    "description": "Envelope where funds come from.",
+                    "default": "Cash"
+                },
+                {
+                    "type": "to_key",
+                    "description": "Envelope to which the investment is applied.",
+                    "default": "Investments"
+                },
+                {
+                    "type": "expected_return",
+                    "description": "Estimated annual rate of return.",
+                    "default": 0.07
+                }
+            ],
+            "updating_events": [
+                {
+                    "type": "Reoccuring Dividend Payout",
+                    "icon": "badge-dollar-sign",
+                    "description": "Receive dividend payments from invested stocks.",
+                    "parameters": [
+                        {
+                            "type": "start_time",
+                            "description": "When dividend payments begin",
+                            "default": 0
+                        },
+                        {
+                            "type": "amount",
+                            "description": "Dividend amount received.",
+                            "default": 200
+                        },
+                        {
+                            "type": "to_key",
+                            "description": "Envelope where dividends are received",
+                            "default": "Cash"
+                        }
+                    ]
+                },
+                {
+                    "type": "Reoccuring Contribution",
+                    "icon": "dollar-bill",
+                    "description": "Put in reoccuring deposits",
+                    "parameters": [
+                        {
+                            "type": "start_time",
+                            "description": "When reoccuring payments begin",
+                            "default": 0
+                        },
+                        {
+                            "type": "end_time",
+                            "description": "When reoccuring payments end",
+                            "default": 3650
+                        },
+                        {
+                            "type": "amount",
+                            "description": "Amount put in.",
+                            "default": 200
+                        },
+                        {
+                            "type": "from_key",
+                            "description": "Envelope where contributions are from",
+                            "default": "Cash"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "type": "high_yield_savings_account",
+            "category": "Investments & Assets",
+            "description": "Open a high-yield savings account that earns daily interest.",
+            "icon": "banknote",
+            "parameters": [
+                {
+                    "type": "start_time",
+                    "description": "When the savings account is opened",
+                    "default": 0
+                },
+                {
+                    "type": "interest_rate",
+                    "description": "Annual percentage yield (APY).",
+                    "default": 0.045
+                },
+                {
+                    "type": "amount",
+                    "description": "Initial deposit into the account.",
+                    "default": 10000
+                },
+                {
+                    "type": "from_key",
+                    "description": "Envelope where funds originate.",
+                    "default": "Cash"
+                },
+                {
+                    "type": "to_key",
+                    "description": "Envelope for savings balance.",
+                    "default": "Savings"
+                }
+            ]
+        },
+        {
+            "type": "pay_taxes",
+            "category": "Taxes & Government",
+            "description": "Annual payment of federal and state taxes.",
+            "icon": "file-text",
+            "parameters": [
+                {
+                    "type": "start_time",
+                    "description": "When the tax payment is made",
+                    "default": 0
+                },
+                {
+                    "type": "total_tax_due",
+                    "description": "Amount owed in taxes.",
+                    "default": 8000
+                },
+                {
+                    "type": "from_key",
+                    "description": "Envelope where taxes are paid from.",
+                    "default": "Cash"
+                }
+            ],
+            "updating_events": [
+                {
+                    "type": "receive_tax_refund",
+                    "icon": "wallet",
+                    "description": "Receive refund from overpaid taxes.",
+                    "parameters": [
+                        {
+                            "type": "start_time",
+                            "description": "When the tax refund is received",
+                            "default": 0
+                        },
+                        {
+                            "type": "amount",
+                            "description": "Amount of tax refund received.",
+                            "default": 1500
+                        },
+                        {
+                            "type": "to_key",
+                            "description": "Envelope where refund is received",
+                            "default": "Cash"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "type": "buy_groceries",
+            "category": "Living Expenses",
+            "description": "Spend a recurring amount on monthly groceries.",
+            "icon": "shopping-cart",
+            "parameters": [
+                {
+                    "type": "start_time",
+                    "description": "When grocery expenses begin",
+                    "default": 0
+                },
+                {
+                    "type": "monthly_amount",
+                    "description": "Average grocery bill each month.",
+                    "default": 800
+                },
+                {
+                    "type": "from_key",
+                    "description": "Envelope where grocery costs are paid from",
+                    "default": "Cash"
+                },
+                {
+                    "type": "end_days",
+                    "description": "When the expense stops recurring.",
+                    "default": 99999
+                }
+            ],
+            "updating_events": [
+                {
+                    "type": "update_amount",
+                    "icon": "pencil",
+                    "description": "Update monthly grocery cost at specific time.",
+                    "parameters": [
+                        {
+                            "type": "start_time",
+                            "description": "When the replaced monthly cost gets replaced",
+                            "default": 158
+                        },
+                        {
+                            "type": "new_amount",
+                            "description": "Updated monthly cost.",
+                            "default": 900
+                        },
+                        {
+                            "type": "index",
+                            "description": "Which month this update applies to.",
+                            "default": 24
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "type": "manual_correction",
+            "category": "System",
+            "description": "Manually adjust the value of an envelope for tracking accuracy.",
+            "icon": "edit",
+            "parameters": [
+                {
+                    "type": "start_time",
+                    "description": "When the correction is applied",
+                    "default": 0
+                },
+                {
+                    "type": "amount",
+                    "description": "The value added or subtracted (negative values allowed).",
+                    "default": 1000
+                },
+                {
+                    "type": "rate",
+                    "description": "Growth Rate of the account if compounded",
+                    "default": 1000
+                },
+                {
+                    "type": "to_key",
+                    "description": "Envelope to be adjusted.",
+                    "default": "Cash"
+                }
+            ]
+        }
+    ]
+}
