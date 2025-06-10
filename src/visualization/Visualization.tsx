@@ -2,10 +2,12 @@ import { useRef, useState, useEffect } from 'react';
 import { Zoom } from '@visx/zoom';
 import { scaleLinear } from '@visx/scale';
 import { LinePath } from '@visx/shape';
+import { CornerDownLeft } from 'lucide-react';
 import { localPoint } from '@visx/event';
 import { AxisLeft, AxisBottom } from '@visx/axis';
 import { extent, bisector } from 'd3-array';
 import { runSimulation } from '../hooks/simulationRunner';
+
 
 interface Datum {
   x: number;
@@ -36,6 +38,40 @@ interface ZoomObject {
   dragEnd: (event: React.MouseEvent) => void;
 }
 
+// Utility functions
+const formatNumber = (value: { valueOf(): number }): string => {
+  const num = value.valueOf();
+  if (num >= 1000000) {
+    return `$${(num / 1000000).toFixed(1)}M`;
+  }
+  if (num >= 1000) {
+    return `$${(num / 1000).toFixed(1)}k`;
+  }
+  return `$${num.toFixed(0)}`;
+};
+
+const getPointInterval = (currentScale: number): number => {
+  if (currentScale >= 5) return 1; // Show every point
+  if (currentScale >= 2) return 7; // Show weekly
+  return 365; // Show yearly
+};
+
+const formatTimeByScale = (value: { valueOf(): number }, currentScale: number): string => {
+  const days = value.valueOf();
+  if (currentScale >= 5) {
+    return `${days}d`;
+  } else if (currentScale >= 2) {
+    const months = Math.floor(days / 30);
+    const remainingDays = days % 30;
+    return `${months}m ${remainingDays}d`;
+  } else {
+    const years = Math.floor(days / 365);
+    const remainingDays = days % 365;
+    const months = Math.floor(remainingDays / 30);
+    return `${years}y ${months}m`;
+  }
+};
+
 export function Visualization() {
   const [isLoading, setIsLoading] = useState(true);
   const svgRef = useRef<SVGSVGElement>(null);
@@ -46,6 +82,7 @@ export function Visualization() {
   const [simulationData, setSimulationData] = useState<Datum[]>([]);
   const [currentScale, setCurrentScale] = useState(1);
   const [eventAnnotations, setEventAnnotations] = useState<EventAnnotation[]>([]);
+
 
   // Prevent browser zoom
   useEffect(() => {
@@ -79,19 +116,12 @@ export function Visualization() {
     runSim();
   }, []);
 
-  // Don't render visualization until data is loaded
-  if (isLoading) {
+  if (isLoading || !simulationData.length) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-background-DEFAULT">
-        <div className="text-background-900">Loading simulation data...</div>
-      </div>
-    );
-  }
-
-  if (!simulationData.length) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-background-DEFAULT">
-        <div className="text-background-900">Failed to load simulation data</div>
+        <div className="text-background-900">
+          {isLoading ? 'Loading simulation data...' : 'Failed to load simulation data'}
+        </div>
       </div>
     );
   }
@@ -114,26 +144,18 @@ export function Visualization() {
 
   const bisectX = bisector((d: Datum) => d.x).left;
 
-  // Format number with k/M suffix and dollar sign
-  const formatNumber = (value: { valueOf(): number }): string => {
-    const num = value.valueOf();
-    if (num >= 1000000) {
-      return `$${(num / 1000000).toFixed(1)}M`;
-    }
-    if (num >= 1000) {
-      return `$${(num / 1000).toFixed(1)}k`;
-    }
-    return `$${num.toFixed(0)}`;
-  };
+  // Constrain drag area
+  const maxDragX = width * 2;
+  const maxDragY = height * 2;
 
   return (
     <div className="relative w-full h-full">
       <Zoom
         width={width}
         height={height}
-        scaleXMin={0.8}
+        scaleXMin={1}
         scaleXMax={100}
-        scaleYMin={0.8}
+        scaleYMin={1}
         scaleYMax={100}
         initialTransformMatrix={{
           scaleX: 1,
@@ -158,9 +180,7 @@ export function Visualization() {
             yScale.invert((-zoom.transformMatrix.translateY) / zoom.transformMatrix.scaleY)
           ];
 
-          // Constrain drag area
-          const maxDragX = width * 2;
-          const maxDragY = height * 2;
+          // Constrain translation
           const constrainedTranslateX = Math.max(-maxDragX, Math.min(maxDragX, zoom.transformMatrix.translateX));
           const constrainedTranslateY = Math.max(-maxDragY, Math.min(maxDragY, zoom.transformMatrix.translateY));
 
@@ -174,30 +194,6 @@ export function Visualization() {
             domain: visibleYDomain,
             range: [height - 40, 20],
           });
-
-          // Determine point display interval based on scale
-          const getPointInterval = () => {
-            if (currentScale >= 5) return 1; // Show every point
-            if (currentScale >= 2) return 7; // Show weekly
-            return 365; // Show yearly
-          };
-
-          // Format time based on scale
-          const formatTimeByScale = (value: { valueOf(): number }): string => {
-            const days = value.valueOf();
-            if (currentScale >= 5) {
-              return `${days}d`;
-            } else if (currentScale >= 2) {
-              const months = Math.floor(days / 30);
-              const remainingDays = days % 30;
-              return `${months}m ${remainingDays}d`;
-            } else {
-              const years = Math.floor(days / 365);
-              const remainingDays = days % 365;
-              const months = Math.floor(remainingDays / 30);
-              return `${years}y ${months}m`;
-            }
-          };
 
           return (
             <svg
@@ -244,13 +240,48 @@ export function Visualization() {
               onWheel={(e) => {
                 const point = localPoint(e) || { x: 0, y: 0 };
                 e.preventDefault();
+                const scaleFactor = e.deltaY > 0 ? 0.99 : 1.01;
 
-                const scaleFactor = e.deltaY > 0 ? 0.95 : 1.05;
+                // Get the center X position in screen coordinates
+                const centerX = width / 2;
 
-                zoom.scale({
-                  scaleX: scaleFactor,
-                  scaleY: scaleFactor,
+                // Convert center X to data coordinates
+                const centerXData = xScale.invert((centerX - zoom.transformMatrix.translateX) / zoom.transformMatrix.scaleX);
+
+                // Find the closest point to the center
+                let closestPoint = simulationData[0];
+                let minDistance = Math.abs(simulationData[0].x - centerXData);
+
+                simulationData.forEach(point => {
+                  const distance = Math.abs(point.x - centerXData);
+                  if (distance < minDistance) {
+                    minDistance = distance;
+                    closestPoint = point;
+                  }
                 });
+
+                // Calculate where the point would be after scaling
+                const newScaleX = zoom.transformMatrix.scaleX * scaleFactor;
+                const newScaleY = zoom.transformMatrix.scaleY * scaleFactor;
+
+                const scaledPointX = xScale(closestPoint.x) * newScaleX;
+                const scaledPointY = yScale(closestPoint.y) * newScaleY;
+
+                // Calculate translation needed to center the point
+                const translateX = width / 2 - scaledPointX;
+                const translateY = height / 2 - scaledPointY;
+
+                // Create new transform matrix
+                const newTransform = {
+                  ...zoom.transformMatrix,
+                  scaleX: newScaleX,
+                  scaleY: newScaleY,
+                  translateX,
+                  translateY,
+                };
+
+                // Apply the new transform matrix
+                zoom.setTransformMatrix(newTransform);
               }}
               onMouseDown={(e) => {
                 zoom.dragStart(e);
@@ -290,7 +321,7 @@ export function Visualization() {
 
                   {/* Data Points with interval */}
                   {simulationData.map((point, index) => {
-                    const interval = getPointInterval();
+                    const interval = getPointInterval(currentScale);
                     if (index % interval !== 0) return null;
 
                     const isHovered = hoveredPoint === point;
@@ -353,7 +384,7 @@ export function Visualization() {
                       fill="#f99207"
                       fontSize={12}
                     >
-                      {formatTimeByScale(hoverData.x)}, {formatNumber(hoverData.y)}
+                      {formatTimeByScale(hoverData.x, currentScale)}, {formatNumber(hoverData.y)}
                     </text>
                   </>
                 )}
@@ -377,7 +408,7 @@ export function Visualization() {
                 <AxisBottom
                   top={height - 40}
                   scale={visibleXScale}
-                  tickFormat={formatTimeByScale}
+                  tickFormat={(value) => formatTimeByScale(value, currentScale)}
                   stroke="#bbd4dd"
                   tickStroke="#bbd4dd"
                   tickLabelProps={() => ({
