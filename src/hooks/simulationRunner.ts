@@ -67,7 +67,7 @@ export async function runSimulation(planPath: string, schemaPath: string): Promi
             }
         }
 
-        const tEnd = 20 * 365;
+        const tEnd = 30 * 365;
         const interval = 5;
         const results = evaluateResults(envelopes, 0, tEnd, interval);
 

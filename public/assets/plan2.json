@@ -1,0 +1,51 @@
+{
+    "current_time_days": 4380,
+    "inflation_rate": 0.03,
+    "adjust_for_inflation": true,
+    "events": [
+        {
+            "id": 1,
+            "type": "gift",
+            "description": "Receive a gift of $1000",
+            "parameters": [
+                {
+                    "id": 1,
+                    "type": "start_time",
+                    "value": 4380
+                },
+                {
+                    "id": 2,
+                    "type": "money",
+                    "value": 1000
+                },
+                {
+                    "id": 3,
+                    "type": "to_key",
+                    "value": "Cash"
+                }
+            ]
+        },
+        {
+            "id": 2,
+            "type": "purchase",
+            "description": "Make a purchase of $500",
+            "parameters": [
+                {
+                    "id": 1,
+                    "type": "start_time",
+                    "value": 4385
+                },
+                {
+                    "id": 2,
+                    "type": "money",
+                    "value": 500
+                },
+                {
+                    "id": 3,
+                    "type": "from_key",
+                    "value": "Cash"
+                }
+            ]
+        }
+    ]
+}

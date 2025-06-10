@@ -1,16 +1,39 @@
-import { useMemo, useRef, useState, useEffect } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import { Zoom } from '@visx/zoom';
 import { scaleLinear } from '@visx/scale';
 import { LinePath } from '@visx/shape';
 import { localPoint } from '@visx/event';
 import { AxisLeft, AxisBottom } from '@visx/axis';
 import { extent, bisector } from 'd3-array';
-import type { FinancialEvent } from '../types/financial-types.ts.ts';
 import { runSimulation } from '../hooks/simulationRunner';
 
 interface Datum {
   x: number;
   y: number;
+}
+
+interface EventAnnotation {
+  x: number;
+  y: number;
+  label: string;
+  weight: number;
+}
+
+interface ZoomTransform {
+  scaleX: number;
+  scaleY: number;
+  translateX: number;
+  translateY: number;
+  skewX: number;
+  skewY: number;
+}
+
+interface ZoomObject {
+  transformMatrix: ZoomTransform;
+  scale: (params: { scaleX: number; scaleY: number }) => void;
+  dragStart: (event: React.MouseEvent) => void;
+  dragMove: (event: React.MouseEvent) => void;
+  dragEnd: (event: React.MouseEvent) => void;
 }
 
 export function Visualization() {
@@ -21,6 +44,19 @@ export function Visualization() {
   const [hoveredPoint, setHoveredPoint] = useState<Datum | null>(null);
   const [draggedPoint, setDraggedPoint] = useState<Datum | null>(null);
   const [simulationData, setSimulationData] = useState<Datum[]>([]);
+  const [currentScale, setCurrentScale] = useState(1);
+  const [eventAnnotations, setEventAnnotations] = useState<EventAnnotation[]>([]);
+
+  // Prevent browser zoom
+  useEffect(() => {
+    const preventZoom = (e: WheelEvent) => {
+      if (e.ctrlKey) {
+        e.preventDefault();
+      }
+    };
+    window.addEventListener('wheel', preventZoom, { passive: false });
+    return () => window.removeEventListener('wheel', preventZoom);
+  }, []);
 
   // Run simulation when component mounts
   useEffect(() => {
@@ -90,30 +126,15 @@ export function Visualization() {
     return `$${num.toFixed(0)}`;
   };
 
-  // Format time (days to years/months/days)
-  const formatTime = (value: { valueOf(): number }): string => {
-    const days = value.valueOf();
-    const years = Math.floor(days / 365);
-    const remainingDays = days % 365;
-    const months = Math.floor(remainingDays / 30);
-    const finalDays = remainingDays % 30;
-
-    const parts = [];
-    if (years > 0) parts.push(`${years}y`);
-    if (months > 0) parts.push(`${months}m`);
-    if (finalDays > 0 || parts.length === 0) parts.push(`${finalDays}d`);
-    return parts.join(' ');
-  };
-
   return (
     <div className="relative w-full h-full">
       <Zoom
         width={width}
         height={height}
-        scaleXMin={0.5}
-        scaleXMax={10}
-        scaleYMin={0.5}
-        scaleYMax={10}
+        scaleXMin={0.8}
+        scaleXMax={100}
+        scaleYMin={0.8}
+        scaleYMax={100}
         initialTransformMatrix={{
           scaleX: 1,
           scaleY: 1,
@@ -123,16 +144,25 @@ export function Visualization() {
           skewY: 0,
         }}
       >
-        {(zoom: any) => {
+        {(zoom: ZoomObject) => {
+          // Update current scale when zoom changes
+          setCurrentScale(zoom.transformMatrix.scaleX);
+
           // Calculate visible domain based on current zoom and padding
           const visibleXDomain = [
-            xScale.invert((-zoom.transformMatrix.translateX - 60) / zoom.transformMatrix.scaleX),
-            xScale.invert((width - zoom.transformMatrix.translateX - 60) / zoom.transformMatrix.scaleX)
+            xScale.invert((-zoom.transformMatrix.translateX) / zoom.transformMatrix.scaleX),
+            xScale.invert((width - zoom.transformMatrix.translateX) / zoom.transformMatrix.scaleX)
           ];
           const visibleYDomain = [
-            yScale.invert((height - zoom.transformMatrix.translateY - 20) / zoom.transformMatrix.scaleY),
-            yScale.invert((-zoom.transformMatrix.translateY - 20) / zoom.transformMatrix.scaleY)
+            yScale.invert((height - zoom.transformMatrix.translateY) / zoom.transformMatrix.scaleY),
+            yScale.invert((-zoom.transformMatrix.translateY) / zoom.transformMatrix.scaleY)
           ];
+
+          // Constrain drag area
+          const maxDragX = width * 2;
+          const maxDragY = height * 2;
+          const constrainedTranslateX = Math.max(-maxDragX, Math.min(maxDragX, zoom.transformMatrix.translateX));
+          const constrainedTranslateY = Math.max(-maxDragY, Math.min(maxDragY, zoom.transformMatrix.translateY));
 
           // Create scales for the visible axes
           const visibleXScale = scaleLinear({
@@ -145,18 +175,42 @@ export function Visualization() {
             range: [height - 40, 20],
           });
 
+          // Determine point display interval based on scale
+          const getPointInterval = () => {
+            if (currentScale >= 5) return 1; // Show every point
+            if (currentScale >= 2) return 7; // Show weekly
+            return 365; // Show yearly
+          };
+
+          // Format time based on scale
+          const formatTimeByScale = (value: { valueOf(): number }): string => {
+            const days = value.valueOf();
+            if (currentScale >= 5) {
+              return `${days}d`;
+            } else if (currentScale >= 2) {
+              const months = Math.floor(days / 30);
+              const remainingDays = days % 30;
+              return `${months}m ${remainingDays}d`;
+            } else {
+              const years = Math.floor(days / 365);
+              const remainingDays = days % 365;
+              const months = Math.floor(remainingDays / 30);
+              return `${years}y ${months}m`;
+            }
+          };
+
           return (
             <svg
               ref={svgRef}
               width={width}
               height={height}
-              style={{ cursor: 'crosshair' }}
+              style={{ cursor: 'point' }}
               onMouseMove={(e) => {
                 if (draggedPoint) {
                   const point = localPoint(e) || { x: 0, y: 0 };
-                  const transformedX = (point.x - zoom.transformMatrix.translateX) / zoom.transformMatrix.scaleX;
-                  const transformedY = (point.y - zoom.transformMatrix.translateY) / zoom.transformMatrix.scaleY;
-                  const xValue = xScale.invert(transformedX - 60);
+                  const transformedX = (point.x - constrainedTranslateX) / zoom.transformMatrix.scaleX;
+                  const transformedY = (point.y - constrainedTranslateY) / zoom.transformMatrix.scaleY;
+                  const xValue = xScale.invert(transformedX);
                   const yValue = yScale.invert(transformedY);
 
                   // Update the dragged point's position
@@ -164,9 +218,9 @@ export function Visualization() {
                   setDraggedPoint(updatedPoint);
                 } else {
                   const point = localPoint(e) || { x: 0, y: 0 };
-                  const transformedX = (point.x - zoom.transformMatrix.translateX) / zoom.transformMatrix.scaleX;
-                  const transformedY = (point.y - zoom.transformMatrix.translateY) / zoom.transformMatrix.scaleY;
-                  const xValue = xScale.invert(transformedX - 60);
+                  const transformedX = (point.x - constrainedTranslateX) / zoom.transformMatrix.scaleX;
+                  const transformedY = (point.y - constrainedTranslateY) / zoom.transformMatrix.scaleY;
+                  const xValue = xScale.invert(transformedX);
                   const index = bisectX(simulationData, xValue);
                   const d0 = simulationData[index - 1];
                   const d1 = simulationData[index];
@@ -176,7 +230,7 @@ export function Visualization() {
                   }
                   setHoverData(d);
                   setHoverPos({
-                    svgX: xScale(d.x) + 60,
+                    svgX: xScale(d.x),
                     svgY: yScale(d.y)
                   });
                 }
@@ -191,7 +245,7 @@ export function Visualization() {
                 const point = localPoint(e) || { x: 0, y: 0 };
                 e.preventDefault();
 
-                const scaleFactor = e.deltaY > 0 ? 0.9 : 1.1;
+                const scaleFactor = e.deltaY > 0 ? 0.95 : 1.05;
 
                 zoom.scale({
                   scaleX: scaleFactor,
@@ -212,7 +266,7 @@ export function Visualization() {
               <rect width={width} height={height} fill="#f7fafb" />
 
               {/* Main content with zoom transform */}
-              <g transform={zoom.toString()}>
+              <g transform={`translate(${constrainedTranslateX},${constrainedTranslateY}) scale(${zoom.transformMatrix.scaleX},${zoom.transformMatrix.scaleY})`}>
                 <g transform="translate(60, 20)">
                   {/* Zero Line */}
                   <line
@@ -234,8 +288,11 @@ export function Visualization() {
                     strokeWidth={2}
                   />
 
-                  {/* Data Points */}
+                  {/* Data Points with interval */}
                   {simulationData.map((point, index) => {
+                    const interval = getPointInterval();
+                    if (index % interval !== 0) return null;
+
                     const isHovered = hoveredPoint === point;
                     const isDragged = draggedPoint === point;
                     const radius = isHovered || isDragged ? 6 : 4;
@@ -260,57 +317,47 @@ export function Visualization() {
                           strokeWidth={1}
                           opacity={isHovered || isDragged ? 1 : 0.6}
                         />
-                        {isHovered && !isDragged && (
-                          <text
-                            x={xScale(point.x) + 10}
-                            y={yScale(point.y) - 10}
-                            fill="#335966"
-                            fontSize={12}
-                          >
-                            {formatTime(point.x)}, {formatNumber(point.y)}
-                          </text>
-                        )}
                       </g>
                     );
                   })}
-
-                  {/* Hover Effects */}
-                  {hoverPos && hoverData && (
-                    <>
-                      <line
-                        x1={hoverPos.svgX - 60}
-                        x2={hoverPos.svgX - 60}
-                        y1={0}
-                        y2={height - 40}
-                        stroke="#f99207"
-                        strokeWidth={1}
-                        strokeDasharray="4,2"
-                      />
-
-                      <circle
-                        cx={hoverPos.svgX - 60}
-                        cy={hoverPos.svgY}
-                        r={5}
-                        fill="#f99207"
-                        stroke="#fff"
-                        strokeWidth={1}
-                      />
-
-                      <text
-                        x={hoverPos.svgX - 50}
-                        y={hoverPos.svgY - 10}
-                        fill="#f99207"
-                        fontSize={12}
-                      >
-                        {formatTime(hoverData.x)}, {formatNumber(hoverData.y)}
-                      </text>
-                    </>
-                  )}
                 </g>
               </g>
 
-              {/* Overlay axes (not affected by zoom) */}
+              {/* Non-zoomed elements (will maintain size) */}
               <g>
+                {/* Hover Effects */}
+                {hoverPos && hoverData && (
+                  <>
+                    <line
+                      x1={hoverPos.svgX}
+                      x2={hoverPos.svgX}
+                      y1={0}
+                      y2={height - 40}
+                      stroke="#f99207"
+                      strokeWidth={1}
+                      strokeDasharray="4,2"
+                    />
+
+                    <circle
+                      cx={hoverPos.svgX}
+                      cy={hoverPos.svgY}
+                      r={5}
+                      fill="#f99207"
+                      stroke="#fff"
+                      strokeWidth={1}
+                    />
+
+                    <text
+                      x={hoverPos.svgX + 10}
+                      y={hoverPos.svgY - 10}
+                      fill="#f99207"
+                      fontSize={12}
+                    >
+                      {formatTimeByScale(hoverData.x)}, {formatNumber(hoverData.y)}
+                    </text>
+                  </>
+                )}
+
                 {/* Y Axis */}
                 <AxisLeft
                   scale={visibleYScale}
@@ -330,7 +377,7 @@ export function Visualization() {
                 <AxisBottom
                   top={height - 40}
                   scale={visibleXScale}
-                  tickFormat={formatTime}
+                  tickFormat={formatTimeByScale}
                   stroke="#bbd4dd"
                   tickStroke="#bbd4dd"
                   tickLabelProps={() => ({

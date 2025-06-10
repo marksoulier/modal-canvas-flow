@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -10,29 +9,53 @@ import { Button } from './ui/button';
 import { Label } from './ui/label';
 import { Input } from './ui/input';
 import { Textarea } from './ui/textarea';
+import type { EventSchema, EventDefinition } from '../types/eventSchema';
 
 interface EventParametersModalProps {
   isOpen: boolean;
   onClose: () => void;
   eventType?: string;
+  schemaPath: string;
 }
 
-const EventParametersModal: React.FC<EventParametersModalProps> = ({ 
-  isOpen, 
-  onClose, 
-  eventType = "Event" 
+const EventParametersModal: React.FC<EventParametersModalProps> = ({
+  isOpen,
+  onClose,
+  eventType = "Event",
+  schemaPath
 }) => {
-  const [parameters, setParameters] = useState({
-    name: '',
-    date: '',
-    amount: '',
-    description: ''
-  });
+  const [schema, setSchema] = useState<EventSchema | null>(null);
+  const [parameters, setParameters] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    const loadSchema = async () => {
+      try {
+        const response = await fetch(schemaPath);
+        const data = await response.json();
+        setSchema(data);
+      } catch (error) {
+        console.error('Error loading schema:', error);
+      }
+    };
+    loadSchema();
+  }, [schemaPath]);
+
+  useEffect(() => {
+    if (schema && eventType) {
+      const event = schema.events.find(e => e.type === eventType);
+      if (event) {
+        const initialParams: Record<string, string> = {};
+        event.parameters.forEach(param => {
+          initialParams[param.type] = param.default.toString();
+        });
+        setParameters(initialParams);
+      }
+    }
+  }, [schema, eventType]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     console.log('Event parameters:', parameters);
-    // Here you would save the event parameters
     onClose();
   };
 
@@ -40,59 +63,36 @@ const EventParametersModal: React.FC<EventParametersModalProps> = ({
     setParameters(prev => ({ ...prev, [field]: value }));
   };
 
+  const getEventDefinition = (): EventDefinition | undefined => {
+    if (!schema || !eventType) return undefined;
+    return schema.events.find(e => e.type === eventType);
+  };
+
+  const event = getEventDefinition();
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Configure {eventType}</DialogTitle>
         </DialogHeader>
-        
+
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="name">Event Name</Label>
-            <Input
-              id="name"
-              value={parameters.name}
-              onChange={(e) => handleInputChange('name', e.target.value)}
-              placeholder="Enter event name"
-              required
-            />
-          </div>
-          
-          <div className="space-y-2">
-            <Label htmlFor="date">Date</Label>
-            <Input
-              type="date"
-              id="date"
-              value={parameters.date}
-              onChange={(e) => handleInputChange('date', e.target.value)}
-              required
-            />
-          </div>
-          
-          <div className="space-y-2">
-            <Label htmlFor="amount">Amount ($)</Label>
-            <Input
-              type="number"
-              id="amount"
-              value={parameters.amount}
-              onChange={(e) => handleInputChange('amount', e.target.value)}
-              placeholder="0.00"
-              step="0.01"
-            />
-          </div>
-          
-          <div className="space-y-2">
-            <Label htmlFor="description">Description</Label>
-            <Textarea
-              id="description"
-              value={parameters.description}
-              onChange={(e) => handleInputChange('description', e.target.value)}
-              rows={3}
-              placeholder="Event description (optional)"
-            />
-          </div>
-          
+          {event?.parameters.map((param) => (
+            <div key={param.type} className="space-y-2">
+              <Label htmlFor={param.type}>{param.description}</Label>
+              <Input
+                id={param.type}
+                value={parameters[param.type] || ''}
+                onChange={(e) => handleInputChange(param.type, e.target.value)}
+                placeholder={`Enter ${param.description.toLowerCase()}`}
+                required
+                type={typeof param.default === 'number' ? 'number' : 'text'}
+                step={typeof param.default === 'number' ? 'any' : undefined}
+              />
+            </div>
+          ))}
+
           <div className="flex gap-3 pt-4">
             <Button type="button" variant="outline" onClick={onClose} className="flex-1">
               Cancel

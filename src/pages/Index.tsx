@@ -121,7 +121,11 @@ const Index = () => {
       {/* Modals */}
       <HelpModal isOpen={helpModalOpen} onClose={() => setHelpModalOpen(false)} />
       <SaveModal isOpen={saveModalOpen} onClose={() => setSaveModalOpen(false)} />
-      <EventLibraryModal isOpen={eventLibraryOpen} onClose={() => setEventLibraryOpen(false)} />
+      <EventLibraryModal
+        isOpen={eventLibraryOpen}
+        onClose={() => setEventLibraryOpen(false)}
+        schemaPath="/assets/event_schema.json"
+      />
       <AuthModal
         isOpen={authModalOpen}
         onClose={() => setAuthModalOpen(false)}
@@ -151,6 +155,7 @@ const Index = () => {
         isOpen={eventParametersOpen}
         onClose={() => setEventParametersOpen(false)}
         eventType="Financial Event"
+        schemaPath="/assets/event_schema.json"
       />
     </div>
   );
