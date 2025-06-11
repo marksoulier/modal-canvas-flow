@@ -21,9 +21,33 @@ const formatNumber = (value: { valueOf(): number }): string => {
     return `$${(num / 1000000).toFixed(1)}M`;
   }
   if (num >= 1000) {
-    return `$${(num / 1000).toFixed(1)}k`;
+    return `$${(num / 1000).toFixed(0)}k`;
   }
   return `$${num.toFixed(0)}`;
+};
+
+// Format date based on time interval
+const formatDate = (daysSinceBirth: number, birthDate: Date, interval: TimeInterval): string => {
+  const date = daysToDate(daysSinceBirth, birthDate);
+
+  switch (interval) {
+    case 'year':
+      return date.getFullYear().toString();
+    case 'month':
+      // Only show year on January
+      if (date.getMonth() === 0) {
+        return `${date.toLocaleString('default', { month: 'short' })} ${date.getFullYear()}`;
+      }
+      return date.toLocaleString('default', { month: 'short' });
+    case 'week':
+    case 'day':
+      return date.toLocaleString('default', {
+        day: 'numeric',
+        month: 'short'
+      });
+    default:
+      return date.toLocaleDateString();
+  }
 };
 
 // Convert days since birth to actual date
@@ -482,6 +506,18 @@ export function Visualization() {
 
                 {/* Main content with zoom transform */}
                 <g transform={`translate(${zoom.transformMatrix.translateX},${zoom.transformMatrix.translateY}) scale(${zoom.transformMatrix.scaleX},${zoom.transformMatrix.scaleY})`}>
+                  {/* Zero line */}
+                  <line
+                    x1={0}
+                    x2={width}
+                    y1={yScale(0)}
+                    y2={yScale(0)}
+                    stroke="#bbd4dd"
+                    strokeWidth={1 / globalZoom}
+                    strokeDasharray="4,4"
+                    opacity={0.8}
+                  />
+
                   {/* Current day indicator line */}
                   <line
                     x1={xScale(currentDaysSinceBirth)}
@@ -599,8 +635,8 @@ export function Visualization() {
                 {
                   (() => {
                     const visibleXDomain = [
-                      xScale.invert((-zoom.transformMatrix.translateX - viewportPadding) / zoom.transformMatrix.scaleX),
-                      xScale.invert((width - zoom.transformMatrix.translateX + viewportPadding) / zoom.transformMatrix.scaleX)
+                      xScale.invert((-zoom.transformMatrix.translateX) / zoom.transformMatrix.scaleX),
+                      xScale.invert((width - zoom.transformMatrix.translateX) / zoom.transformMatrix.scaleX)
                     ];
                     const visibleYDomain = [
                       yScale.invert((height - zoom.transformMatrix.translateY) / zoom.transformMatrix.scaleY),
@@ -623,6 +659,7 @@ export function Visualization() {
                           scale={visibleYScale}
                           stroke="#bbd4dd"
                           tickStroke="#bbd4dd"
+                          tickFormat={(value) => formatNumber(value)}
                           tickLabelProps={() => ({
                             fill: '#335966',
                             fontSize: 12,
@@ -637,6 +674,7 @@ export function Visualization() {
                           scale={visibleXScale}
                           stroke="#bbd4dd"
                           tickStroke="#bbd4dd"
+                          tickFormat={(value) => formatDate(value.valueOf(), birthDate, timeInterval)}
                           tickLabelProps={() => ({
                             fill: '#335966',
                             fontSize: 12,
@@ -667,10 +705,10 @@ export function Visualization() {
                   }}
                 >
                   <div style={{ fontSize: '12px' }}>
-                    <div>Total: {tooltipData.value}</div>
+                    <div>Total: {formatNumber({ valueOf: () => tooltipData.value })}</div>
                     {Object.entries(tooltipData.parts).map(([key, value]) => (
                       <div key={key} style={{ color: partColors[key] }}>
-                        {key}: {value}
+                        {key}: {formatNumber({ valueOf: () => value })}
                       </div>
                     ))}
                   </div>
