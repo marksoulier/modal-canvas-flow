@@ -11,6 +11,44 @@ import { LinearGradient } from '@visx/gradient';
 import { TooltipWithBounds, defaultStyles } from '@visx/tooltip';
 import { runSimulation } from '../hooks/simulationRunner';
 
+// Time interval type for controlling the visualization granularity
+type TimeInterval = 'day' | 'week' | 'month' | 'year';
+
+// Utility functions
+const formatNumber = (value: { valueOf(): number }): string => {
+  const num = value.valueOf();
+  if (num >= 1000000) {
+    return `$${(num / 1000000).toFixed(1)}M`;
+  }
+  if (num >= 1000) {
+    return `$${(num / 1000).toFixed(1)}k`;
+  }
+  return `$${num.toFixed(0)}`;
+};
+
+// Convert days since birth to actual date
+const daysToDate = (daysSinceBirth: number, birthDate: Date): Date => {
+  const result = new Date(birthDate);
+  result.setDate(result.getDate() + daysSinceBirth);
+  return result;
+};
+
+// Get interval in days based on selected time interval
+const getIntervalInDays = (interval: TimeInterval): number => {
+  switch (interval) {
+    case 'day':
+      return 1;
+    case 'week':
+      return 7;
+    case 'month':
+      return 365 / 12;
+    case 'year':
+      return 365;
+    default:
+      return 365;
+  }
+};
+
 interface Datum {
   date: number;
   value: number;
@@ -65,6 +103,9 @@ export function Visualization() {
   const [tooltipTop, setTooltipTop] = useState<number>(0);
   const [isLoading, setIsLoading] = useState(true);
   const [simulationData, setSimulationData] = useState<Datum[]>([]);
+  const [timeInterval, setTimeInterval] = useState<TimeInterval>('year');
+  const [birthDate, setBirthDate] = useState<Date>(new Date(2000, 0, 1)); // Default to Jan 1, 2000
+  const [currentDaysSinceBirth, setCurrentDaysSinceBirth] = useState<number>(0);
   const width = window.innerWidth;
   const height = window.innerHeight;
 
@@ -75,19 +116,45 @@ export function Visualization() {
 
   const startDate: number = 0
   const endDate: number = 30 * 365
-  const interval: number = 365
 
-  // Run simulation when component mounts
+  // Function to determine time interval based on zoom level
+  const getTimeIntervalFromZoom = (zoom: number): TimeInterval => {
+    if (zoom >= 50) return 'day';
+    if (zoom >= 20) return 'week';
+    if (zoom >= 5) return 'month';
+    return 'year';
+  };
+
+  // Load schema and run simulation when component mounts or time interval changes
   useEffect(() => {
-    const runSim = async () => {
+    const loadSchemaAndRunSim = async () => {
       try {
         setIsLoading(true);
+        // Load schema first to get birth date
+        const schemaResponse = await fetch('/assets/event_schema.json');
+        const schema = await schemaResponse.json();
+
+        // Set birth date from schema
+        if (schema.birth_date) {
+          const birthDateObj = new Date(schema.birth_date);
+          setBirthDate(birthDateObj);
+
+          // Calculate current days since birth
+          const currentDate = new Date();
+          const daysSinceBirth = Math.floor(
+            (currentDate.getTime() - birthDateObj.getTime()) / (1000 * 60 * 60 * 24)
+          );
+          setCurrentDaysSinceBirth(daysSinceBirth);
+          console.log('Current days since birth:', daysSinceBirth);
+        }
+
+        // Run simulation with updated parameters
         const result = await runSimulation(
           '/assets/plan.json',
           '/assets/event_schema.json',
           startDate,
           endDate,
-          interval
+          getIntervalInDays(timeInterval)
         );
         console.log('Loaded Financial Results:', result);
         setSimulationData(result?.["Cash"] ?? []);
@@ -98,8 +165,8 @@ export function Visualization() {
       }
     };
 
-    runSim();
-  }, []);
+    loadSchemaAndRunSim();
+  }, [timeInterval]); // Re-run when time interval changes
 
   // Calculate stacked data from simulation results
   const stackedData = useMemo(() => {
@@ -198,9 +265,9 @@ export function Visualization() {
         width={width}
         height={height}
         scaleXMin={0.8}
-        scaleXMax={10}
-        scaleYMin={0 - 8}
-        scaleYMax={10}
+        scaleXMax={100}
+        scaleYMin={0.8}
+        scaleYMax={100}
         initialTransformMatrix={{
           scaleX: 0.8,
           scaleY: 0.8,
@@ -217,6 +284,34 @@ export function Visualization() {
             svgPoint.y = e.clientY;
             return svgPoint.matrixTransform(svgRef.current!.getScreenCTM()!.inverse());
           };
+
+          // Calculate global zoom level (average of x and y scale)
+          const globalZoom = (zoom.transformMatrix.scaleX + zoom.transformMatrix.scaleY) / 2;
+
+          // Calculate visible date range based on current viewport with padding
+          const viewportPadding = width * 0.2; // 20% padding on each side
+          const visibleXDomain = [
+            xScale.invert((-zoom.transformMatrix.translateX - viewportPadding) / zoom.transformMatrix.scaleX),
+            xScale.invert((width - zoom.transformMatrix.translateX + viewportPadding) / zoom.transformMatrix.scaleX)
+          ];
+
+          // Filter data points to only those in viewport
+          const visibleData = simulationData.filter(d =>
+            d.date >= visibleXDomain[0] && d.date <= visibleXDomain[1]
+          );
+
+          // Update time interval based on zoom level
+          useEffect(() => {
+            const newInterval = getTimeIntervalFromZoom(globalZoom);
+            if (newInterval !== timeInterval) {
+              setTimeInterval(newInterval);
+            }
+          }, [globalZoom]);
+
+          // Calculate adjusted sizes based on zoom
+          const adjustedLineWidth = baseLineWidth / globalZoom;
+          const adjustedTextSize = baseTextSize / globalZoom;
+          const adjustedPointRadius = basePointRadius / globalZoom;
 
           const handleAnnotationDragStart = (e: React.MouseEvent, index: number) => {
             e.stopPropagation();
@@ -266,14 +361,6 @@ export function Visualization() {
             setDraggingAnnotation(null);
             setClosestPoint(null);
           };
-
-          // Calculate global zoom level (average of x and y scale)
-          const globalZoom = (zoom.transformMatrix.scaleX + zoom.transformMatrix.scaleY) / 2;
-
-          // Calculate adjusted sizes based on zoom
-          const adjustedLineWidth = baseLineWidth / globalZoom;
-          const adjustedTextSize = baseTextSize / globalZoom;
-          const adjustedPointRadius = basePointRadius / globalZoom;
 
           return (
             <>
@@ -379,32 +466,6 @@ export function Visualization() {
 
                 <rect width={width} height={height} fill="#f7fafb" />
 
-                {/* Crosshair */}
-                {cursorPos && (
-                  <>
-                    <line
-                      x1={0}
-                      x2={width}
-                      y1={cursorPos.y}
-                      y2={cursorPos.y}
-                      stroke="#335966"
-                      strokeWidth={adjustedLineWidth}
-                      strokeDasharray="4,4"
-                      opacity={0.5}
-                    />
-                    <line
-                      x1={cursorPos.x}
-                      x2={cursorPos.x}
-                      y1={0}
-                      y2={height}
-                      stroke="#335966"
-                      strokeWidth={adjustedLineWidth}
-                      strokeDasharray="4,4"
-                      opacity={0.5}
-                    />
-                  </>
-                )}
-
                 {/* Closest Point Vertical Line */}
                 {closestPoint && cursorPos && (
                   <line
@@ -421,11 +482,23 @@ export function Visualization() {
 
                 {/* Main content with zoom transform */}
                 <g transform={`translate(${zoom.transformMatrix.translateX},${zoom.transformMatrix.translateY}) scale(${zoom.transformMatrix.scaleX},${zoom.transformMatrix.scaleY})`}>
+                  {/* Current day indicator line */}
+                  <line
+                    x1={xScale(currentDaysSinceBirth)}
+                    x2={xScale(currentDaysSinceBirth)}
+                    y1={0}
+                    y2={height}
+                    stroke="#ff0000"
+                    strokeWidth={2 / globalZoom}
+                    strokeDasharray="4,4"
+                    opacity={0.8}
+                  />
+
                   {/* Add stacked areas */}
                   {Object.keys(simulationData[0]?.parts || {}).map((partKey, index, keys) => (
                     <AreaClosed
                       key={`area-${partKey}`}
-                      data={stackedData}
+                      data={visibleData}
                       x={(d: StackedDatum) => xScale(d.date)}
                       y0={(d: StackedDatum) => {
                         const prevValue = index === 0 ? 0 : d.stackedParts[keys[index - 1]];
@@ -445,7 +518,7 @@ export function Visualization() {
                   {Object.keys(simulationData[0]?.parts || {}).map((partKey) => (
                     <LinePath
                       key={`line-${partKey}`}
-                      data={stackedData}
+                      data={visibleData}
                       x={(d: StackedDatum) => xScale(d.date)}
                       y={(d: StackedDatum) => yScale(d.stackedParts[partKey])}
                       stroke={partColors[partKey]}
@@ -457,7 +530,7 @@ export function Visualization() {
 
                   {/* Total line */}
                   <LinePath
-                    data={stackedData}
+                    data={visibleData}
                     x={(d: StackedDatum) => xScale(d.date)}
                     y={(d: StackedDatum) => yScale(d.value)}
                     stroke="#335966"
@@ -466,7 +539,7 @@ export function Visualization() {
                   />
 
                   {/* Data Points */}
-                  {simulationData.map((point, index) => {
+                  {visibleData.map((point, index) => {
                     const canvasX = xScale(point.date);
                     const canvasY = yScale(point.value);
                     return (
@@ -526,8 +599,8 @@ export function Visualization() {
                 {
                   (() => {
                     const visibleXDomain = [
-                      xScale.invert((-zoom.transformMatrix.translateX) / zoom.transformMatrix.scaleX),
-                      xScale.invert((width - zoom.transformMatrix.translateX) / zoom.transformMatrix.scaleX)
+                      xScale.invert((-zoom.transformMatrix.translateX - viewportPadding) / zoom.transformMatrix.scaleX),
+                      xScale.invert((width - zoom.transformMatrix.translateX + viewportPadding) / zoom.transformMatrix.scaleX)
                     ];
                     const visibleYDomain = [
                       yScale.invert((height - zoom.transformMatrix.translateY) / zoom.transformMatrix.scaleY),
@@ -576,271 +649,6 @@ export function Visualization() {
                     );
                   })()
                 }
-
-                {/* Debug Info */}
-                <g transform={`translate(${width - 300}, 20)`}>
-                  <text
-                    fill="#335966"
-                    fontSize={12}
-                    textAnchor="start"
-                    fontWeight="bold"
-                  >
-                    {`Global Zoom: ${globalZoom.toFixed(2)}x`}
-                  </text>
-
-                  {/* Viewport Info */}
-                  <text
-                    fill="#335966"
-                    fontSize={12}
-                    textAnchor="start"
-                    y={20}
-                    fontWeight="bold"
-                  >
-                    Viewport:
-                  </text>
-                  <text
-                    fill="#335966"
-                    fontSize={12}
-                    textAnchor="start"
-                    y={40}
-                  >
-                    {`Width: ${width}px`}
-                  </text>
-                  <text
-                    fill="#335966"
-                    fontSize={12}
-                    textAnchor="start"
-                    y={60}
-                  >
-                    {`Height: ${height}px`}
-                  </text>
-
-                  {/* Scale Info */}
-                  <text
-                    fill="#335966"
-                    fontSize={12}
-                    textAnchor="start"
-                    y={100}
-                    fontWeight="bold"
-                  >
-                    Scale Domains:
-                  </text>
-                  <text
-                    fill="#335966"
-                    fontSize={12}
-                    textAnchor="start"
-                    y={120}
-                  >
-                    {`X Scale: [${xScale.domain()[0]} → ${xScale.domain()[1]}]`}
-                  </text>
-                  <text
-                    fill="#335966"
-                    fontSize={12}
-                    textAnchor="start"
-                    y={140}
-                  >
-                    {`X Range: [${xScale.range()[0]} → ${xScale.range()[1]}]`}
-                  </text>
-                  <text
-                    fill="#335966"
-                    fontSize={12}
-                    textAnchor="start"
-                    y={160}
-                  >
-                    {`Y Scale: [${yScale.domain()[0]} → ${yScale.domain()[1]}]`}
-                  </text>
-                  <text
-                    fill="#335966"
-                    fontSize={12}
-                    textAnchor="start"
-                    y={180}
-                  >
-                    {`Y Range: [${yScale.range()[0]} → ${yScale.range()[1]}]`}
-                  </text>
-
-                  {/* Visible Domain Calculations */}
-                  <text
-                    fill="#335966"
-                    fontSize={12}
-                    textAnchor="start"
-                    y={220}
-                    fontWeight="bold"
-                  >
-                    Visible Domain Calculations:
-                  </text>
-                  <text
-                    fill="#335966"
-                    fontSize={12}
-                    textAnchor="start"
-                    y={240}
-                  >
-                    {`X Left: (-${zoom.transformMatrix.translateX} / ${zoom.transformMatrix.scaleX.toFixed(2)})`}
-                  </text>
-                  <text
-                    fill="#335966"
-                    fontSize={12}
-                    textAnchor="start"
-                    y={260}
-                  >
-                    {`X Right: (${width - zoom.transformMatrix.translateX} / ${zoom.transformMatrix.scaleX.toFixed(2)})`}
-                  </text>
-                  <text
-                    fill="#335966"
-                    fontSize={12}
-                    textAnchor="start"
-                    y={280}
-                  >
-                    {`Y Bottom: (${height - zoom.transformMatrix.translateY} / ${zoom.transformMatrix.scaleY.toFixed(2)})`}
-                  </text>
-                  <text
-                    fill="#335966"
-                    fontSize={12}
-                    textAnchor="start"
-                    y={300}
-                  >
-                    {`Y Top: (-${zoom.transformMatrix.translateY} / ${zoom.transformMatrix.scaleY.toFixed(2)})`}
-                  </text>
-
-                  {/* Visible Domain Results */}
-                  <text
-                    fill="#335966"
-                    fontSize={12}
-                    textAnchor="start"
-                    y={340}
-                    fontWeight="bold"
-                  >
-                    Visible Domain:
-                  </text>
-                  <text
-                    fill="#335966"
-                    fontSize={12}
-                    textAnchor="start"
-                    y={360}
-                  >
-                    {`X: [${xScale.invert((-zoom.transformMatrix.translateX) / zoom.transformMatrix.scaleX).toFixed(1)} → ${xScale.invert((width - zoom.transformMatrix.translateX) / zoom.transformMatrix.scaleX).toFixed(1)}]`}
-                  </text>
-                  <text
-                    fill="#335966"
-                    fontSize={12}
-                    textAnchor="start"
-                    y={380}
-                  >
-                    {`Y: [${yScale.invert((height - zoom.transformMatrix.translateY) / zoom.transformMatrix.scaleY).toFixed(1)} → ${yScale.invert((-zoom.transformMatrix.translateY) / zoom.transformMatrix.scaleY).toFixed(1)}]`}
-                  </text>
-
-                  {/* Transform Matrix */}
-                  <text
-                    fill="#335966"
-                    fontSize={12}
-                    textAnchor="start"
-                    y={420}
-                    fontWeight="bold"
-                  >
-                    Transform Matrix:
-                  </text>
-                  <text
-                    fill="#335966"
-                    fontSize={12}
-                    textAnchor="start"
-                    y={440}
-                  >
-                    {`Scale X: ${zoom.transformMatrix.scaleX.toFixed(2)}x`}
-                  </text>
-                  <text
-                    fill="#335966"
-                    fontSize={12}
-                    textAnchor="start"
-                    y={460}
-                  >
-                    {`Scale Y: ${zoom.transformMatrix.scaleY.toFixed(2)}x`}
-                  </text>
-                  <text
-                    fill="#335966"
-                    fontSize={12}
-                    textAnchor="start"
-                    y={480}
-                  >
-                    {`Translate X: ${zoom.transformMatrix.translateX.toFixed(0)}px`}
-                  </text>
-                  <text
-                    fill="#335966"
-                    fontSize={12}
-                    textAnchor="start"
-                    y={500}
-                  >
-                    {`Translate Y: ${zoom.transformMatrix.translateY.toFixed(0)}px`}
-                  </text>
-
-                  {/* Cursor Position */}
-                  {cursorPos && (
-                    <>
-                      <text
-                        fill="#335966"
-                        fontSize={12}
-                        textAnchor="start"
-                        y={540}
-                        fontWeight="bold"
-                      >
-                        Cursor Position:
-                      </text>
-                      <text
-                        fill="#335966"
-                        fontSize={12}
-                        textAnchor="start"
-                        y={560}
-                      >
-                        {`Screen: (${cursorPos.x.toFixed(0)}, ${cursorPos.y.toFixed(0)})`}
-                      </text>
-                      <text
-                        fill="#335966"
-                        fontSize={12}
-                        textAnchor="start"
-                        y={580}
-                      >
-                        {`Canvas: (${xScale.invert((cursorPos.x - zoom.transformMatrix.translateX) / zoom.transformMatrix.scaleX).toFixed(1)}, ${yScale.invert((cursorPos.y - zoom.transformMatrix.translateY) / zoom.transformMatrix.scaleY).toFixed(1)})`}
-                      </text>
-                      <text
-                        fill="#335966"
-                        fontSize={12}
-                        textAnchor="start"
-                        y={600}
-                      >
-                        {`Graph: (${xScale.invert((cursorPos.x - zoom.transformMatrix.translateX) / zoom.transformMatrix.scaleX).toFixed(1)}, ${yScale.invert((cursorPos.y - zoom.transformMatrix.translateY) / zoom.transformMatrix.scaleY).toFixed(1)})`}
-                      </text>
-                    </>
-                  )}
-
-                  {/* Drag Offset Info */}
-                  {draggingAnnotation && (
-                    <>
-                      <text
-                        fill="#335966"
-                        fontSize={12}
-                        textAnchor="start"
-                        y={640}
-                        fontWeight="bold"
-                      >
-                        Drag Offset:
-                      </text>
-                      <text
-                        fill="#335966"
-                        fontSize={12}
-                        textAnchor="start"
-                        y={660}
-                      >
-                        {`Offset: (${draggingAnnotation.offsetX.toFixed(0)}, ${draggingAnnotation.offsetY.toFixed(0)})`}
-                      </text>
-                      <text
-                        fill="#335966"
-                        fontSize={12}
-                        textAnchor="start"
-                        y={680}
-                      >
-                        {`Position: (${(cursorPos!.x - draggingAnnotation.offsetX).toFixed(0)}, ${(cursorPos!.y - draggingAnnotation.offsetY).toFixed(0)})`}
-                      </text>
-                    </>
-                  )}
-                </g>
               </svg>
 
               {tooltipData && (

@@ -1,7 +1,7 @@
 {
-    "current_time_days": 0,
     "inflation_rate": 0.03,
     "adjust_for_inflation": true,
+    "birth_date": "2000-01-01",
     "envelopes": [
         "Cash",
         "House",
@@ -13,6 +13,7 @@
         {
             "type": "purchase",
             "category": "Living Expenses",
+            "weight": 5,
             "description": "Basic purchase or spending of money",
             "icon": "shopping-cart",
             "parameters": [
@@ -35,6 +36,7 @@
         },
         {
             "type": "gift",
+            "weight": 10,
             "category": "Living Expenses",
             "description": " gift of money from something",
             "icon": "gift",
@@ -58,6 +60,7 @@
         },
         {
             "type": "get_job",
+            "weight": 90,
             "category": "Income & Employment",
             "description": "Start earning a salary from employment.",
             "icon": "briefcase",
@@ -174,6 +177,7 @@
         },
         {
             "type": "start_business",
+            "weight": 80,
             "category": "Income & Employment",
             "description": "Start your own business by investing capital.",
             "icon": "factory",
@@ -253,6 +257,7 @@
         },
         {
             "type": "retirement",
+            "weight": 70,
             "category": "Income & Employment",
             "description": "Transition from employment to retirement with withdrawals.",
             "icon": "moon",
@@ -291,6 +296,7 @@
         },
         {
             "type": "buy_house",
+            "weight": 80,
             "category": "Major Purchases",
             "description": "Purchase a home with mortgage terms.",
             "icon": "home",
@@ -559,6 +565,7 @@
         },
         {
             "type": "buy_car",
+            "weight": 40,
             "category": "Major Purchases",
             "description": "Purchase a car with or without a loan.",
             "icon": "car",
@@ -648,6 +655,7 @@
         },
         {
             "type": "have_kid",
+            "weight": 50,
             "category": "Life Events",
             "description": "Have a child and incur related early-life costs.",
             "icon": "baby",
@@ -737,6 +745,7 @@
         },
         {
             "type": "marriage",
+            "weight": 40,
             "category": "Life Events",
             "description": "Get married and incur event-related expenses.",
             "icon": "ring",
@@ -760,6 +769,7 @@
         },
         {
             "type": "divorce",
+            "weight": 60,
             "category": "Life Events",
             "description": "Divorce settlement and legal costs.",
             "icon": "split",
@@ -788,6 +798,7 @@
         },
         {
             "type": "pass_away",
+            "weight": 90,
             "category": "Life Events",
             "description": "Death of the individual and end-of-life costs.",
             "icon": "skull",
@@ -801,6 +812,7 @@
         },
         {
             "type": "buy_health_insurance",
+            "weight": 60,
             "category": "Health & Insurance",
             "description": "Purchase a health insurance plan with monthly payments.",
             "icon": "stethoscope",
@@ -868,6 +880,7 @@
         },
         {
             "type": "buy_life_insurance",
+            "weight": 70,
             "category": "Health & Insurance",
             "description": "Buy term life insurance to protect dependents.",
             "icon": "heart-pulse",
@@ -925,6 +938,7 @@
         },
         {
             "type": "receive_government_aid",
+            "weight": 50,
             "category": "Taxes & Government",
             "description": "Regular cash benefits from government programs.",
             "icon": "hand-coins",
@@ -958,6 +972,7 @@
         },
         {
             "type": "invest_money",
+            "weight": 70,
             "category": "Investments & Assets",
             "description": "Invest a lump sum into the stock market or similar vehicle.",
             "icon": "trending-up",
@@ -1042,6 +1057,7 @@
         },
         {
             "type": "high_yield_savings_account",
+            "weight": 50,
             "category": "Investments & Assets",
             "description": "Open a high-yield savings account that earns daily interest.",
             "icon": "banknote",
@@ -1075,6 +1091,7 @@
         },
         {
             "type": "pay_taxes",
+            "weight": 30,
             "category": "Taxes & Government",
             "description": "Annual payment of federal and state taxes.",
             "icon": "file-text",
@@ -1122,6 +1139,7 @@
         },
         {
             "type": "buy_groceries",
+            "weight": 15,
             "category": "Living Expenses",
             "description": "Spend a recurring amount on monthly groceries.",
             "icon": "shopping-cart",
@@ -1174,6 +1192,7 @@
         },
         {
             "type": "manual_correction",
+            "weight": 85,
             "category": "System",
             "description": "Manually adjust the value of an envelope for tracking accuracy.",
             "icon": "edit",
