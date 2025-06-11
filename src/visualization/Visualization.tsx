@@ -10,6 +10,7 @@ import { curveLinear } from '@visx/curve';
 import { LinearGradient } from '@visx/gradient';
 import { TooltipWithBounds, defaultStyles } from '@visx/tooltip';
 import { runSimulation } from '../hooks/simulationRunner';
+import { usePlan } from '../contexts/PlanContext';
 
 // Time interval type for controlling the visualization granularity
 type TimeInterval = 'day' | 'week' | 'month' | 'year';
@@ -133,6 +134,8 @@ export function Visualization() {
   const width = window.innerWidth;
   const height = window.innerHeight;
 
+  const { plan, loadDefaultPlan } = usePlan();
+
   // Base sizes that will be adjusted by zoom
   const baseLineWidth = 2;
   const baseTextSize = 10;
@@ -172,9 +175,14 @@ export function Visualization() {
           console.log('Current days since birth:', daysSinceBirth);
         }
 
-        // Run simulation with updated parameters
+        // If no plan in context, load default plan
+        if (!plan) {
+          await loadDefaultPlan();
+        }
+
+        // Run simulation with plan from context
         const result = await runSimulation(
-          '/assets/plan.json',
+          plan!,
           '/assets/event_schema.json',
           startDate,
           endDate,
@@ -190,7 +198,7 @@ export function Visualization() {
     };
 
     loadSchemaAndRunSim();
-  }, [timeInterval]); // Re-run when time interval changes
+  }, [timeInterval, plan, loadDefaultPlan]); // Re-run when time interval or plan changes
 
   // Calculate stacked data from simulation results
   const stackedData = useMemo(() => {

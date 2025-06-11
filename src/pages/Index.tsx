@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Menu, HelpCircle, Plus, Save, FileText, FolderOpen, Settings } from 'lucide-react';
 import {
   DropdownMenu,
@@ -16,6 +16,7 @@ import SubscriptionModal from '../components/SubscriptionModal';
 import TimelineAnnotation from '../components/TimelineAnnotation';
 import EventParametersModal from '../components/EventParametersModal';
 import { Visualization } from '../visualization/Visualization';
+import { usePlan } from '../contexts/PlanContext';
 
 const Index = () => {
   const [helpModalOpen, setHelpModalOpen] = useState(false);
@@ -25,18 +26,33 @@ const Index = () => {
   const [settingsModalOpen, setSettingsModalOpen] = useState(false);
   const [subscriptionModalOpen, setSubscriptionModalOpen] = useState(false);
   const [eventParametersOpen, setEventParametersOpen] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Mock authentication state - replace with real auth logic
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
+  const { loadPlanFromFile, savePlanToFile } = usePlan();
+
   const handleExport = () => {
-    // Export functionality - placeholder for now
-    console.log('Exporting financial plan...');
+    savePlanToFile();
   };
 
   const handleOpen = () => {
-    // Open functionality - placeholder for now
-    console.log('Opening file...');
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    }
+  };
+
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      try {
+        await loadPlanFromFile(file);
+      } catch (error) {
+        console.error('Error loading file:', error);
+        // TODO: Show error toast
+      }
+    }
   };
 
   const handleSettings = () => {
@@ -53,6 +69,15 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-white relative overflow-hidden">
+      {/* Hidden file input */}
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={handleFileChange}
+        accept=".json"
+        className="hidden"
+      />
+
       {/* Visualization as background layer */}
       <div className="absolute inset-0 z-0">
         <Visualization />

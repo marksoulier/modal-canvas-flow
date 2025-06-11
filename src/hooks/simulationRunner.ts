@@ -21,6 +21,13 @@ interface SimulationResult {
     Cash: Datum[];
 }
 
+interface Plan {
+    current_time_days: number;
+    inflation_rate: number;
+    adjust_for_inflation: boolean;
+    events: any[];
+}
+
 export function initializeEnvelopes(): Record<string, ((t: number) => number)[]> {
     return {
         Cash: [],
@@ -32,23 +39,18 @@ export function initializeEnvelopes(): Record<string, ((t: number) => number)[]>
 }
 
 export async function runSimulation(
-    planPath: string,
+    plan: Plan,
     eventSchemaPath: string,
     startDate: number = 0,
     endDate: number = 30 * 365,
     interval: number = 365
 ): Promise<SimulationResult> {
     try {
-        const [planResponse, schemaResponse] = await Promise.all([
-            fetch(planPath),
-            fetch(eventSchemaPath)
-        ]);
-
-        if (!planResponse.ok || !schemaResponse.ok) {
-            throw new Error('Failed to load simulation data');
+        // Load schema
+        const schemaResponse = await fetch(eventSchemaPath);
+        if (!schemaResponse.ok) {
+            throw new Error('Failed to load schema data');
         }
-
-        const plan = await planResponse.json();
         const schema = await schemaResponse.json();
 
         const schemaMap = extractSchema(schema);
