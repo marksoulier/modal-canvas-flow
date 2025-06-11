@@ -10,8 +10,15 @@ import {
 import { evaluateResults } from './resultsEvaluation';
 
 interface Datum {
-    x: number;
-    y: number;
+    date: number;
+    value: number;
+    parts: {
+        [key: string]: number;
+    };
+}
+
+interface SimulationResult {
+    Cash: Datum[];
 }
 
 export function initializeEnvelopes(): Record<string, ((t: number) => number)[]> {
@@ -24,21 +31,36 @@ export function initializeEnvelopes(): Record<string, ((t: number) => number)[]>
     };
 }
 
-export async function runSimulation(planPath: string, schemaPath: string): Promise<Record<string, Datum[]> | undefined> {
+export async function runSimulation(
+    planPath: string,
+    eventSchemaPath: string,
+    startDate: number = 0,
+    endDate: number = 30 * 365,
+    interval: number = 365
+): Promise<SimulationResult> {
     try {
-        const schemaDict = await fetch(schemaPath).then(res => res.json());
-        const problemDict = await fetch(planPath).then(res => res.json());
+        const [planResponse, schemaResponse] = await Promise.all([
+            fetch(planPath),
+            fetch(eventSchemaPath)
+        ]);
 
-        const schemaMap = extractSchema(schemaDict);
-        const issues = validateProblem(problemDict, schemaMap);
+        if (!planResponse.ok || !schemaResponse.ok) {
+            throw new Error('Failed to load simulation data');
+        }
+
+        const plan = await planResponse.json();
+        const schema = await schemaResponse.json();
+
+        const schemaMap = extractSchema(schema);
+        const issues = validateProblem(plan, schemaMap);
 
         if (issues.length > 0) {
             console.error("❌ Validation issues found:");
             for (const issue of issues) console.error(issue);
-            return;
+            return { Cash: [] };
         }
 
-        const parsedEvents = parseEvents(problemDict);
+        const parsedEvents = parseEvents(plan);
         const envelopes = initializeEnvelopes();
 
         for (const event of parsedEvents) {
@@ -67,20 +89,24 @@ export async function runSimulation(planPath: string, schemaPath: string): Promi
             }
         }
 
-        const tEnd = 30 * 365;
-        const interval = 5;
-        const results = evaluateResults(envelopes, 0, tEnd, interval);
+        const results = evaluateResults(envelopes, startDate, endDate, interval);
 
         const data: Record<string, Datum[]> = {};
-        const timePoints = Array.from({ length: Math.ceil(tEnd / interval) }, (_, i) => i * interval);
+        const timePoints = Array.from({ length: Math.ceil(endDate / interval) }, (_, i) => i * interval);
 
         for (const [key, values] of Object.entries(results)) {
-            data[key] = values.map((y, i) => ({ x: timePoints[i], y }));
+            data[key] = values.map((y, i) => ({
+                date: timePoints[i],
+                value: y,
+                parts: {}
+            }));
         }
 
-        return data;
+        return {
+            Cash: data.Cash || []
+        };
     } catch (error) {
-        console.error('❌ Error in runSimulation:', error);
+        console.error('Error running simulation:', error);
         throw error;
     }
 }
