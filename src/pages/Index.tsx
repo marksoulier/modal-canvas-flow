@@ -1,3 +1,4 @@
+
 import React, { useState, useRef } from 'react';
 import { Menu, HelpCircle, Plus, Save, FileText, FolderOpen, Settings } from 'lucide-react';
 import {
@@ -14,7 +15,7 @@ import AuthModal from '../components/AuthModal';
 import SettingsModal from '../components/SettingsModal';
 import SubscriptionModal from '../components/SubscriptionModal';
 import TimelineAnnotation from '../components/TimelineAnnotation';
-import EventParametersModal from '../components/EventParametersModal';
+import EventParametersForm from '../components/EventParametersForm';
 import { Visualization } from '../visualization/Visualization';
 import { usePlan } from '../contexts/PlanContext';
 
@@ -65,6 +66,17 @@ const Index = () => {
 
   const handleTimelineAnnotationClick = () => {
     setEventParametersOpen(true);
+  };
+
+  const handleSaveEvent = (parameters: Record<string, any>) => {
+    console.log('Saving event with parameters:', parameters);
+    // Add your event saving logic here
+  };
+
+  const handleDeleteEvent = () => {
+    console.log('Deleting event');
+    // Add your event deletion logic here
+    setEventParametersOpen(false);
   };
 
   return (
@@ -176,9 +188,11 @@ const Index = () => {
         isOpen={subscriptionModalOpen}
         onClose={() => setSubscriptionModalOpen(false)}
       />
-      <EventParametersModal
+      <EventParametersForm
         isOpen={eventParametersOpen}
         onClose={() => setEventParametersOpen(false)}
+        onSave={handleSaveEvent}
+        onDelete={handleDeleteEvent}
         eventType="Financial Event"
         schemaPath="/assets/event_schema.json"
       />
