@@ -4,17 +4,19 @@ import { User } from 'lucide-react';
 interface TimelineAnnotationProps {
   onClick?: () => void;
   className?: string;
+  icon?: React.ReactNode;
+  label?: string;
 }
 
-const TimelineAnnotation: React.FC<TimelineAnnotationProps> = ({ onClick, className = '' }) => {
+const TimelineAnnotation: React.FC<TimelineAnnotationProps> = ({ onClick, className = '', icon, label }) => {
   return (
     <div
       className={`relative cursor-pointer ${className}`}
       onClick={onClick}
     >
       {/* Main rounded rectangle with icon */}
-      <div className="bg-white border-2 border-gray-300 rounded-lg shadow-md hover:shadow-lg transition-shadow duration-200 p-3 w-12 h-12 flex items-center justify-center">
-        <User size={20} className="text-gray-600" />
+      <div className="bg-white border-2 border-gray-300 rounded-lg shadow-md hover:shadow-lg transition-shadow duration-200 p-3 w-12 h-12 flex flex-col items-center justify-center">
+        {icon ? icon : <User size={20} className="text-gray-600" />}
       </div>
 
       {/* Droplet connector */}

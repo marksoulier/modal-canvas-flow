@@ -12,9 +12,11 @@ import { supabase } from '../integrations/supabase/client';
 interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onSignIn: () => void;
+  onUpgrade?: () => void;
 }
 
-const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
+const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSignIn, onUpgrade }) => {
   const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -33,11 +35,17 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
       } else {
         await signIn(email, password);
       }
-      onClose();
+
+      console.log('Authentication completed, calling onSignIn');
+      onSignIn();
     } catch (err) {
+      console.error('Authentication error:', err);
       setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
+      console.log('Authentication process finished, setting loading to false');
       setIsLoading(false);
+      setEmail('');
+      setPassword('');
     }
   };
 
@@ -62,7 +70,10 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={(open) => {
+      console.log('Dialog open state changing to:', open);
+      if (!open) onClose();
+    }}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>{isSignUp ? 'Create Account' : 'Welcome Back'}</DialogTitle>
@@ -150,7 +161,10 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
           <div className="text-center">
             <button
               type="button"
-              onClick={() => setIsSignUp(!isSignUp)}
+              onClick={() => {
+                console.log('Switching auth mode to:', !isSignUp ? 'sign up' : 'sign in');
+                setIsSignUp(!isSignUp);
+              }}
               className="text-sm text-blue-600 hover:text-blue-500"
             >
               {isSignUp ? 'Already have an account? Sign In' : "Don't have an account? Sign Up"}

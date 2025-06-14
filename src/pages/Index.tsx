@@ -13,8 +13,7 @@ import EventLibraryModal from '../components/EventLibraryModal';
 import AuthModal from '../components/AuthModal';
 import SettingsModal from '../components/SettingsModal';
 import SubscriptionModal from '../components/SubscriptionModal';
-import TimelineAnnotation from '../components/TimelineAnnotation';
-import EventParametersModal from '../components/EventParametersModal';
+import EventParametersForm from '../components/EventParameterForm';
 import { Visualization } from '../visualization/Visualization';
 import { usePlan } from '../contexts/PlanContext';
 
@@ -26,12 +25,18 @@ const Index = () => {
   const [settingsModalOpen, setSettingsModalOpen] = useState(false);
   const [subscriptionModalOpen, setSubscriptionModalOpen] = useState(false);
   const [eventParametersOpen, setEventParametersOpen] = useState(false);
+  const [editingEventId, setEditingEventId] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Mock authentication state - replace with real auth logic
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   const { loadPlanFromFile, savePlanToFile } = usePlan();
+
+  const handleAnnotationClick = (eventId: number) => {
+    setEditingEventId(eventId);
+    setEventParametersOpen(true);
+  };
 
   const handleExport = () => {
     savePlanToFile();
@@ -63,10 +68,6 @@ const Index = () => {
     }
   };
 
-  const handleTimelineAnnotationClick = () => {
-    setEventParametersOpen(true);
-  };
-
   return (
     <div className="min-h-screen bg-white relative overflow-hidden">
       {/* Hidden file input */}
@@ -80,7 +81,7 @@ const Index = () => {
 
       {/* Visualization as background layer */}
       <div className="absolute inset-0 z-0">
-        <Visualization />
+        <Visualization onAnnotationClick={handleAnnotationClick} />
       </div>
 
       {/* Overlay elements with higher z-index */}
@@ -149,7 +150,10 @@ const Index = () => {
       <EventLibraryModal
         isOpen={eventLibraryOpen}
         onClose={() => setEventLibraryOpen(false)}
-        schemaPath="/assets/event_schema.json"
+        onEventAdded={(eventId) => {
+          setEditingEventId(eventId);
+          setEventParametersOpen(true);
+        }}
       />
       <AuthModal
         isOpen={authModalOpen}
@@ -176,11 +180,13 @@ const Index = () => {
         isOpen={subscriptionModalOpen}
         onClose={() => setSubscriptionModalOpen(false)}
       />
-      <EventParametersModal
+      <EventParametersForm
         isOpen={eventParametersOpen}
-        onClose={() => setEventParametersOpen(false)}
-        eventType="Financial Event"
-        schemaPath="/assets/event_schema.json"
+        onClose={() => {
+          setEventParametersOpen(false);
+          setEditingEventId(null);
+        }}
+        eventId={editingEventId!}
       />
     </div>
   );

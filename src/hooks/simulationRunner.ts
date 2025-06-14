@@ -8,6 +8,7 @@ import {
     high_yield_savings_account, pay_taxes, buy_groceries, manual_correction
 } from './baseFunctions';
 import { evaluateResults } from './resultsEvaluation';
+import type { Plan, Schema } from '../contexts/PlanContext';
 
 interface Datum {
     date: number;
@@ -19,13 +20,6 @@ interface Datum {
 
 interface SimulationResult {
     Cash: Datum[];
-}
-
-interface Plan {
-    current_time_days: number;
-    inflation_rate: number;
-    adjust_for_inflation: boolean;
-    events: any[];
 }
 
 export function initializeEnvelopes(): Record<string, ((t: number) => number)[]> {
@@ -40,19 +34,12 @@ export function initializeEnvelopes(): Record<string, ((t: number) => number)[]>
 
 export async function runSimulation(
     plan: Plan,
-    eventSchemaPath: string,
+    schema: Schema,
     startDate: number = 0,
     endDate: number = 30 * 365,
     interval: number = 365
 ): Promise<SimulationResult> {
     try {
-        // Load schema
-        const schemaResponse = await fetch(eventSchemaPath);
-        if (!schemaResponse.ok) {
-            throw new Error('Failed to load schema data');
-        }
-        const schema = await schemaResponse.json();
-
         const schemaMap = extractSchema(schema);
         const issues = validateProblem(plan, schemaMap);
 

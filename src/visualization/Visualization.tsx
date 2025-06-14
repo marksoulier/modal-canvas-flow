@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect, useMemo } from 'react';
+import { useRef, useState, useEffect, useMemo, useCallback } from 'react';
 import { Zoom } from '@visx/zoom';
 import { scaleLinear } from '@visx/scale';
 import { LinePath } from '@visx/shape';
@@ -104,9 +104,14 @@ interface ZoomObject {
 }
 
 interface DraggingAnnotation {
-  index: number;
+  index: number; // the day/data point
+  eventId: number;
   offsetX: number;
   offsetY: number;
+}
+
+interface VisualizationProps {
+  onAnnotationClick?: (eventId: number) => void;
 }
 
 // Colors for each part
@@ -116,13 +121,13 @@ const partColors: Record<string, string> = {
   envelope3: '#ff9f1c'
 };
 
-export function Visualization() {
+export function Visualization({ onAnnotationClick }: VisualizationProps) {
   const svgRef = useRef<SVGSVGElement>(null);
-  const [cursorPos, setCursorPos] = useState<{ x: number; y: number } | null>(null);
+  const [cursorPos, setCursorPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [closestPoint, setClosestPoint] = useState<Datum | null>(null);
   const [draggingAnnotation, setDraggingAnnotation] = useState<DraggingAnnotation | null>(null);
-  const [annotationIndex, setAnnotationIndex] = useState<number>(3);
+  const [hasDragged, setHasDragged] = useState(false);
   const [tooltipData, setTooltipData] = useState<Datum | null>(null);
   const [tooltipLeft, setTooltipLeft] = useState<number>(0);
   const [tooltipTop, setTooltipTop] = useState<number>(0);
@@ -134,7 +139,23 @@ export function Visualization() {
   const width = window.innerWidth;
   const height = window.innerHeight;
 
-  const { plan, loadDefaultPlan } = usePlan();
+  // Add wheel event handler ref
+  const wheelHandler = useCallback((e: WheelEvent) => {
+    if (e.ctrlKey) {
+      e.preventDefault();
+    }
+  }, []);
+
+  // Add wheel event listener with passive: false
+  useEffect(() => {
+    const svg = svgRef.current;
+    if (svg) {
+      svg.addEventListener('wheel', wheelHandler, { passive: false });
+      return () => svg.removeEventListener('wheel', wheelHandler);
+    }
+  }, [wheelHandler]);
+
+  const { plan, loadDefaultPlan, getEventIcon, updateParameter, schema } = usePlan();
 
   // Base sizes that will be adjusted by zoom
   const baseLineWidth = 2;
@@ -157,13 +178,10 @@ export function Visualization() {
     const loadSchemaAndRunSim = async () => {
       try {
         setIsLoading(true);
-        // Load schema first to get birth date
-        const schemaResponse = await fetch('/assets/event_schema.json');
-        const schema = await schemaResponse.json();
 
-        // Set birth date from schema
-        if (schema.birth_date) {
-          const birthDateObj = new Date(schema.birth_date);
+        // Set birth date from plan
+        if (plan?.birth_date) {
+          const birthDateObj = new Date(plan.birth_date);
           setBirthDate(birthDateObj);
 
           // Calculate current days since birth
@@ -180,10 +198,10 @@ export function Visualization() {
           await loadDefaultPlan();
         }
 
-        // Run simulation with plan from context
+        // Run simulation with plan and schema from context
         const result = await runSimulation(
           plan!,
-          '/assets/event_schema.json',
+          schema!,
           startDate,
           endDate,
           getIntervalInDays(timeInterval)
@@ -198,7 +216,7 @@ export function Visualization() {
     };
 
     loadSchemaAndRunSim();
-  }, [timeInterval, plan, loadDefaultPlan]); // Re-run when time interval or plan changes
+  }, [timeInterval, plan, loadDefaultPlan, schema]); // Re-run when time interval or plan changes
 
   // Calculate stacked data from simulation results
   const stackedData = useMemo(() => {
@@ -226,17 +244,6 @@ export function Visualization() {
     });
   }, [simulationData]);
 
-  // Coordinate conversion utilities
-  const screenToCanvas = (screenX: number, screenY: number, zoom: ZoomObject) => ({
-    x: (screenX - zoom.transformMatrix.translateX) / zoom.transformMatrix.scaleX,
-    y: (screenY - zoom.transformMatrix.translateY) / zoom.transformMatrix.scaleY
-  });
-
-  const canvasToData = (canvasX: number, canvasY: number) => ({
-    x: xScale.invert(canvasX),
-    y: yScale.invert(canvasY)
-  });
-
   const screenToData = (screenX: number, screenY: number, zoom: any) => {
     const x = (screenX - zoom.transformMatrix.translateX) / zoom.transformMatrix.scaleX;
     const y = (screenY - zoom.transformMatrix.translateY) / zoom.transformMatrix.scaleY;
@@ -254,17 +261,6 @@ export function Visualization() {
       return distance < closestDistance ? point : closest;
     });
   };
-
-  // Prevent browser zoom
-  useEffect(() => {
-    const preventZoom = (e: WheelEvent) => {
-      if (e.ctrlKey) {
-        e.preventDefault();
-      }
-    };
-    window.addEventListener('wheel', preventZoom, { passive: false });
-    return () => window.removeEventListener('wheel', preventZoom);
-  }, []);
 
   // Calculate scales based on simulation data
   const xScale = useMemo(() => {
@@ -345,16 +341,19 @@ export function Visualization() {
           const adjustedTextSize = baseTextSize / globalZoom;
           const adjustedPointRadius = basePointRadius / globalZoom;
 
-          const handleAnnotationDragStart = (e: React.MouseEvent, index: number) => {
+          const handleAnnotationDragStart = (e: React.MouseEvent, eventId: number, date: number) => {
             e.stopPropagation();
             const point = getSVGPoint(e);
+            setHasDragged(false);
 
-            const dataPoint = simulationData[index];
+            const dataPoint = simulationData.find(p => p.date === date);
+            if (!dataPoint) return;
             const transformedX = (xScale(dataPoint.date) * zoom.transformMatrix.scaleX) + zoom.transformMatrix.translateX;
             const transformedY = (yScale(dataPoint.value) * zoom.transformMatrix.scaleY) + zoom.transformMatrix.translateY;
 
             setDraggingAnnotation({
-              index,
+              index: date,
+              eventId: eventId,
               offsetX: point.x - transformedX,
               offsetY: point.y - transformedY
             });
@@ -362,21 +361,39 @@ export function Visualization() {
 
           const handleAnnotationDragMove = (e: React.MouseEvent) => {
             if (!draggingAnnotation) return;
+            setHasDragged(true);
 
             const point = getSVGPoint(e);
             const dataPoint = screenToData(point.x, point.y, zoom);
             const closestPoint = findClosestPoint(dataPoint.x);
-            const closestIndex = simulationData.findIndex(p => p.date === closestPoint.date && p.value === closestPoint.y);
+            if (!closestPoint) return;
 
-            // Calculate distance between cursor and closest point
+            // Convert data points to screen coordinates
+            const screenX = xScale(closestPoint.date);
+            const screenY = yScale(closestPoint.value);
+            const transformedX = (screenX * zoom.transformMatrix.scaleX) + zoom.transformMatrix.translateX;
+            const transformedY = (screenY * zoom.transformMatrix.scaleY) + zoom.transformMatrix.translateY;
+
+            // Calculate distance in screen coordinates
             const distance = Math.sqrt(
-              Math.pow(dataPoint.x - closestPoint.date, 2) +
-              Math.pow(dataPoint.y - closestPoint.value, 2)
+              Math.pow(point.x - transformedX, 2) +
+              Math.pow(point.y - transformedY, 2)
             );
+            console.log("dsircance: ", distance)
 
             // Only update if within threshold (adjust 0.5 as needed)
-            if (distance < 50) {
-              setAnnotationIndex(closestIndex);
+            if (distance < 150) {
+              // Find the event in the plan
+              if (plan) {
+                const event = plan.events.find(e => e.id === draggingAnnotation.eventId);
+                if (event) {
+                  const startTimeParam = event.parameters.find(p => p.type === 'start_time');
+                  if (startTimeParam) {
+                    // Update the event's start_time parameter
+                    updateParameter(event.id, startTimeParam.id, closestPoint.date);
+                  }
+                }
+              }
             }
 
             setClosestPoint(closestPoint);
@@ -388,7 +405,7 @@ export function Visualization() {
             const point = getSVGPoint(e);
             const dataPoint = screenToData(point.x, point.y, zoom);
             const closestPoint = findClosestPoint(dataPoint.x);
-            const closestIndex = simulationData.findIndex(p => p.date === closestPoint.date && p.value === closestPoint.value);
+            const closestIndex = simulationData.findIndex(p => p.date === closestPoint?.date);
 
             setDraggingAnnotation(null);
             setClosestPoint(null);
@@ -400,7 +417,10 @@ export function Visualization() {
                 ref={svgRef}
                 width={width}
                 height={height}
-                style={{ cursor: isDragging ? 'grabbing' : 'pointer' }}
+                style={{
+                  cursor: isDragging ? 'grabbing' : 'pointer',
+                  touchAction: 'none'
+                }}
                 onMouseMove={(e) => {
                   const point = getSVGPoint(e);
                   setCursorPos(point);
@@ -413,14 +433,16 @@ export function Visualization() {
                     setClosestPoint(closest);
 
                     // Update tooltip position and data
-                    const canvasX = xScale(closest.date);
-                    const canvasY = yScale(closest.value);
-                    const transformedX = (canvasX * zoom.transformMatrix.scaleX) + zoom.transformMatrix.translateX;
-                    const transformedY = (canvasY * zoom.transformMatrix.scaleY) + zoom.transformMatrix.translateY;
+                    if (closest) {
+                      const canvasX = xScale(closest.date);
+                      const canvasY = yScale(closest.value);
+                      const transformedX = (canvasX * zoom.transformMatrix.scaleX) + zoom.transformMatrix.translateX;
+                      const transformedY = (canvasY * zoom.transformMatrix.scaleY) + zoom.transformMatrix.translateY;
 
-                    setTooltipData(closest);
-                    setTooltipLeft(transformedX);
-                    setTooltipTop(transformedY);
+                      setTooltipData(closest);
+                      setTooltipLeft(transformedX);
+                      setTooltipTop(transformedY);
+                    }
                   }
 
                   if (isDragging) {
@@ -428,9 +450,10 @@ export function Visualization() {
                   }
                 }}
                 onMouseLeave={() => {
-                  setCursorPos(null);
+                  setCursorPos({ x: 0, y: 0 });
                   setClosestPoint(null);
                   setTooltipData(null);
+                  setHasDragged(false);
                 }}
                 onMouseDown={(e) => {
                   setIsDragging(true);
@@ -443,10 +466,8 @@ export function Visualization() {
                   setIsDragging(false);
                   zoom.dragEnd();
                 }}
-
                 onWheel={(e) => {
                   const point = localPoint(e) || { x: 0, y: 0 };
-                  e.preventDefault();
                   const scaleFactor = e.deltaY > 0 ? 0.99 : 1.01;
 
                   // Get the center X position in screen coordinates
@@ -601,17 +622,30 @@ export function Visualization() {
                 </g>
 
                 {/* Timeline Annotations (outside zoom transform) */}
-                {simulationData.map((point) => {
-                  const canvasX = xScale(point.date);
-                  const canvasY = yScale(point.value);
+                {plan && plan.events.map((event) => {
+                  // Find the start_time parameter
+                  const startTimeParam = event.parameters.find(p => p.type === 'start_time');
+                  if (!startTimeParam) return null;
+                  const date = Number(startTimeParam.value);
+                  if (isNaN(date)) return null;
+
+                  // Find the closest visible data point
+                  const visibleDataPoints = simulationData.filter(p =>
+                    p.date >= xScale.domain()[0] && p.date <= xScale.domain()[1]
+                  );
+                  if (visibleDataPoints.length === 0) return null;
+
+                  // Find the closest data point to this event's date
+                  const closestDataPoint = [...visibleDataPoints]
+                    .sort((a, b) => Math.abs(a.date - date) - Math.abs(b.date - date))[0];
+
+                  const canvasX = xScale(closestDataPoint.date);
+                  const canvasY = yScale(closestDataPoint.value);
                   const transformedX = (canvasX * zoom.transformMatrix.scaleX) + zoom.transformMatrix.translateX;
                   const transformedY = (canvasY * zoom.transformMatrix.scaleY) + zoom.transformMatrix.translateY;
 
-                  // Only show annotation for the assigned index
-                  if (point.date !== annotationIndex) return null;
-
                   // If this annotation is being dragged, use cursor position
-                  const isDragging = draggingAnnotation?.index === point.date;
+                  const isDragging = draggingAnnotation?.eventId === event.id;
                   const x = isDragging
                     ? cursorPos!.x - draggingAnnotation!.offsetX - 20
                     : transformedX - 20;
@@ -621,7 +655,7 @@ export function Visualization() {
 
                   return (
                     <foreignObject
-                      key={`annotation-${point.date}`}
+                      key={`annotation-${event.id}`}
                       x={x}
                       y={y}
                       width={40}
@@ -630,10 +664,21 @@ export function Visualization() {
                         overflow: 'visible',
                         cursor: 'move'
                       }}
-                      onMouseDown={(e) => handleAnnotationDragStart(e, point.date)}
+                      onMouseDown={(e) => {
+                        // Start drag operation
+                        handleAnnotationDragStart(e, event.id, closestDataPoint.date);
+                      }}
+                      onClick={(e) => {
+                        // Only trigger click if we haven't dragged
+                        if (!hasDragged) {
+                          e.stopPropagation();
+                          onAnnotationClick?.(event.id);
+                        }
+                        setHasDragged(false);
+                      }}
                     >
                       <div>
-                        <TimelineAnnotation />
+                        <TimelineAnnotation icon={getEventIcon(event.icon)} label={event.description} />
                       </div>
                     </foreignObject>
                   );

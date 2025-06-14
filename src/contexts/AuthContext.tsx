@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { supabase } from '../integrations/supabase/client';
+import { supabase } from '@/integrations/supabase/client';
 import type { User } from '@supabase/supabase-js';
 
 interface UserData {
@@ -34,66 +34,53 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     // Fetch user data from Supabase
     const fetchUserData = async (userId: string) => {
+        console.log('AuthContext: Fetching user data for ID:', userId);
         try {
+            // First try to get existing user data
             const { data, error } = await supabase
                 .from('user_data')
                 .select('*')
                 .eq('user_id', userId)
                 .single();
 
-            if (error) throw error;
+            if (error) {
+                // If no data exists, create it
+                if (error.code === 'PGRST116') {
+                    console.log('AuthContext: No user data found, creating new entry');
+                    const { error: insertError } = await supabase
+                        .from('user_data')
+                        .insert({
+                            user_id: userId,
+                            plan_type: 'free',
+                            subscription_date: null
+                        });
 
-            if (data) {
-                setUserData(data);
-            } else {
-                // If no user data exists, create it with free plan
-                const { error: insertError } = await supabase
-                    .from('user_data')
-                    .insert({
-                        user_id: userId,
-                        plan_type: 'free',
-                        subscription_date: null
-                    });
+                    if (insertError) {
+                        console.error('AuthContext: Error creating user data:', insertError);
+                        throw insertError;
+                    }
 
-                if (insertError) throw insertError;
-                setUserData({ plan_type: 'free', subscription_date: null });
+                    console.log('AuthContext: Created new user data entry');
+                    setUserData({ plan_type: 'free', subscription_date: null });
+                    return;
+                }
+                throw error;
             }
+
+            console.log('AuthContext: Found existing user data:', data);
+            setUserData(data);
         } catch (error) {
-            console.error('Error fetching user data:', error);
+            console.error('AuthContext: Error in fetchUserData:', error);
             setUserData(null);
         }
     };
-
-    useEffect(() => {
-        // Check active sessions and sets the user
-        supabase.auth.getSession().then(({ data: { session } }) => {
-            setUser(session?.user ?? null);
-            if (session?.user) {
-                fetchUserData(session.user.id);
-            }
-            setIsLoading(false);
-        });
-
-        // Listen for changes on auth state (sign in, sign out, etc.)
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-            setUser(session?.user ?? null);
-            if (session?.user) {
-                await fetchUserData(session.user.id);
-            } else {
-                setUserData(null);
-            }
-            setIsLoading(false);
-        });
-
-        return () => subscription.unsubscribe();
-    }, []);
 
     const signIn = async (email: string, password: string) => {
         console.log('AuthContext: Starting sign in process');
         setIsLoading(true);
         try {
             console.log('AuthContext: Calling Supabase sign in');
-            const { error } = await supabase.auth.signInWithPassword({
+            const { data, error } = await supabase.auth.signInWithPassword({
                 email,
                 password
             });
@@ -103,12 +90,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 throw error;
             }
 
-            // Get the current session after successful sign in
-            const { data: { session } } = await supabase.auth.getSession();
-            if (session?.user) {
-                console.log('AuthContext: Session obtained, fetching user data');
-                await fetchUserData(session.user.id);
+            if (!data?.user?.id) {
+                console.error('AuthContext: No user data in response');
+                throw new Error('No user data received');
             }
+
+            console.log('AuthContext: Sign in successful, user ID:', data.user.id);
+            await fetchUserData(data.user.id);
+            console.log('AuthContext: User data fetched successfully');
         } catch (error) {
             console.error('AuthContext: Error in sign in process:', error);
             throw error;
