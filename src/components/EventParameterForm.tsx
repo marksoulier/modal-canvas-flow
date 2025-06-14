@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { format, addDays } from 'date-fns';
 import { CalendarIcon, Trash2, ChevronDownIcon } from 'lucide-react';
-import { DayPicker } from 'react-day-picker';
 import {
     Dialog,
     DialogContent,
@@ -13,6 +12,7 @@ import { Button } from './ui/button';
 import { Label } from './ui/label';
 import { Input } from './ui/input';
 import { Textarea } from './ui/textarea';
+import { Calendar } from './ui/calendar';
 import {
     Popover,
     PopoverContent,
@@ -139,7 +139,7 @@ const EventParametersForm: React.FC<EventParametersFormProps> = ({
                     </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
-                    <DayPicker
+                    <Calendar
                         mode="single"
                         selected={date}
                         onSelect={(newDate) => {
@@ -150,6 +150,7 @@ const EventParametersForm: React.FC<EventParametersFormProps> = ({
                                 handleInputBlur(param.id, newValue);
                             }
                         }}
+                        // initialFocus
                         defaultMonth={date}
                         className="pointer-events-auto"
                     />
