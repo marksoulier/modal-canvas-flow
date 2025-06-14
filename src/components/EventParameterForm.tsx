@@ -44,6 +44,7 @@ const EventParametersForm: React.FC<EventParametersFormProps> = ({
     const { plan, schema, getEventIcon, updateParameter, deleteEvent, getParameterDisplayName, getParameterUnits, getEventDisplayType } = usePlan();
     const [parameters, setParameters] = useState<Record<number, { type: string; value: string | number }>>({});
     const [loading, setLoading] = useState(false);
+    const [calendarMonths, setCalendarMonths] = useState<Record<number, Date>>({});
 
     useEffect(() => {
         if (schema && plan) {
@@ -52,18 +53,30 @@ const EventParametersForm: React.FC<EventParametersFormProps> = ({
                 const eventDef = schema.events.find(e => e.type === event.type);
                 if (eventDef) {
                     const newParams: Record<number, { type: string; value: string | number }> = {};
+                    const newCalendarMonths: Record<number, Date> = {};
+
                     event.parameters.forEach(param => {
                         const paramUnits = getParameterUnits(event.type, param.type);
                         newParams[param.id] = {
                             type: param.type,
                             value: paramUnits === 'percentage' ? ((param.value as number) * 100).toFixed(2) : param.value
                         };
+
+                        // Initialize calendar month for date parameters
+                        if (paramUnits === 'date' && plan.birth_date) {
+                            const birthDate = new Date(plan.birth_date);
+                            const daysSinceBirth = parseInt(param.value as string);
+                            newCalendarMonths[param.id] = addDays(birthDate, daysSinceBirth);
+                        }
                     });
+
                     setParameters(newParams);
+                    setCalendarMonths(newCalendarMonths);
                 }
             } else {
                 // Reset parameters if event not found
                 setParameters({});
+                setCalendarMonths({});
             }
         }
     }, [schema, plan, eventId, getParameterUnits]);
@@ -112,6 +125,13 @@ const EventParametersForm: React.FC<EventParametersFormProps> = ({
         return schema.events.find(e => e.type === event.type);
     };
 
+    const updateCalendarMonth = (paramId: number, newDate: Date) => {
+        setCalendarMonths(prev => ({
+            ...prev,
+            [paramId]: newDate
+        }));
+    };
+
     const renderDatePicker = (param: Parameter) => {
         if (!plan?.birth_date) return null;
 
@@ -120,6 +140,7 @@ const EventParametersForm: React.FC<EventParametersFormProps> = ({
         const birthDate = new Date(plan.birth_date);
         const daysSinceBirth = value ? parseInt(value as string) : 0;
         const date = addDays(birthDate, daysSinceBirth);
+        const currentMonth = calendarMonths[param.id] || date;
 
         return (
             <Popover>
@@ -148,11 +169,47 @@ const EventParametersForm: React.FC<EventParametersFormProps> = ({
                                 const newValue = daysDiff.toString();
                                 handleInputChange(param.id, newValue);
                                 handleInputBlur(param.id, newValue);
+                                updateCalendarMonth(param.id, newDate);
                             }
                         }}
-                        // initialFocus
+                        month={currentMonth}
+                        onMonthChange={(newMonth) => updateCalendarMonth(param.id, newMonth)}
                         defaultMonth={date}
                         className="pointer-events-auto"
+                        footer={
+                            <div className="flex justify-between px-2 py-1.5 border-t">
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-7 text-xs text-muted-foreground hover:text-foreground"
+                                    onClick={() => {
+                                        const newDate = new Date(date);
+                                        newDate.setFullYear(newDate.getFullYear() - 1);
+                                        const daysDiff = Math.floor((newDate.getTime() - birthDate.getTime()) / (1000 * 60 * 60 * 24));
+                                        handleInputChange(param.id, daysDiff.toString());
+                                        handleInputBlur(param.id, daysDiff.toString());
+                                        updateCalendarMonth(param.id, newDate);
+                                    }}
+                                >
+                                    Previous Year
+                                </Button>
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-7 text-xs text-muted-foreground hover:text-foreground"
+                                    onClick={() => {
+                                        const newDate = new Date(date);
+                                        newDate.setFullYear(newDate.getFullYear() + 1);
+                                        const daysDiff = Math.floor((newDate.getTime() - birthDate.getTime()) / (1000 * 60 * 60 * 24));
+                                        handleInputChange(param.id, daysDiff.toString());
+                                        handleInputBlur(param.id, daysDiff.toString());
+                                        updateCalendarMonth(param.id, newDate);
+                                    }}
+                                >
+                                    Next Year
+                                </Button>
+                            </div>
+                        }
                     />
                 </PopoverContent>
             </Popover>
