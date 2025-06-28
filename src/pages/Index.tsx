@@ -70,21 +70,6 @@ const Index = () => {
     }
   };
 
-  const handleTimelineAnnotationClick = () => {
-    setEventParametersOpen(true);
-  };
-
-  const handleSaveEvent = (parameters: Record<string, any>) => {
-    console.log('Saving event with parameters:', parameters);
-    // Add your event saving logic here
-  };
-
-  const handleDeleteEvent = () => {
-    console.log('Deleting event');
-    // Add your event deletion logic here
-    setEventParametersOpen(false);
-  };
-
   return (
     <div className="min-h-screen bg-white relative overflow-hidden">
       {/* Hidden file input */}
@@ -198,15 +183,11 @@ const Index = () => {
         onClose={() => setSubscriptionModalOpen(false)}
       />
       <EventParametersForm
-      <EventParametersForm
-        isOpen={eventParametersOpen}
-        onClose={() => setEventParametersOpen(false)}
-        onSave={handleSaveEvent}
-        onDelete={handleDeleteEvent}
-        onSave={handleSaveEvent}
-        onDelete={handleDeleteEvent}
-        eventType="Financial Event"
-        schemaPath="/assets/event_schema.json"
+        onClose={() => {
+          setEventParametersOpen(false);
+          setEditingEventId(null);
+        }}
+        eventId={editingEventId!}
       />
     </div>
   );
