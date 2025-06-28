@@ -1,3 +1,4 @@
+
 import React, { useState, useRef } from 'react';
 import { Menu, HelpCircle, Plus, Save, FileText, FolderOpen, Settings } from 'lucide-react';
 import {
@@ -66,6 +67,21 @@ const Index = () => {
     } else {
       setAuthModalOpen(true);
     }
+  };
+
+  const handleTimelineAnnotationClick = () => {
+    setEventParametersOpen(true);
+  };
+
+  const handleSaveEvent = (parameters: Record<string, any>) => {
+    console.log('Saving event with parameters:', parameters);
+    // Add your event saving logic here
+  };
+
+  const handleDeleteEvent = () => {
+    console.log('Deleting event');
+    // Add your event deletion logic here
+    setEventParametersOpen(false);
   };
 
   return (
@@ -182,11 +198,11 @@ const Index = () => {
       />
       <EventParametersForm
         isOpen={eventParametersOpen}
-        onClose={() => {
-          setEventParametersOpen(false);
-          setEditingEventId(null);
-        }}
-        eventId={editingEventId!}
+        onClose={() => setEventParametersOpen(false)}
+        onSave={handleSaveEvent}
+        onDelete={handleDeleteEvent}
+        eventType="Financial Event"
+        schemaPath="/assets/event_schema.json"
       />
     </div>
   );

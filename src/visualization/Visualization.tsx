@@ -82,10 +82,6 @@ interface Datum {
   };
 }
 
-interface StackedDatum extends Datum {
-  stackedParts: { [key: string]: number };
-}
-
 interface ZoomTransform {
   scaleX: number;
   scaleY: number;
@@ -116,10 +112,55 @@ interface VisualizationProps {
 
 // Colors for each part
 const partColors: Record<string, string> = {
-  envelope1: '#03c6fc',
-  envelope2: '#75daad',
-  envelope3: '#ff9f1c'
+  Cash: '#03c6fc',
+  House: '#75daad',
+  Savings: '#ff9f1c',
+  Investments: '#ff6b6b',
+  Retirement: '#6b66ff'
 };
+
+// Generate subtle colors for envelopes
+const generateEnvelopeColors = (envelopes: string[]): Record<string, { area: string; line: string }> => {
+  const baseColors = [
+    { area: '#E3F2FD', line: '#2196F3' }, // Blue
+    { area: '#E8F5E9', line: '#4CAF50' }, // Green
+    { area: '#FFF3E0', line: '#FF9800' }, // Orange
+    { area: '#F3E5F5', line: '#9C27B0' }, // Purple
+    { area: '#FFEBEE', line: '#F44336' }, // Red
+    { area: '#E0F7FA', line: '#00BCD4' }, // Cyan
+    { area: '#F1F8E9', line: '#8BC34A' }, // Light Green
+    { area: '#FCE4EC', line: '#E91E63' }, // Pink
+  ];
+
+  return envelopes.reduce((acc, envelope, index) => {
+    acc[envelope] = baseColors[index % baseColors.length];
+    return acc;
+  }, {} as Record<string, { area: string; line: string }>);
+};
+
+// Legend component
+const Legend = ({ envelopes, colors, currentValues }: {
+  envelopes: string[];
+  colors: Record<string, { area: string; line: string }>;
+  currentValues: { [key: string]: number };
+}) => (
+  <div className="absolute right-4 bottom-4 bg-white p-4 rounded-lg shadow-lg">
+    <h3 className="text-sm font-semibold mb-2">Envelopes</h3>
+    <div className="space-y-2">
+      {envelopes.map((envelope) => (
+        <div key={envelope} className="flex items-center justify-between space-x-4">
+          <div className="flex items-center space-x-2">
+            <div className="w-4 h-4 rounded" style={{ backgroundColor: colors[envelope].area, border: `2px solid ${colors[envelope].line}` }} />
+            <span className="text-sm">{envelope}</span>
+          </div>
+          <span className="text-xs text-gray-500">
+            {formatNumber({ valueOf: () => currentValues[envelope] || 0 })}
+          </span>
+        </div>
+      ))}
+    </div>
+  </div>
+);
 
 export function Visualization({ onAnnotationClick }: VisualizationProps) {
   const svgRef = useRef<SVGSVGElement>(null);
@@ -132,7 +173,7 @@ export function Visualization({ onAnnotationClick }: VisualizationProps) {
   const [tooltipLeft, setTooltipLeft] = useState<number>(0);
   const [tooltipTop, setTooltipTop] = useState<number>(0);
   const [isLoading, setIsLoading] = useState(true);
-  const [simulationData, setSimulationData] = useState<Datum[]>([]);
+  const [netWorthData, setNetWorthData] = useState<Datum[]>([]);
   const [timeInterval, setTimeInterval] = useState<TimeInterval>('year');
   const [birthDate, setBirthDate] = useState<Date>(new Date(2000, 0, 1)); // Default to Jan 1, 2000
   const [currentDaysSinceBirth, setCurrentDaysSinceBirth] = useState<number>(0);
@@ -207,7 +248,7 @@ export function Visualization({ onAnnotationClick }: VisualizationProps) {
           getIntervalInDays(timeInterval)
         );
         console.log('Loaded Financial Results:', result);
-        setSimulationData(result?.["Cash"] ?? []);
+        setNetWorthData(result);
       } catch (err) {
         console.error('Simulation failed:', err);
       } finally {
@@ -220,15 +261,15 @@ export function Visualization({ onAnnotationClick }: VisualizationProps) {
 
   // Calculate stacked data from simulation results
   const stackedData = useMemo(() => {
-    if (!simulationData.length) return [];
+    if (!netWorthData.length) return [];
 
     // Get all unique part keys from the data
     const partKeys = Array.from(
-      new Set(simulationData.flatMap(d => Object.keys(d.parts)))
+      new Set(netWorthData.flatMap(d => Object.keys(d.parts)))
     );
 
     // Create stacked data
-    return simulationData.map(d => {
+    return netWorthData.map(d => {
       const stackedParts: { [key: string]: number } = {};
       let currentSum = 0;
 
@@ -242,7 +283,7 @@ export function Visualization({ onAnnotationClick }: VisualizationProps) {
         stackedParts
       };
     });
-  }, [simulationData]);
+  }, [netWorthData]);
 
   const screenToData = (screenX: number, screenY: number, zoom: any) => {
     const x = (screenX - zoom.transformMatrix.translateX) / zoom.transformMatrix.scaleX;
@@ -254,8 +295,8 @@ export function Visualization({ onAnnotationClick }: VisualizationProps) {
   };
 
   const findClosestPoint = (dataX: number): Datum | null => {
-    if (!simulationData.length) return null;
-    return simulationData.reduce((closest, point) => {
+    if (!netWorthData.length) return null;
+    return netWorthData.reduce((closest, point) => {
       const distance = Math.abs(point.date - dataX);
       const closestDistance = Math.abs(closest.date - dataX);
       return distance < closestDistance ? point : closest;
@@ -264,19 +305,19 @@ export function Visualization({ onAnnotationClick }: VisualizationProps) {
 
   // Calculate scales based on simulation data
   const xScale = useMemo(() => {
-    if (!simulationData.length) return scaleLinear({ domain: [0, 1], range: [0, width] });
+    if (!netWorthData.length) return scaleLinear({ domain: [0, 1], range: [0, width] });
 
-    const maxDate = Math.max(...simulationData.map(d => d.date));
+    const maxDate = Math.max(...netWorthData.map(d => d.date));
     return scaleLinear({
       domain: [0, maxDate],
       range: [0, width],
     });
-  }, [simulationData, width]);
+  }, [netWorthData, width]);
 
   const yScale = useMemo(() => {
-    if (!simulationData.length) return scaleLinear({ domain: [0, 1], range: [height, 0] });
+    if (!netWorthData.length) return scaleLinear({ domain: [0, 1], range: [height, 0] });
 
-    const maxValue = Math.max(...simulationData.map(d => {
+    const maxValue = Math.max(...netWorthData.map(d => {
       const totalValue = Object.values(d.parts).reduce((sum, val) => sum + val, 0);
       return Math.max(d.value, totalValue);
     }));
@@ -285,7 +326,13 @@ export function Visualization({ onAnnotationClick }: VisualizationProps) {
       domain: [0, maxValue],
       range: [height, 0],
     });
-  }, [simulationData, height]);
+  }, [netWorthData, height]);
+
+  // Get envelope colors from schema
+  const envelopeColors = useMemo(() => {
+    if (!schema?.envelopes) return {};
+    return generateEnvelopeColors(schema.envelopes);
+  }, [schema]);
 
   return (
     <div className="relative w-full h-full">
@@ -324,7 +371,7 @@ export function Visualization({ onAnnotationClick }: VisualizationProps) {
           ];
 
           // Filter data points to only those in viewport
-          const visibleData = simulationData.filter(d =>
+          const visibleData = netWorthData.filter(d =>
             d.date >= visibleXDomain[0] && d.date <= visibleXDomain[1]
           );
 
@@ -346,7 +393,7 @@ export function Visualization({ onAnnotationClick }: VisualizationProps) {
             const point = getSVGPoint(e);
             setHasDragged(false);
 
-            const dataPoint = simulationData.find(p => p.date === date);
+            const dataPoint = netWorthData.find(p => p.date === date);
             if (!dataPoint) return;
             const transformedX = (xScale(dataPoint.date) * zoom.transformMatrix.scaleX) + zoom.transformMatrix.translateX;
             const transformedY = (yScale(dataPoint.value) * zoom.transformMatrix.scaleY) + zoom.transformMatrix.translateY;
@@ -405,7 +452,7 @@ export function Visualization({ onAnnotationClick }: VisualizationProps) {
             const point = getSVGPoint(e);
             const dataPoint = screenToData(point.x, point.y, zoom);
             const closestPoint = findClosestPoint(dataPoint.x);
-            const closestIndex = simulationData.findIndex(p => p.date === closestPoint?.date);
+            const closestIndex = netWorthData.findIndex(p => p.date === closestPoint?.date);
 
             setDraggingAnnotation(null);
             setClosestPoint(null);
@@ -478,10 +525,10 @@ export function Visualization({ onAnnotationClick }: VisualizationProps) {
                   const centerXData = xScale.invert((centerX - zoom.transformMatrix.translateX) / zoom.transformMatrix.scaleX);
 
                   // Find the closest point to the center
-                  let closestPoint = simulationData[0];
-                  let minDistance = Math.abs(simulationData[0].date - centerXData);
+                  let closestPoint = netWorthData[0];
+                  let minDistance = Math.abs(netWorthData[0].date - centerXData);
 
-                  simulationData.forEach(point => {
+                  netWorthData.forEach(point => {
                     const distance = Math.abs(point.date - centerXData);
                     if (distance < minDistance) {
                       minDistance = distance;
@@ -559,34 +606,34 @@ export function Visualization({ onAnnotationClick }: VisualizationProps) {
                     opacity={0.8}
                   />
 
-                  {/* Add stacked areas */}
-                  {Object.keys(simulationData[0]?.parts || {}).map((partKey, index, keys) => (
+                  {/* Add stacked areas - only show for yearly view */}
+                  {timeInterval === 'year' && Object.keys(netWorthData[0]?.parts || {}).map((partKey, index, keys) => (
                     <AreaClosed
                       key={`area-${partKey}`}
-                      data={visibleData}
-                      x={(d: StackedDatum) => xScale(d.date)}
-                      y0={(d: StackedDatum) => {
+                      data={stackedData}
+                      x={(d) => xScale(d.date)}
+                      y0={(d) => {
                         const prevValue = index === 0 ? 0 : d.stackedParts[keys[index - 1]];
                         return yScale(prevValue);
                       }}
-                      y1={(d: StackedDatum) => yScale(d.stackedParts[partKey])}
+                      y1={(d) => yScale(d.stackedParts[partKey])}
                       yScale={yScale}
                       strokeWidth={1}
-                      stroke={partColors[partKey]}
-                      fill={partColors[partKey]}
+                      stroke={envelopeColors[partKey]?.line || '#999'}
+                      fill={envelopeColors[partKey]?.area || '#999'}
                       fillOpacity={0.2}
                       curve={curveLinear}
                     />
                   ))}
 
-                  {/* Add lines for each part */}
-                  {Object.keys(simulationData[0]?.parts || {}).map((partKey) => (
+                  {/* Add lines for each part - always show */}
+                  {Object.keys(netWorthData[0]?.parts || {}).map((partKey) => (
                     <LinePath
                       key={`line-${partKey}`}
-                      data={visibleData}
-                      x={(d: StackedDatum) => xScale(d.date)}
-                      y={(d: StackedDatum) => yScale(d.stackedParts[partKey])}
-                      stroke={partColors[partKey]}
+                      data={stackedData}
+                      x={(d) => xScale(d.date)}
+                      y={(d) => yScale(d.stackedParts[partKey])}
+                      stroke={envelopeColors[partKey]?.line || '#999'}
                       strokeWidth={1 / globalZoom}
                       strokeOpacity={0.5}
                       curve={curveLinear}
@@ -595,9 +642,9 @@ export function Visualization({ onAnnotationClick }: VisualizationProps) {
 
                   {/* Total line */}
                   <LinePath
-                    data={visibleData}
-                    x={(d: StackedDatum) => xScale(d.date)}
-                    y={(d: StackedDatum) => yScale(d.value)}
+                    data={netWorthData}
+                    x={(d) => xScale(d.date)}
+                    y={(d) => yScale(d.value)}
                     stroke="#335966"
                     strokeWidth={3 / globalZoom}
                     curve={curveLinear}
@@ -630,7 +677,7 @@ export function Visualization({ onAnnotationClick }: VisualizationProps) {
                   if (isNaN(date)) return null;
 
                   // Find the closest visible data point
-                  const visibleDataPoints = simulationData.filter(p =>
+                  const visibleDataPoints = netWorthData.filter(p =>
                     p.date >= xScale.domain()[0] && p.date <= xScale.domain()[1]
                   );
                   if (visibleDataPoints.length === 0) return null;
@@ -742,6 +789,15 @@ export function Visualization({ onAnnotationClick }: VisualizationProps) {
                 }
               </svg>
 
+              {/* Add Legend */}
+              {netWorthData.length > 0 && (
+                <Legend
+                  envelopes={Object.keys(netWorthData[0].parts)}
+                  colors={envelopeColors}
+                  currentValues={closestPoint ? closestPoint.parts : netWorthData[netWorthData.length - 1].parts}
+                />
+              )}
+
               {tooltipData && (
                 <TooltipWithBounds
                   key={Math.random()}
@@ -758,12 +814,12 @@ export function Visualization({ onAnnotationClick }: VisualizationProps) {
                   }}
                 >
                   <div style={{ fontSize: '12px' }}>
-                    <div>Total: {formatNumber({ valueOf: () => tooltipData.value })}</div>
-                    {Object.entries(tooltipData.parts).map(([key, value]) => (
+                    <div>{formatNumber({ valueOf: () => tooltipData.value })}</div>
+                    {/* {Object.entries(tooltipData.parts).map(([key, value]) => (
                       <div key={key} style={{ color: partColors[key] }}>
                         {key}: {formatNumber({ valueOf: () => value })}
                       </div>
-                    ))}
+                    ))} */}
                   </div>
                 </TooltipWithBounds>
               )}

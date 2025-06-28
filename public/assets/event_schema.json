@@ -164,6 +164,13 @@
                     "parameter_units": "envelope",
                     "description": "Envelope where salary is deposited",
                     "default": "Cash"
+                },
+                {
+                    "type": "p_401k_key",
+                    "display_name": "401k Envelope",
+                    "parameter_units": "envelope",
+                    "description": "Envelope where 401k contributions are tracked",
+                    "default": "Retirement"
                 }
             ],
             "updating_events": [
@@ -215,6 +222,170 @@
                             "type": "p_401k_contribution",
                             "description": "New 401k contribution percentage.",
                             "default": 0.1
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "type": "get_wage_job",
+            "display_type": "Wage Employment",
+            "weight": 90,
+            "category": "Income & Employment",
+            "description": "Start earning an hourly wage from employment.",
+            "icon": "clock",
+            "parameters": [
+                {
+                    "type": "start_time",
+                    "display_name": "Start Date",
+                    "parameter_units": "date",
+                    "description": "When the job starts",
+                    "default": 0
+                },
+                {
+                    "type": "end_time",
+                    "display_name": "End Date",
+                    "parameter_units": "date",
+                    "description": "When the job ends (optional)",
+                    "default": 3650
+                },
+                {
+                    "type": "hourly_wage",
+                    "display_name": "Hourly Wage",
+                    "parameter_units": "usd",
+                    "description": "Hourly wage rate.",
+                    "default": 25
+                },
+                {
+                    "type": "hours_per_week",
+                    "display_name": "Hours per Week",
+                    "parameter_units": "days",
+                    "description": "Number of hours worked per week.",
+                    "default": 40
+                },
+                {
+                    "type": "pay_period",
+                    "display_name": "Pay Periods per Year",
+                    "parameter_units": "days",
+                    "description": "Number of pay periods per year.",
+                    "default": 26
+                },
+                {
+                    "type": "federal_income_tax",
+                    "display_name": "Federal Tax Rate",
+                    "parameter_units": "percentage",
+                    "description": "Federal income tax rate.",
+                    "default": 0.12
+                },
+                {
+                    "type": "social_security_tax",
+                    "display_name": "Social Security Tax Rate",
+                    "parameter_units": "percentage",
+                    "description": "Social Security tax rate.",
+                    "default": 0.062
+                },
+                {
+                    "type": "medicare_tax",
+                    "display_name": "Medicare Tax Rate",
+                    "parameter_units": "percentage",
+                    "description": "Medicare tax rate.",
+                    "default": 0.0145
+                },
+                {
+                    "type": "p_401k_contribution",
+                    "display_name": "401k Contribution Rate",
+                    "parameter_units": "percentage",
+                    "description": "Percent of wages contributed to 401k.",
+                    "default": 0.04
+                },
+                {
+                    "type": "employer_match",
+                    "display_name": "401k Match Rate",
+                    "parameter_units": "percentage",
+                    "description": "Employer match percent for 401k.",
+                    "default": 0.04
+                },
+                {
+                    "type": "to_key",
+                    "display_name": "Deposit Envelope",
+                    "parameter_units": "envelope",
+                    "description": "Envelope where wages are deposited",
+                    "default": "Cash"
+                },
+                {
+                    "type": "p_401k_key",
+                    "display_name": "401k Envelope",
+                    "parameter_units": "envelope",
+                    "description": "Envelope where 401k contributions are tracked",
+                    "default": "Retirement"
+                }
+            ],
+            "updating_events": [
+                {
+                    "type": "get_a_raise",
+                    "icon": "arrow-up",
+                    "description": "Receive an increase in hourly wage.",
+                    "parameters": [
+                        {
+                            "type": "start_time",
+                            "description": "When the raise takes effect",
+                            "default": 365
+                        },
+                        {
+                            "type": "new_hourly_wage",
+                            "description": "New hourly wage rate after raise.",
+                            "default": 27
+                        }
+                    ]
+                },
+                {
+                    "type": "change_hours",
+                    "icon": "clock",
+                    "description": "Change the number of hours worked per week.",
+                    "parameters": [
+                        {
+                            "type": "start_time",
+                            "description": "When the new hours take effect",
+                            "default": 365
+                        },
+                        {
+                            "type": "new_hours",
+                            "description": "New number of hours per week.",
+                            "default": 35
+                        }
+                    ]
+                },
+                {
+                    "type": "change_401k_contribution",
+                    "icon": "sliders-horizontal",
+                    "description": "Adjust the percentage of wages contributed to 401k.",
+                    "parameters": [
+                        {
+                            "type": "start_time",
+                            "description": "When the new contribution rate takes effect",
+                            "default": 0
+                        },
+                        {
+                            "type": "p_401k_contribution",
+                            "description": "New 401k contribution percentage.",
+                            "default": 0.06
+                        }
+                    ]
+                },
+                {
+                    "type": "change_employer_match",
+                    "icon": "handshake",
+                    "description": "Update the employer's 401k match rate.",
+                    "parameters": [
+                        {
+                            "type": "start_time",
+                            "description": "When the new match rate takes effect",
+                            "default": 0
+                        },
+                        {
+                            "type": "new_match_rate",
+                            "description": "New employer match percentage.",
+                            "default": 0.05
                         }
                     ]
                 }
@@ -1417,7 +1588,7 @@
                     "display_name": "Growth Rate",
                     "parameter_units": "apy",
                     "description": "Growth Rate of the account if compounded",
-                    "default": 1000
+                    "default": 0
                 },
                 {
                     "type": "to_key",
@@ -1425,6 +1596,58 @@
                     "parameter_units": "envelope",
                     "description": "Envelope to be adjusted.",
                     "default": "Cash"
+                }
+            ]
+        },
+        {
+            "type": "transfer_money",
+            "display_type": "Money Transfer",
+            "weight": 80,
+            "category": "System",
+            "description": "Transfer money between envelopes with optional growth rate for destination.",
+            "icon": "arrow-right-arrow-left",
+            "parameters": [
+                {
+                    "type": "start_time",
+                    "display_name": "Transfer Date",
+                    "parameter_units": "date",
+                    "description": "When the transfer occurs",
+                    "default": 0
+                },
+                {
+                    "type": "amount",
+                    "display_name": "Transfer Amount",
+                    "parameter_units": "usd",
+                    "description": "Amount of money to transfer",
+                    "default": 10000
+                },
+                {
+                    "type": "from_key",
+                    "display_name": "From Envelope",
+                    "parameter_units": "envelope",
+                    "description": "Source envelope for the transfer",
+                    "default": "Cash"
+                },
+                {
+                    "type": "to_key",
+                    "display_name": "To Envelope",
+                    "parameter_units": "envelope",
+                    "description": "Destination envelope for the transfer",
+                    "default": "Investments"
+                },
+                {
+                    "type": "growth_rate",
+                    "display_name": "Growth Rate",
+                    "parameter_units": "apy",
+                    "description": "Annual growth rate applied to transferred amount in destination envelope",
+                    "default": 0
+                },
+                {
+                    "type": "source_growth_rate",
+                    "display_name": "Source Growth Rate",
+                    "parameter_units": "apy",
+                    "description": "Annual growth rate of the source envelope before transfer",
+                    "default": 0
                 }
             ]
         }
