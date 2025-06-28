@@ -6,7 +6,7 @@ import {
   DialogTitle,
 } from './ui/dialog';
 import { Button } from './ui/button';
-import { Download, Cloud, FileText } from 'lucide-react';
+import { Download, Cloud } from 'lucide-react';
 import { usePlan } from '../contexts/PlanContext';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../integrations/supabase/client';
@@ -21,7 +21,7 @@ const SaveModal: React.FC<SaveModalProps> = ({ isOpen, onClose, onShowAuth }) =>
   const [selectedOption, setSelectedOption] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const { savePlanToFile, plan } = usePlan();
-  const { user, isPremium } = useAuth();
+  const { user } = useAuth();
 
   const saveToCloud = async () => {
     if (!user || !plan) return;
@@ -50,9 +50,6 @@ const SaveModal: React.FC<SaveModalProps> = ({ isOpen, onClose, onShowAuth }) =>
     if (!user && onShowAuth) {
       onShowAuth();
       onClose();
-    } else if (!isPremium) {
-      // You might want to show a premium upgrade modal here
-      console.log('Premium subscription required');
     } else {
       saveToCloud();
     }
@@ -74,11 +71,7 @@ const SaveModal: React.FC<SaveModalProps> = ({ isOpen, onClose, onShowAuth }) =>
       id: 'cloud',
       icon: Cloud,
       title: 'Save to Cloud',
-      description: !user
-        ? 'Sign in to save to cloud'
-        : !isPremium
-          ? 'Upgrade to premium to save to cloud'
-          : 'Store your plan in the cloud',
+      description: !user ? 'Sign in to save to cloud' : 'Store your plan in the cloud',
       color: 'text-green-500',
       disabled: false,
       onClick: handleCloudSaveClick
@@ -100,7 +93,7 @@ const SaveModal: React.FC<SaveModalProps> = ({ isOpen, onClose, onShowAuth }) =>
               disabled={isSaving}
               className={`w-full flex items-center gap-3 p-4 text-left border rounded-lg transition-colors 
                 ${selectedOption === option.id ? 'border-primary bg-accent' : 'hover:bg-accent'}
-                ${(!user || !isPremium) && option.id === 'cloud' ? 'opacity-75' : ''}`}
+                ${!user && option.id === 'cloud' ? 'opacity-75' : ''}`}
             >
               <option.icon size={20} className={option.color} />
               <div>

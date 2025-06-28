@@ -2,6 +2,38 @@
     "birth_date": "2001-09-11",
     "inflation_rate": 0.03,
     "adjust_for_inflation": true,
+    "envelopes": [
+        {
+            "name": "Cash",
+            "category": "Cash",
+            "growth": "None",
+            "rate": 0.0
+        },
+        {
+            "name": "House",
+            "category": "Asset",
+            "growth": "Appreciation",
+            "rate": 0.03
+        },
+        {
+            "name": "Savings",
+            "category": "Investment",
+            "growth": "Daily Compound",
+            "rate": 0.04
+        },
+        {
+            "name": "Investments",
+            "category": "Investment",
+            "growth": "Yearly Compound",
+            "rate": 0.07
+        },
+        {
+            "name": "Retirement",
+            "category": "Investment",
+            "growth": "Yearly Compound",
+            "rate": 0.06
+        }
+    ],
     "events": [
         {
             "id": 1,
@@ -62,11 +94,16 @@
                     "id": 10,
                     "type": "to_key",
                     "value": "Cash"
+                },
+                {
+                    "id": 11,
+                    "type": "p_401k_key",
+                    "value": "Retirement"
                 }
             ],
             "updating_events": [
                 {
-                    "id": 1,
+                    "id": 2,
                     "type": "get_a_raise",
                     "description": "Get a raise",
                     "parameters": [
@@ -83,7 +120,7 @@
                     ]
                 },
                 {
-                    "id": 2,
+                    "id": 3,
                     "type": "change_401k_contribution",
                     "description": "Change 401k contribution to 10%",
                     "parameters": [
@@ -100,7 +137,7 @@
                     ]
                 },
                 {
-                    "id": 3,
+                    "id": 4,
                     "type": "get_a_bonus",
                     "description": "Get a bonus of $10,000",
                     "parameters": [

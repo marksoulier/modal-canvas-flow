@@ -5,9 +5,11 @@ import {
     buy_house, buy_car, have_kid, marriage, divorce, pass_away,
     buy_health_insurance, buy_life_insurance,
     receive_government_aid, invest_money,
-    high_yield_savings_account, pay_taxes, buy_groceries, manual_correction
+    high_yield_savings_account, pay_taxes, buy_groceries, manual_correction,
+    get_wage_job, transfer_money
 } from './baseFunctions';
 import { evaluateResults } from './resultsEvaluation';
+import type { Plan, Schema } from '../contexts/PlanContext';
 
 interface Datum {
     date: number;
@@ -17,59 +19,45 @@ interface Datum {
     };
 }
 
-interface SimulationResult {
-    Cash: Datum[];
-}
+export function initializeEnvelopes(plan: Plan): Record<string, { functions: ((t: number) => number)[], growth_type: string, growth_rate: number }> {
+    const envelopes: Record<string, { functions: ((t: number) => number)[], growth_type: string, growth_rate: number }> = {};
 
-interface Plan {
-    current_time_days: number;
-    inflation_rate: number;
-    adjust_for_inflation: boolean;
-    events: any[];
-}
+    for (const env of plan.envelopes) {
+        const name = env.name;
+        const growth_type = env.growth || "None";
+        const rate = env.rate || 0.0;
+        envelopes[name] = { functions: [], growth_type, growth_rate: rate };
+    }
 
-export function initializeEnvelopes(): Record<string, ((t: number) => number)[]> {
-    return {
-        Cash: [],
-        House: [],
-        Savings: [],
-        Investments: [],
-        Retirement: []
-    };
+    return envelopes;
 }
 
 export async function runSimulation(
     plan: Plan,
-    eventSchemaPath: string,
+    schema: Schema,
     startDate: number = 0,
     endDate: number = 30 * 365,
     interval: number = 365
-): Promise<SimulationResult> {
+): Promise<Datum[]> {
     try {
-        // Load schema
-        const schemaResponse = await fetch(eventSchemaPath);
-        if (!schemaResponse.ok) {
-            throw new Error('Failed to load schema data');
-        }
-        const schema = await schemaResponse.json();
-
         const schemaMap = extractSchema(schema);
         const issues = validateProblem(plan, schemaMap);
 
         if (issues.length > 0) {
             console.error("❌ Validation issues found:");
             for (const issue of issues) console.error(issue);
-            return { Cash: [] };
+            return [];
         }
 
         const parsedEvents = parseEvents(plan);
-        const envelopes = initializeEnvelopes();
+        const envelopes = initializeEnvelopes(plan);
 
         for (const event of parsedEvents) {
             switch (event.type) {
                 case 'purchase': purchase(event, envelopes); break;
                 case 'gift': gift(event, envelopes); break;
                 case 'get_job': get_job(event, envelopes); break;
+                case 'get_wage_job': get_wage_job(event, envelopes); break;
                 case 'start_business': start_business(event, envelopes); break;
                 case 'retirement': retirement(event, envelopes); break;
                 case 'buy_house': buy_house(event, envelopes); break;
@@ -85,6 +73,7 @@ export async function runSimulation(
                 case 'pay_taxes': pay_taxes(event, envelopes); break;
                 case 'buy_groceries': buy_groceries(event, envelopes); break;
                 case 'manual_correction': manual_correction(event, envelopes); break;
+                case 'transfer_money': transfer_money(event, envelopes); break;
                 case 'pass_away': pass_away(event, envelopes); break;
                 default:
                     console.warn(`⚠️ Unhandled event type: ${event.type}`);
@@ -92,21 +81,35 @@ export async function runSimulation(
         }
 
         const results = evaluateResults(envelopes, startDate, endDate, interval);
-
-        const data: Record<string, Datum[]> = {};
         const timePoints = Array.from({ length: Math.ceil(endDate / interval) }, (_, i) => i * interval);
 
-        for (const [key, values] of Object.entries(results)) {
-            data[key] = values.map((y, i) => ({
-                date: timePoints[i],
-                value: y,
-                parts: {}
-            }));
-        }
+        // Get all envelope keys from the results
+        const envelopeKeys = Object.keys(results);
 
-        return {
-            Cash: data.Cash || []
-        };
+        // Filter out envelopes that have zero values in the first interval
+        const nonZeroEnvelopeKeys = envelopeKeys.filter(key => {
+            const firstValue = results[key][0];
+            return firstValue !== 0;
+        });
+
+        // Create a single array of Datum objects where each Datum contains all non-zero envelope values as parts
+        return timePoints.map((date, i) => {
+            const parts: { [key: string]: number } = {};
+            let totalValue = 0;
+
+            // Populate parts with values from each non-zero envelope
+            nonZeroEnvelopeKeys.forEach(key => {
+                const value = results[key][i];
+                parts[key] = value;
+                totalValue += value;
+            });
+
+            return {
+                date,
+                value: totalValue,
+                parts
+            };
+        });
     } catch (error) {
         console.error('Error running simulation:', error);
         throw error;

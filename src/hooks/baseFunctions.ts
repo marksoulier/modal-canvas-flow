@@ -8,26 +8,52 @@ export const P = (params: Record<string, any>): Theta => {
 };
 
 export const T = (
-    tk: number,
+    theta_event: Record<string, number>,
     f: FuncWithTheta,
-    theta: Theta = P({})
+    theta: Theta = P({}),
+    theta_g: Record<string, any> = { type: "None", r: 0.0 }
 ): ((t: number) => number) => {
-    return (t: number) => f(theta, tk)(t - tk) * u(t - tk);
+    const t_k = theta_event.t_k;
+    return (t: number) => f(theta, t_k)(t - t_k) * u(t - t_k) * f_growth(theta_g, t - t_k);
 };
 
 export const R = (
-    t0: number,
-    dt: number,
-    tf: number,
+    theta_re: Record<string, number>,
     f: FuncWithTheta,
     theta: Theta,
-    overrides: Record<number, Theta> = {}
+    theta_g: Record<string, any> = { type: "None", r: 0.0 },
+    omega: Record<number, [number, Theta]> = {}
 ): ((t: number) => number) => {
-    return (t: number) =>
-        Array.from({ length: Math.floor((tf - t0) / dt) + 1 }, (_, i) => {
+    const t0 = theta_re.t0;
+    const dt = theta_re.dt;
+    const tf = theta_re.tf;
+
+    return (t: number) => {
+        let total = 0.0;
+        let i = 0;
+
+        while (true) {
             const ti = t0 + i * dt;
-            return ti <= tf ? f(overrides[i] ?? theta, ti)(t - ti) * u(t - ti) : 0;
-        }).reduce((acc, val) => acc + val, 0);
+            if (ti > tf) break;
+
+            // Check if there's an override for this index
+            let current_t = ti;
+            let current_theta = theta;
+
+            if (i in omega) {
+                const [t_hat, theta_prime] = omega[i];
+                current_t = t_hat;
+                current_theta = theta_prime;
+            }
+
+            // Apply the occurrence function with growth
+            const occurrence = T({ t_k: current_t }, f, current_theta, theta_g);
+            total += occurrence(t);
+            i++;
+        }
+
+        return total;
+    };
 };
 
 export const D = (
@@ -47,103 +73,169 @@ export const gamma = (
         t < tStar ? theta(t) : { ...theta(t), ...thetaChange };
 };
 
+// Growth magnitude function with different compounding types
+export const f_growth = (theta_g: Record<string, any>, t: number): number => {
+    const growth_type = theta_g.type;
+    const r = theta_g.r;
+
+    switch (growth_type) {
+        case "Daily Compound":
+            return Math.pow(1 + r / 365, 365 * t / 365);
+        case "Monthly Compound":
+            return Math.pow(1 + r / 12, 12 * t / 365);
+        case "Yearly Compound":
+            return Math.pow(1 + r, t / 365);
+        case "Simple Interest":
+            return 1 + r * (t / 365);
+        case "Appreciation":
+            return 1 + r * (t / 365);
+        case "Depreciation":
+            return 1 - r * (t / 365);
+        case "None":
+        default:
+            return 1;
+    }
+};
+
+// Helper function to get growth parameters from envelopes
+export const get_growth_parameters = (
+    envelopes: Record<string, any>,
+    from_key?: string,
+    to_key?: string
+): [Record<string, any>, Record<string, any>] => {
+    // Get source growth parameters
+    let theta_growth_source: Record<string, any> = { type: "None", r: 0.0 };
+    if (from_key && from_key in envelopes) {
+        const source_env = envelopes[from_key];
+        theta_growth_source = {
+            type: source_env.growth_type || "None",
+            r: source_env.growth_rate || 0.0
+        };
+    }
+
+    // Get destination growth parameters
+    let theta_growth_destination: Record<string, any> = { type: "None", r: 0.0 };
+    if (to_key && to_key in envelopes) {
+        const dest_env = envelopes[to_key];
+        theta_growth_destination = {
+            type: dest_env.growth_type || "None",
+            r: dest_env.growth_rate || 0.0
+        };
+    }
+
+    return [theta_growth_source, theta_growth_destination];
+};
+
 // baseFunctions.ts
 // f_in: inflow function
 export const f_in = (theta: Theta, t_i: number) => {
     const params = theta(t_i);
-    return (t: number) => params["a"] * u(t);
+    return (t: number) => params.a * u(t);
 };
 
 // f_out: outflow function
 export const f_out = (theta: Theta, t_i: number) => {
     const params = theta(t_i);
-    return (t: number) => -params["b"] * u(t);
+    return (t: number) => -params.b * u(t);
 };
 
-// f_com: compound interest
-export const f_com = (theta: Theta, t_i: number) => {
-    const params = theta(t_i);
-    return (t: number) =>
-        params["P"] * Math.pow(1 + params["r"] / 365, t) * u(t);
-};
+// f_com: compound interest - REMOVED (no longer used)
+// f_app: appreciation - REMOVED (no longer used)  
+// f_dep: depreciation - REMOVED (no longer used)
 
-// f_sal: salary with deductions
+// Compound salary into 401k - REMOVED (no longer used)
+
+// Mortgage payment calculation - REMOVED (no longer used)
+
+// f_buy_house - REMOVED (no longer used)
+// f_buy_car - REMOVED (no longer used)
+
+// f_insurance - REMOVED (no longer used)
+// f_maint - REMOVED (no longer used)
+
+// f_empirical - REMOVED (no longer used)
+// f_purchase - REMOVED (no longer used)
+// f_get_job - REMOVED (no longer used)
+
+// f_get_wage_job - REMOVED (no longer used)
+
+// f_get_bonus - REMOVED (no longer used)
+// f_start_business - REMOVED (no longer used)
+// f_business_income - REMOVED (no longer used)
+// f_retirement - REMOVED (no longer used)
+// f_hysa - REMOVED (no longer used)
+
+// Remove all the deprecated override functions
+// raise_override, wage_raise_override, update_business_income, update_401k, adjust_depreciation, adjust_mortgage - REMOVED
+
 export const f_sal = (theta: Theta, t_i: number) => {
     const params = theta(t_i);
     const net = 1 -
-        (params["r_SS"] + params["r_Med"] + params["r_Fed"] + params["r_401k"]);
-    return (t: number) => (params["S"] / params["p"]) * net * u(t);
+        (params.r_SS + params.r_Med + params.r_Fed + params.r_401k);
+    return (t: number) => (params.S / params.p) * net * u(t);
 };
 
-// f_app: appreciation
-export const f_app = (theta: Theta, t_i: number) => {
-    const params = theta(t_i);
-    return (t: number) => params["V0"] * Math.pow(1 + params["r_app"], t / 365);
+// f_wage: wage with deductions
+export const f_wage = (theta: Theta, t_i: number) => {
+    const w = theta(t_i).w; // Hourly wage
+    const h = theta(t_i).h; // Hours per week
+    const p = theta(t_i).p; // Pay periods per year
+    const r_SS = theta(t_i).r_SS; // Social Security rate
+    const r_Fed = theta(t_i).r_Fed; // Federal tax rate
+    const r_Med = theta(t_i).r_Med; // Medicare rate
+    const r_401k = theta(t_i).r_401k; // 401k contribution rate
+    const r_match = theta(t_i).r_match; // Employer match rate
+
+    return (t: number) => ((w * h * 52) / p) * (1 - r_SS - r_Fed - r_Med - r_401k);
 };
 
-// f_dep: depreciation
-export const f_dep = (theta: Theta, t_i: number) => {
-    const params = theta(t_i);
-    return (t: number) => params["V0"] * Math.pow(1 - params["r_dep"], t / 365);
-};
+// f_com: compound interest - REMOVED (no longer used)
+// f_sal: salary with deductions
 
+// f_wage: wage with deductions
 
-// Compound salary into 401k
+// f_com: compound interest - REMOVED (no longer used)
+
+// f_sal: salary with deductions
+
+// f_wage: wage with deductions
+
 export const f_401 = (theta: Theta, t_i: number) => {
-    const p = theta(t_i);
-    return f_com(
-        P({ P: (p.S / p.p) * p.r_401, r: p.r_growth }),
-        t_i
-    );
+    const params = theta(t_i);
+    return (t: number) => (params.S / params.p) * params.r_401;
 };
 
-// Mortgage payment calculation
+// Mortgage payment calculation - REMOVED (no longer used)
+
 export const f_principal = (theta: Theta, t_i: number) => {
-    const p = theta(t_i);
-    return (t: number): number => {
-        const months = Math.floor(t / (365 / 12));
-        const r = p.r;
-        const y = p.y;
-        const Loan = p.P;
-        const default_payment = (Loan * (r / 12) * Math.pow(1 + r / 12, 12 * y)) /
-            (Math.pow(1 + r / 12, 12 * y) - 1);
-        const p_m = p.p_mortgage ?? default_payment;
-        const payment = (Loan * Math.pow(1 + r / 12, months) * (r / 12)) /
-            (Math.pow(1 + r / 12, 12 * y) - 1);
-        const mortgage_amt = f_mortgage(P({ P: Loan, r, y }), t_i)(t);
-        return payment + Math.max(mortgage_amt - p_m, 0);
-    };
-};
-
-export const f_buy_house = (theta_h: Theta, theta_p: Theta, t_i: number) => {
-    const h = theta_h(t_i);
-    return (t: number) =>
-        f_app(P({ V0: h.H0, r_app: h.r_app }), t_i)(t) -
-        (h.H0 - h.D - R(h.t_buy, 365 / 30, h.t_buy + h.y * 365, f_principal, theta_p)(t));
-};
-
-export const f_buy_car = (theta_c: Theta, theta_p: Theta, t_i: number) => {
-    const c = theta_c(t_i);
-    return (t: number) =>
-        f_dep(P({ V0: c.C0, r_dep: c.r_dep }), t_i)(t) -
-        (c.C0 - c.D - R(c.t_buy, 365 / 12, c.t_buy + c.y * 365, f_principal, theta_p)(t));
+    const params = theta(t_i);
+    const months = Math.floor(t_i / (365 / 12));
+    const r = params.r;
+    const y = params.y;
+    const Loan = params.P;
+    // Calculate default mortgage payment if not provided
+    const default_payment = Loan * (r / 12) * Math.pow(1 + r / 12, 12 * y) / (Math.pow(1 + r / 12, 12 * y) - 1);
+    const p_m = params.p_mortgage ?? default_payment;
+    const payment = Loan * Math.pow(1 + r / 12, months) * (r / 12) / (Math.pow(1 + r / 12, 12 * y) - 1);
+    const mortgage_amt = f_mortgage(P({ P: Loan, r: r, y: y }), t_i)(t_i);
+    return (t: number) => payment + Math.max(mortgage_amt - p_m, 0);
 };
 
 export const f_mortgage = (theta: Theta, t_i: number) => {
-    const p = theta(t_i);
+    const params = theta(t_i);
     return (_t: number) =>
-        (p.P * (p.r / 12) * Math.pow(1 + p.r / 12, 12 * p.y)) /
-        (Math.pow(1 + p.r / 12, 12 * p.y) - 1);
+        (params.P * (params.r / 12) * Math.pow(1 + params.r / 12, 12 * params.y)) /
+        (Math.pow(1 + params.r / 12, 12 * params.y) - 1);
 };
 
 export const f_insurance = (theta: Theta, t_i: number) => {
-    const p = theta(t_i);
-    return (t: number) => p.p0 * Math.pow(1 + p.r_adj, t / 365);
+    const params = theta(t_i);
+    return (t: number) => params.p0 * Math.pow(1 + params.r_adj, t / 365);
 };
 
 export const f_maint = (theta: Theta, t_i: number) => {
-    const p = theta(t_i);
-    return (t: number) => p.m0 + p.alpha * (t - p.t0);
+    const params = theta(t_i);
+    return (t: number) => params.m0 + params.alpha * (t - params.t0);
 };
 
 export const f_inflation_adjust = (
@@ -151,84 +243,143 @@ export const f_inflation_adjust = (
     theta: Theta,
     t_i: number
 ) => {
-    const p = theta(t_i);
+    const params = theta(t_i);
     return (t: number) =>
-        t >= p.t_today ? W(t) / Math.pow(1 + p.r_inf, (t - p.t_today) / 365) : W(t);
-};
-
-export const f_empirical = (theta: Theta, t_i: number) => {
-    const p = theta(t_i);
-    return (t: number) => Math.abs(t - p.t_k) < 1e-5 ? p.V_obs : 0.0;
+        t >= params.t_today ? W(t) / Math.pow(1 + params.r_inf, (t - params.t_today) / 365) : W(t);
 };
 
 export const f_purchase = (theta: Theta, t_i: number) => {
-    const p = theta(t_i);
-    return f_out(P({ b: p.m }), t_i);
+    const params = theta(t_i);
+    return f_out(P({ b: params.m }), t_i);
 };
 
 export const f_get_job = (theta: Theta, t_i: number) => {
-    const p = theta(t_i);
-    return (t: number) => R(p.time_start, 365 / p.p, p.time_end, f_sal, theta)(t);
+    const params = theta(t_i);
+    return (t: number) => R({ t0: params.time_start, dt: 365 / params.p, tf: params.time_end }, f_sal, theta)(t);
 };
 
-export const raise_override = (theta: Theta, new_salary: number, t_raise: number): Theta => {
-    return gamma(theta, { S: new_salary }, t_raise);
+// f_get_wage_job: recurring wage payments - REMOVED (no longer used)
+
+export const manual_correction = (event: any, envelopes: Record<string, any>) => {
+    const params = event.parameters;
+    const to_key = params.to_key;
+    const env = envelopes[to_key];
+
+    let simulated_value = 0.0;
+    for (const func of env.functions) {
+        simulated_value += func(params.start_time);
+    }
+    const difference = params.amount - simulated_value;
+    console.log("Difference applied:", difference);
+
+    // Get growth parameters from envelope
+    const [_, theta_growth_dest] = get_growth_parameters(envelopes, undefined, to_key);
+
+    // Create the correction function and append it to the envelope
+    const correction_func = T(
+        { t_k: params.start_time },
+        difference > 0 ? f_in : f_out,
+        P(difference > 0 ? { a: Math.abs(difference) } : { b: Math.abs(difference) }),
+        theta_growth_dest
+    );
+    env.functions.push(correction_func);
 };
 
-export const f_get_bonus = (theta: Theta, t_i: number) => {
-    const p = theta(t_i);
-    return f_in(P({ a: p.b }), t_i);
-};
-
-export const f_start_business = (theta: Theta, t_i: number) => {
-    const p = theta(t_i);
-    return f_out(P({ b: p.a }), t_i);
-};
-
-export const f_business_income = (theta: Theta, t_i: number) => {
-    const p = theta(t_i);
-    return (t: number) =>
-        R(p.t0, p["Δt"], p.tf, f_in, P({ a: p.m }))(t);
-};
-
-export const update_business_income = (theta: Theta, new_m: number, t_update: number): Theta => {
-    return gamma(theta, { m: new_m }, t_update);
-};
-
-export const f_retirement = (theta: Theta, t_i: number) => {
-    const p = theta(t_i);
-    return (t: number) =>
-        R(p.t0, p["Δt"], p.tf, f_out, P({ b: p.w }))(t);
-};
-
-export const f_hysa = (theta: Theta, t_i: number) => {
-    const p = theta(t_i);
-    return f_com(P({ P: p.p, r: p.r_y }), t_i);
-};
-
-export const update_401k = (theta: Theta, new_r_401k: number, t_update: number): Theta => {
-    return gamma(theta, { r_401k: new_r_401k }, t_update);
-};
-
-export const adjust_depreciation = (theta: Theta, new_r_dep: number, t_update: number): Theta => {
-    return gamma(theta, { r_dep: new_r_dep }, t_update);
-};
-
-export const adjust_mortgage = (theta: Theta, new_payment: number, t_update: number): Theta => {
-    return gamma(theta, { monthly_payment: new_payment }, t_update);
-};
-
-
-
-
-
-
-
-
-export const get_job = (event: any, envelopes: Record<string, ((t: number) => number)[]>) => {
+export const transfer_money = (event: any, envelopes: Record<string, any>) => {
     const params = event.parameters;
 
-    let theta = P({
+    // Get growth parameters for both envelopes
+    const [theta_growth_source, theta_growth_dest] = get_growth_parameters(
+        envelopes, params.from_key, params.to_key
+    );
+
+    // Create outflow function for source envelope
+    const outflow_func = T(
+        { t_k: params.start_time },
+        f_out,
+        P({ b: params.amount }),
+        theta_growth_source
+    );
+    envelopes[params.from_key].functions.push(outflow_func);
+
+    // Create inflow function for destination envelope with growth
+    const inflow_func = T(
+        { t_k: params.start_time },
+        f_in,
+        P({ a: params.amount }),
+        theta_growth_dest
+    );
+    envelopes[params.to_key].functions.push(inflow_func);
+};
+
+export const reoccuring_income = (event: any, envelopes: Record<string, any>) => {
+    const params = event.parameters;
+
+    // Get growth parameters for destination envelope
+    const [_, theta_growth_dest] = get_growth_parameters(envelopes, undefined, params.to_key);
+
+    // Create recurring income function
+    const income_func = R(
+        { t0: params.start_time, dt: params.frequency_days, tf: params.end_days },
+        f_in,
+        P({ a: params.amount }),
+        theta_growth_dest
+    );
+
+    envelopes[params.to_key].functions.push(income_func);
+};
+
+export const reoccuring_spending = (event: any, envelopes: Record<string, any>) => {
+    const params = event.parameters;
+
+    // Get growth parameters for source envelope
+    const [theta_growth_source, _] = get_growth_parameters(envelopes, params.from_key);
+
+    // Create recurring spending function
+    const spending_func = R(
+        { t0: params.start_time, dt: params.frequency_days, tf: params.end_days },
+        f_out,
+        P({ b: params.amount }),
+        theta_growth_source
+    );
+
+    envelopes[params.from_key].functions.push(spending_func);
+};
+
+export const reoccuring_transfer = (event: any, envelopes: Record<string, any>) => {
+    const params = event.parameters;
+
+    // Get growth parameters for both envelopes
+    const [theta_growth_source, theta_growth_dest] = get_growth_parameters(
+        envelopes, params.from_key, params.to_key
+    );
+
+    // Outflow from source envelope
+    const outflow_func = R(
+        { t0: params.start_time, dt: params.frequency_days, tf: params.end_days },
+        f_out,
+        P({ b: params.amount }),
+        theta_growth_source
+    );
+
+    envelopes[params.from_key].functions.push(outflow_func);
+
+    // Inflow to destination envelope
+    const inflow_func = R(
+        { t0: params.start_time, dt: params.frequency_days, tf: params.end_days },
+        f_in,
+        P({ a: params.amount }),
+        theta_growth_dest
+    );
+    envelopes[params.to_key].functions.push(inflow_func);
+};
+
+// Add missing exports for event functions
+export const get_job = (event: any, envelopes: Record<string, any>) => {
+    const params = event.parameters;
+
+    // Base job parameters dictionary for P(...)
+    const theta_base = {
         S: params.salary,
         p: params.pay_period,
         r_Fed: params.federal_income_tax,
@@ -236,384 +387,759 @@ export const get_job = (event: any, envelopes: Record<string, ((t: number) => nu
         r_Med: params.medicare_tax,
         r_401k: params.p_401k_contribution,
         r_state: params.state_income_tax,
-        time_start: params.start_time,
-        time_end: params.end_time
-    });
+    };
 
+    // Compose the base theta(t)
+    let theta = P(theta_base);
+
+    // Handle updating events
     for (const upd of event.updating_events || []) {
         const upd_type = upd.type;
         const upd_params = upd.parameters || {};
 
         if (upd_type === "get_a_raise") {
-            theta = raise_override(theta, upd_params.salary, upd_params.start_time);
+            theta = gamma(theta, { S: upd_params.salary }, upd_params.start_time);
         } else if (upd_type === "change_401k_contribution") {
-            theta = update_401k(theta, upd_params.p_401k_contribution, upd_params.start_time);
+            theta = gamma(theta, { r_401k: upd_params.p_401k_contribution }, upd_params.start_time);
         } else if (upd_type === "get_a_bonus") {
-            envelopes["Cash"].push(T(upd_params.start_time, f_in, P({ a: upd_params.bonus })));
+            envelopes[params.to_key].functions.push(
+                T({ t_k: upd_params.start_time }, f_in, P({ a: upd_params.bonus }), { type: "None", r: 0.0 })
+            );
         }
     }
 
+    // Add salary payments to cash envelope
     const to_key = params.to_key;
-    envelopes[to_key].push(f_get_job(theta, params.start_time));
-};
+    envelopes[to_key].functions.push(
+        R({ t0: params.start_time, dt: 365 / params.pay_period, tf: params.end_time },
+            f_salary, theta, { type: "None", r: 0.0 })
+    );
 
-export const purchase = (event: any, envelopes: Record<string, ((t: number) => number)[]>) => {
-    const params = event.parameters;
-    envelopes[params.from_key].push(
-        T(params.start_time, f_out, P({ b: params.money }))
+    // Add 401(k) contributions if specified
+    const contribution_amount = (params.salary / params.pay_period) *
+        (params.p_401k_contribution + params.p_401k_match);
+
+    // Get growth parameters from 401k envelope
+    const [_, theta_growth_401k] = get_growth_parameters(envelopes, undefined, params.p_401k_key);
+
+    envelopes[params.p_401k_key].functions.push(
+        R({ t0: params.start_time, dt: 365 / params.pay_period, tf: params.end_time },
+            f_in, P({ a: contribution_amount }), theta_growth_401k)
     );
 };
 
-export const gift = (event: any, envelopes: Record<string, ((t: number) => number)[]>) => {
+export const get_wage_job = (event: any, envelopes: Record<string, any>) => {
     const params = event.parameters;
-    envelopes[params.to_key].push(
-        T(params.start_time, f_in, P({ a: params.money }))
+
+    // Base wage parameters dictionary for P(...)
+    const theta_base = {
+        w: params.hourly_wage,
+        h: params.hours_per_week,
+        p: params.pay_period,
+        r_Fed: params.federal_income_tax,
+        r_SS: params.social_security_tax,
+        r_Med: params.medicare_tax,
+        r_401k: params.p_401k_contribution,
+        r_match: params.employer_match,
+    };
+
+    // Compose the base theta(t)
+    let theta = P(theta_base);
+
+    // Handle updating events
+    for (const upd of event.updating_events || []) {
+        const upd_type = upd.type;
+        const upd_params = upd.parameters || {};
+
+        if (upd_type === "get_a_raise") {
+            theta = gamma(theta, { w: upd_params.new_hourly_wage }, upd_params.start_time);
+        } else if (upd_type === "change_hours") {
+            theta = gamma(theta, { h: upd_params.new_hours }, upd_params.start_time);
+        } else if (upd_type === "change_401k_contribution") {
+            theta = gamma(theta, { r_401k: upd_params.p_401k_contribution }, upd_params.start_time);
+        } else if (upd_type === "change_employer_match") {
+            theta = gamma(theta, { r_match: upd_params.new_match_rate }, upd_params.start_time);
+        }
+    }
+
+    // Add wage payments to cash envelope
+    const cash_key = params.to_key;
+    envelopes[cash_key].functions.push(
+        R({ t0: params.start_time, dt: 365 / params.pay_period, tf: params.end_time },
+            f_wage, theta, { type: "None", r: 0.0 })
+    );
+
+    // Add 401(k) contributions if specified
+    const contribution_amount = (params.hourly_wage * params.hours_per_week * 52 / params.pay_period) *
+        (params.p_401k_contribution + params.employer_match);
+
+    // Get growth parameters from 401k envelope
+    const [_, theta_growth_401k] = get_growth_parameters(envelopes, undefined, params.p_401k_key);
+
+    // Add 401(k) contributions
+    envelopes[params.p_401k_key].functions.push(
+        R({ t0: params.start_time, dt: 365 / params.pay_period, tf: params.end_time },
+            f_in, P({ a: contribution_amount }), theta_growth_401k)
     );
 };
 
-export const start_business = (event: any, envelopes: Record<string, ((t: number) => number)[]>) => {
+export const purchase = (event: any, envelopes: Record<string, any>) => {
+    const params = event.parameters;
+    envelopes[params.from_key].functions.push(
+        T({ t_k: params.start_time }, f_out, P({ b: params.money }), { type: "None", r: 0.0 })
+    );
+};
+
+export const gift = (event: any, envelopes: Record<string, any>) => {
     const params = event.parameters;
 
-    envelopes[params.from_key].push(
-        T(params.start_time, f_out, P({ b: params.initial_investment }))
+    // Get growth parameters from destination envelope
+    const [_, theta_growth_dest] = get_growth_parameters(envelopes, undefined, params.to_key);
+
+    envelopes[params.to_key].functions.push(
+        T({ t_k: params.start_time }, f_in, P({ a: params.money }), theta_growth_dest)
+    );
+};
+
+export const start_business = (event: any, envelopes: Record<string, any>) => {
+    const params = event.parameters;
+
+    // Initial investment (outflow)
+    const initial_investment = T(
+        { t_k: params.start_time },
+        f_out,
+        P({ b: params.initial_investment }),
+        { type: "None", r: 0.0 }
     );
 
+    // Add initial investment to source envelope
+    const from_key = params.from_key;
+    envelopes[from_key].functions.push(initial_investment);
+
+    // Handle updating events (business income and losses)
     for (const upd of event.updating_events || []) {
         const upd_type = upd.type;
         const upd_params = upd.parameters || {};
 
         if (upd_type === "business_income") {
-            envelopes[upd_params.to_key].push(
-                R(upd_params.start_time, 30, upd_params.end_time, f_in, P({ a: upd_params.monthly_income }))
+            // Get growth parameters from destination envelope
+            const [_, theta_growth_dest] = get_growth_parameters(envelopes, undefined, upd_params.to_key);
+
+            // Create recurring income function
+            const income_func = R(
+                { t0: upd_params.start_time, dt: 30, tf: upd_params.end_time },
+                f_in,
+                P({ a: params.monthly_income }),
+                theta_growth_dest
             );
+            // Add to target envelope
+            const to_key = upd_params.to_key;
+            envelopes[to_key].functions.push(income_func);
+
         } else if (upd_type === "business_loss") {
-            envelopes[upd_params.from_key].push(
-                T(upd_params.start_time, f_out, P({ b: upd_params.loss_amount }))
+            // Create one-time loss function
+            const loss_func = T(
+                { t_k: upd_params.start_time },
+                f_out,
+                P({ b: upd_params.loss_amount }),
+                { type: "None", r: 0.0 }
             );
+            // Add to source envelope
+            const from_key = upd_params.from_key;
+            envelopes[from_key].functions.push(loss_func);
         }
     }
 };
 
-export const retirement = (event: any, envelopes: Record<string, ((t: number) => number)[]>) => {
+export const retirement = (event: any, envelopes: Record<string, any>) => {
     const params = event.parameters;
 
+    // Create recurring withdrawal function
     const withdrawal_func = R(
-        params.start_time,
-        params.frequency_days,
-        params.end_time,
+        { t0: params.start_time, dt: params.frequency_days, tf: params.end_time },
         f_out,
-        P({ b: params.amount })
+        P({ b: params.amount }),
+        { type: "None", r: 0.0 }
     );
 
-    envelopes[params.from_key].push(withdrawal_func);
+    // Add withdrawal function to source envelope
+    const from_key = params.from_key;
+    envelopes[from_key].functions.push(withdrawal_func);
 
+    // Create corresponding inflow to target envelope
     const deposit_func = R(
-        params.start_time,
-        params.frequency_days,
-        params.end_time,
+        { t0: params.start_time, dt: params.frequency_days, tf: params.end_time },
         f_in,
-        P({ a: params.amount })
+        P({ a: params.amount }),
+        { type: "None", r: 0.0 }
     );
 
-    envelopes[params.to_key].push(deposit_func);
+    // Add deposit function to target envelope
+    const to_key = params.to_key;
+    envelopes[to_key].functions.push(deposit_func);
 };
 
-
-export const buy_house = (event: any, envelopes: Record<string, ((t: number) => number)[]>) => {
+export const buy_house = (event: any, envelopes: Record<string, any>) => {
     const params = event.parameters;
-    const house_params = {
-        H0: params.home_value,
-        r_app: params.appreciation_rate,
-        t_buy: params.start_time,
-        y: params.loan_term_years,
-        D: params.downpayment,
-        Omega: []
-    };
-    const mortgage_params = {
-        P: params.home_value - params.downpayment,
-        r: params.loan_rate,
-        y: params.loan_term_years
-    };
 
-    let house_func = f_buy_house(P(house_params), P(mortgage_params), params.start_time);
-    envelopes[params.to_key].push(house_func);
+    // Handle downpayment (outflow)
+    const downpayment_func = T(
+        { t_k: params.start_time },
+        f_out,
+        P({ b: params.downpayment }),
+        { type: "None", r: 0.0 }
+    );
 
-    const downpayment_func = T(params.start_time, f_out, P({ b: params.downpayment }));
-    envelopes[params.from_key].push(downpayment_func);
+    // Add downpayment to source envelope
+    const from_key = params.from_key;
+    envelopes[from_key].functions.push(downpayment_func);
 
+    // Create house value tracking function with appreciation
+    const house_func = T(
+        { t_k: params.start_time },
+        f_in,
+        P({ a: params.home_value }),
+        { type: "Appreciation", r: params.appreciation_rate }
+    );
+
+    // Add house value to target envelope
+    const to_key = params.to_key;
+    envelopes[to_key].functions.push(house_func);
+
+    // Create mortgage payments
+    const loan_amount = params.home_value - params.downpayment;
+    const mortgage_func = R(
+        { t0: params.start_time, dt: 365 / 12, tf: params.start_time + params.loan_term_years * 365 },
+        f_mortgage,
+        P({ P: loan_amount, r: params.loan_rate, y: params.loan_term_years }),
+        { type: "None", r: 0.0 }
+    );
+
+    // Add mortgage payments to source envelope
+    envelopes[from_key].functions.push(mortgage_func);
+
+    // Handle updating events
     for (const upd of event.updating_events || []) {
         const upd_type = upd.type;
         const upd_params = upd.parameters || {};
 
         if (upd_type === "new_appraisal") {
-            house_params.H0 = upd_params.appraised_value;
-            house_func = f_buy_house(P(house_params), P(mortgage_params), upd_params.start_time);
-            envelopes[params.to_key].push(house_func);
-        } else if (upd_type === "extra_mortgage_payment" || upd_type === "late_payment") {
-            const payment_func = T(upd_params.start_time, f_out, P({ b: upd_params.amount }));
-            envelopes[upd_params.from_key].push(payment_func);
+            // Update house value with new appraisal
+            const new_house_func = T(
+                { t_k: upd_params.start_time },
+                f_in,
+                P({ a: upd_params.appraised_value }),
+                { type: "Appreciation", r: params.appreciation_rate }
+            );
+            envelopes[to_key].functions.push(new_house_func);
+
+        } else if (upd_type === "extra_mortgage_payment") {
+            // Handle extra payment
+            const extra_payment = T(
+                { t_k: upd_params.start_time },
+                f_out,
+                P({ b: upd_params.amount }),
+                { type: "None", r: 0.0 }
+            );
+            envelopes[upd_params.from_key].functions.push(extra_payment);
+
+        } else if (upd_type === "late_payment") {
+            // Handle late payment
+            const late_payment = T(
+                { t_k: upd_params.start_time },
+                f_out,
+                P({ b: upd_params.amount }),
+                { type: "None", r: 0.0 }
+            );
+            envelopes[upd_params.from_key].functions.push(late_payment);
+
         } else if (upd_type === "sell_house") {
-            const sale_func = T(upd_params.start_time, f_in, P({ a: upd_params.sale_price }));
-            envelopes[upd_params.to_key].push(sale_func);
-            const removal_func = T(upd_params.start_time, f_out, P({ b: params.home_value }));
-            envelopes[upd_params.from_key].push(removal_func);
+            // Handle house sale
+            const sale_value = T(
+                { t_k: upd_params.start_time },
+                f_in,
+                P({ a: upd_params.sale_price }),
+                { type: "None", r: 0.0 }
+            );
+            envelopes[upd_params.to_key].functions.push(sale_value);
+
+            // Remove house value from tracking
+            const house_removal = T(
+                { t_k: upd_params.start_time },
+                f_out,
+                P({ b: params.home_value }),
+                { type: "None", r: 0.0 }
+            );
+            envelopes[upd_params.from_key].functions.push(house_removal);
         }
     }
 };
 
-export const buy_home_insurance = (event: any, envelopes: Record<string, ((t: number) => number)[]>) => {
+export const buy_car = (event: any, envelopes: Record<string, any>) => {
     const params = event.parameters;
 
-    const premium_func = R(
-        params.start_time,
-        30,
-        Infinity,
+    // Handle downpayment (outflow)
+    const downpayment_func = T(
+        { t_k: params.start_time },
         f_out,
-        P({ b: params.monthly_premium })
+        P({ b: params.downpayment }),
+        { type: "None", r: 0.0 }
     );
-    envelopes[params.from_key].push(premium_func);
 
+    // Add downpayment to source envelope
+    const from_key = params.from_key;
+    envelopes[from_key].functions.push(downpayment_func);
+
+    // Create car value tracking function with depreciation
+    const car_func = T(
+        { t_k: params.start_time },
+        f_in,
+        P({ a: params.car_value }),
+        { type: "Depreciation", r: 0.15 }
+    );
+
+    // Add car value to target envelope
+    const to_key = params.to_key;
+    envelopes[to_key].functions.push(car_func);
+
+    // Create car loan payments
+    const loan_amount = params.car_value - params.downpayment;
+    const loan_func = R(
+        { t0: params.start_time, dt: 365 / 12, tf: params.start_time + params.loan_term_years * 365 },
+        f_mortgage,
+        P({ P: loan_amount, r: params.loan_rate, y: params.loan_term_years }),
+        { type: "None", r: 0.0 }
+    );
+
+    // Add loan payments to source envelope
+    envelopes[from_key].functions.push(loan_func);
+
+    // Handle updating events
     for (const upd of event.updating_events || []) {
         const upd_type = upd.type;
         const upd_params = upd.parameters || {};
 
-        if (["tornado_damage", "house_fire", "flood_damage"].includes(upd_type)) {
-            const damage_cost = upd_params.damage_cost;
-            const coverage = upd_params.insurance_coverage ?? params.coverage_percentage;
-            const payout = damage_cost * coverage;
+        if (upd_type === "pay_loan_early") {
+            // Handle early loan payment
+            const early_payment = T(
+                { t_k: upd_params.start_time },
+                f_out,
+                P({ b: upd_params.amount }),
+                { type: "None", r: 0.0 }
+            );
+            envelopes[upd_params.from_key].functions.push(early_payment);
 
-            const deductible = T(upd_params.start_time, f_out, P({ b: params.deductible }));
-            envelopes[params.from_key].push(deductible);
-
-            if (payout > 0) {
-                const payout_func = T(upd_params.start_time, f_in, P({ a: payout }));
-                envelopes[upd_params.to_key ?? params.from_key].push(payout_func);
-            }
+        } else if (upd_type === "car_repair") {
+            // Handle repair cost
+            const repair_cost = T(
+                { t_k: upd_params.start_time },
+                f_out,
+                P({ b: upd_params.cost }),
+                { type: "None", r: 0.0 }
+            );
+            envelopes[upd_params.from_key].functions.push(repair_cost);
         }
     }
 };
 
-export const buy_car = (event: any, envelopes: Record<string, ((t: number) => number)[]>) => {
+export const have_kid = (event: any, envelopes: Record<string, any>) => {
     const params = event.parameters;
 
-    const car_params = {
-        C0: params.car_value,
-        r_dep: 0.15,
-        t_buy: params.start_time,
-        y: params.loan_term_years,
-        D: params.downpayment
-    };
-    const loan_params = {
-        P: params.car_value - params.downpayment,
-        r: params.loan_rate,
-        y: params.loan_term_years
-    };
-
-    const car_func = f_buy_car(P(car_params), P(loan_params), params.start_time);
-    envelopes[params.to_key].push(car_func);
-
-    const downpayment_func = T(params.start_time, f_out, P({ b: params.downpayment }));
-    envelopes[params.from_key].push(downpayment_func);
-
-    for (const upd of event.updating_events || []) {
-        const upd_type = upd.type;
-        const upd_params = upd.parameters || {};
-
-        if (upd_type === "pay_loan_early" || upd_type === "car_repair") {
-            const payment_func = T(upd_params.start_time, f_out, P({ b: upd_params.amount ?? upd_params.cost }));
-            envelopes[upd_params.from_key].push(payment_func);
-        }
-    }
-};
-
-
-export const have_kid = (event: any, envelopes: Record<string, ((t: number) => number)[]>) => {
-    const params = event.parameters;
-
-    envelopes[params.from_key].push(
-        T(params.start_time, f_out, P({ b: params.initial_costs }))
+    // Handle initial costs (outflow)
+    const initial_costs = T(
+        { t_k: params.start_time },
+        f_out,
+        P({ b: params.initial_costs }),
+        { type: "None", r: 0.0 }
     );
 
+    // Add initial costs to source envelope
+    const from_key = params.from_key;
+    envelopes[from_key].functions.push(initial_costs);
+
+    // Handle updating events
     for (const upd of event.updating_events || []) {
         const upd_type = upd.type;
         const upd_params = upd.parameters || {};
 
         if (upd_type === "childcare_costs") {
+            // Create recurring childcare cost function
             const childcare_func = R(
-                upd_params.start_time,
-                30,
-                upd_params.start_time + upd_params.end_days,
+                { t0: upd_params.start_time, dt: 30, tf: upd_params.start_time + upd_params.end_days },
                 f_out,
-                P({ b: upd_params.monthly_cost })
+                P({ b: upd_params.monthly_cost }),
+                { type: "None", r: 0.0 }
             );
-            envelopes[upd_params.from_key].push(childcare_func);
+            envelopes[upd_params.from_key].functions.push(childcare_func);
+
         } else if (upd_type === "college_fund") {
-            envelopes[upd_params.from_key].push(
-                T(upd_params.start_time, f_out, P({ b: upd_params.initial_contribution }))
+            // Handle initial college fund contribution
+            const initial_contribution = T(
+                { t_k: upd_params.start_time },
+                f_out,
+                P({ b: upd_params.initial_contribution }),
+                { type: "None", r: 0.0 }
             );
-            envelopes[upd_params.from_key].push(
-                R(upd_params.start_time, 30, upd_params.start_time + upd_params.end_days, f_out, P({ b: upd_params.monthly_contribution }))
+            envelopes[upd_params.from_key].functions.push(initial_contribution);
+
+            // Create recurring college fund contribution function
+            const contribution_func = R(
+                { t0: upd_params.start_time, dt: 30, tf: upd_params.start_time + upd_params.end_days },
+                f_out,
+                P({ b: upd_params.monthly_contribution }),
+                { type: "None", r: 0.0 }
             );
-            envelopes[upd_params.to_key].push(
-                R(upd_params.start_time, 30, upd_params.start_time + upd_params.end_days, f_in, P({ a: upd_params.monthly_contribution }))
+            envelopes[upd_params.from_key].functions.push(contribution_func);
+
+            // Create corresponding inflow to college fund envelope
+            const [_, theta_growth_college] = get_growth_parameters(envelopes, undefined, upd_params.to_key);
+            const fund_inflow = R(
+                { t0: upd_params.start_time, dt: 30, tf: upd_params.start_time + upd_params.end_days },
+                f_in,
+                P({ a: upd_params.monthly_contribution }),
+                theta_growth_college
             );
+            envelopes[upd_params.to_key].functions.push(fund_inflow);
         }
     }
 };
 
-export const marriage = (event: any, envelopes: Record<string, ((t: number) => number)[]>) => {
+export const marriage = (event: any, envelopes: Record<string, any>) => {
     const params = event.parameters;
-    envelopes[params.from_key].push(
-        T(params.start_time, f_out, P({ b: params.cost }))
+
+    // Create wedding cost function (outflow)
+    const wedding_cost = T(
+        { t_k: params.start_time },
+        f_out,
+        P({ b: params.cost }),
+        { type: "None", r: 0.0 }
     );
+
+    // Add wedding cost to source envelope
+    const from_key = params.from_key;
+    envelopes[from_key].functions.push(wedding_cost);
 };
 
-export const divorce = (event: any, envelopes: Record<string, ((t: number) => number)[]>) => {
+export const divorce = (event: any, envelopes: Record<string, any>) => {
     const params = event.parameters;
-    envelopes[params.from_key].push(
-        T(params.start_time, f_out, P({ b: params.settlement_amount }))
+
+    // Handle settlement payment (outflow)
+    const settlement = T(
+        { t_k: params.start_time },
+        f_out,
+        P({ b: params.settlement_amount }),
+        { type: "None", r: 0.0 }
     );
-    envelopes[params.from_key].push(
-        T(params.start_time, f_out, P({ b: params.attorney_fees }))
+
+    // Handle attorney fees (outflow)
+    const attorney_fees = T(
+        { t_k: params.start_time },
+        f_out,
+        P({ b: params.attorney_fees }),
+        { type: "None", r: 0.0 }
     );
+
+    // Add both costs to source envelope
+    const from_key = params.from_key;
+    envelopes[from_key].functions.push(settlement);
+    envelopes[from_key].functions.push(attorney_fees);
 };
 
-export const pass_away = (event: any, envelopes: Record<string, ((t: number) => number)[]>) => {
-    const death_time = event.parameters.start_time;
+export const pass_away = (event: any, envelopes: Record<string, any>) => {
+    const params = event.parameters;
+    const death_time = params.start_time;
 
-    for (const [key, funcs] of Object.entries(envelopes)) {
-        envelopes[key] = funcs.map(func => D(death_time, func, (_t: number) => 0));
+    // For each envelope, create a function that returns 0 after death
+    for (const [envelope_name, envelope_data] of Object.entries(envelopes)) {
+        if ("functions" in envelope_data) {
+            // For each function in the envelope, wrap it to return 0 after death
+            const new_funcs = [];
+            for (const func of envelope_data.functions) {
+                // Wrap the original function to return 0 after death
+                const new_func = (t: number) => t < death_time ? func(t) : 0;
+                new_funcs.push(new_func);
+            }
+
+            // Replace the envelope's functions with the new ones
+            envelopes[envelope_name].functions = new_funcs;
+        }
     }
 };
 
-export const buy_health_insurance = (event: any, envelopes: Record<string, ((t: number) => number)[]>) => {
+export const buy_health_insurance = (event: any, envelopes: Record<string, any>) => {
     const params = event.parameters;
 
-    envelopes[params.from_key].push(
-        R(params.start_time, 30, Infinity, f_out, P({ b: params.monthly_premium }))
+    // Create monthly premium payment function
+    const premium_func = R(
+        { t0: params.start_time, dt: 30, tf: Infinity },
+        f_out,
+        P({ b: params.monthly_premium }),
+        { type: "None", r: 0.0 }
     );
 
+    // Add premium payments to source envelope
+    const from_key = params.from_key;
+    envelopes[from_key].functions.push(premium_func);
+
+    // Handle updating events (medical expenses)
     for (const upd of event.updating_events || []) {
         const upd_type = upd.type;
         const upd_params = upd.parameters || {};
 
         if (upd_type === "medical_expense") {
+            // Calculate out-of-pocket cost
             const total_cost = upd_params.total_cost;
             const deductible = upd_params.deductible ?? params.deductible;
             const coverage = upd_params.insurance_coverage ?? params.coverage_percentage;
 
+            // Handle deductible (outflow)
             if (deductible > 0) {
-                envelopes[upd_params.from_key].push(
-                    T(upd_params.start_time, f_out, P({ b: deductible }))
+                const deductible_func = T(
+                    { t_k: upd_params.start_time },
+                    f_out,
+                    P({ b: deductible }),
+                    { type: "None", r: 0.0 }
                 );
+                envelopes[upd_params.from_key].functions.push(deductible_func);
             }
 
+            // Handle remaining out-of-pocket cost
             const remaining_cost = total_cost - deductible;
             const out_of_pocket = remaining_cost * (1 - coverage);
             if (out_of_pocket > 0) {
-                envelopes[upd_params.from_key].push(
-                    T(upd_params.start_time, f_out, P({ b: out_of_pocket }))
+                const out_of_pocket_func = T(
+                    { t_k: upd_params.start_time },
+                    f_out,
+                    P({ b: out_of_pocket }),
+                    { type: "None", r: 0.0 }
                 );
+                envelopes[upd_params.from_key].functions.push(out_of_pocket_func);
             }
         }
     }
 };
 
-
-
-export const buy_life_insurance = (event: any, envelopes: Record<string, ((t: number) => number)[]>) => {
+export const buy_life_insurance = (event: any, envelopes: Record<string, any>) => {
     const params = event.parameters;
-    const from_key = params.from_key;
 
-    envelopes[from_key].push(
-        R(params.start_time, 30, params.start_time + params.term_years * 365, f_out, P({ b: params.monthly_premium }))
+    // Create monthly premium payment function
+    const premium_func = R(
+        { t0: params.start_time, dt: 30, tf: params.start_time + params.term_years * 365 },
+        f_out,
+        P({ b: params.monthly_premium }),
+        { type: "None", r: 0.0 }
     );
 
+    // Add premium payments to source envelope
+    const from_key = params.from_key;
+    envelopes[from_key].functions.push(premium_func);
+
+    // Handle updating events (coverage changes)
     for (const upd of event.updating_events || []) {
-        if (upd.type === "increase_coverage") {
-            const upd_params = upd.parameters || {};
-            envelopes[from_key].push(
-                R(upd_params.start_time, 30, params.start_time + params.term_years * 365, f_out, P({ b: upd_params.new_monthly_premium }))
+        const upd_type = upd.type;
+        const upd_params = upd.parameters || {};
+
+        if (upd_type === "increase_coverage") {
+            // Create new premium payment function with updated amount
+            const new_premium_func = R(
+                { t0: upd_params.start_time, dt: 30, tf: params.start_time + params.term_years * 365 },
+                f_out,
+                P({ b: params.new_monthly_premium }),
+                { type: "None", r: 0.0 }
             );
+            envelopes[from_key].functions.push(new_premium_func);
         }
     }
 };
 
-export const receive_government_aid = (event: any, envelopes: Record<string, ((t: number) => number)[]>) => {
+export const receive_government_aid = (event: any, envelopes: Record<string, any>) => {
     const params = event.parameters;
-    envelopes[params.to_key].push(
-        R(params.start_time, params.frequency_days, params.start_time + params.end_days, f_in, P({ a: params.amount }))
+
+    // Create recurring payment function
+    const aid_func = R(
+        { t0: params.start_time, dt: params.frequency_days, tf: params.start_time + params.end_days },
+        f_in,
+        P({ a: params.amount }),
+        { type: "None", r: 0.0 }
     );
+
+    // Add aid payments to target envelope
+    const to_key = params.to_key;
+    envelopes[to_key].functions.push(aid_func);
 };
 
-export const invest_money = (event: any, envelopes: Record<string, ((t: number) => number)[]>) => {
+export const invest_money = (event: any, envelopes: Record<string, any>) => {
     const params = event.parameters;
 
-    envelopes[params.from_key].push(T(params.start_time, f_out, P({ b: params.amount })));
-    envelopes[params.to_key].push(f_com(P({ P: params.amount, r: params.expected_return }), params.start_time));
+    // Handle initial investment (outflow)
+    const initial_investment = T(
+        { t_k: params.start_time },
+        f_out,
+        P({ b: params.amount }),
+        { type: "None", r: 0.0 }
+    );
 
+    // Add initial investment to source envelope
+    const from_key = params.from_key;
+    envelopes[from_key].functions.push(initial_investment);
+
+    // Get growth parameters from destination envelope
+    const [_, theta_growth_dest] = get_growth_parameters(envelopes, undefined, params.to_key);
+
+    // Create investment growth function
+    const investment_func = T(
+        { t_k: params.start_time },
+        f_in,
+        P({ a: params.amount }),
+        theta_growth_dest
+    );
+
+    // Add investment growth to target envelope
+    const to_key = params.to_key;
+    envelopes[to_key].functions.push(investment_func);
+
+    // Handle updating events
     for (const upd of event.updating_events || []) {
         const upd_type = upd.type;
         const upd_params = upd.parameters || {};
 
         if (upd_type === "Reoccuring Dividend Payout") {
-            envelopes[upd_params.to_key].push(T(upd_params.start_time, f_in, P({ a: upd_params.amount })));
+            // Handle dividend payments
+            const dividend_func = T(
+                { t_k: upd_params.start_time },
+                f_in,
+                P({ a: params.amount }),
+                { type: "None", r: 0.0 }
+            );
+            envelopes[upd_params.to_key].functions.push(dividend_func);
+
         } else if (upd_type === "Reoccuring Contribution") {
-            envelopes[upd_params.from_key].push(R(upd_params.start_time, 30, upd_params.end_time, f_out, P({ b: upd_params.amount })));
-            envelopes[params.to_key].push(f_com(P({ P: upd_params.amount, r: params.expected_return }), upd_params.start_time));
+            // Handle recurring contributions
+            const contribution_func = R(
+                { t0: upd_params.start_time, dt: 30, tf: upd_params.end_time },
+                f_out,
+                P({ b: params.amount }),
+                { type: "None", r: 0.0 }
+            );
+            envelopes[upd_params.from_key].functions.push(contribution_func);
+
+            // Add corresponding investment growth
+            const new_investment_func = T(
+                { t_k: upd_params.start_time },
+                f_in,
+                P({ a: upd_params.amount }),
+                theta_growth_dest
+            );
+            envelopes[to_key].functions.push(new_investment_func);
         }
     }
 };
 
-export const high_yield_savings_account = (event: any, envelopes: Record<string, ((t: number) => number)[]>) => {
+export const high_yield_savings_account = (event: any, envelopes: Record<string, any>) => {
     const params = event.parameters;
 
-    envelopes[params.from_key].push(T(params.start_time, f_out, P({ b: params.amount })));
-    envelopes[params.to_key].push(f_com(P({ P: params.amount, r: params.interest_rate }), params.start_time));
-};
-
-export const pay_taxes = (event: any, envelopes: Record<string, ((t: number) => number)[]>) => {
-    const params = event.parameters;
-
-    envelopes[params.from_key].push(T(params.start_time, f_out, P({ b: params.total_tax_due })));
-
-    for (const upd of event.updating_events || []) {
-        if (upd.type === "receive_tax_refund") {
-            const upd_params = upd.parameters || {};
-            envelopes[upd_params.to_key].push(T(upd_params.start_time, f_in, P({ a: upd_params.amount })));
-        }
-    }
-};
-
-export const buy_groceries = (event: any, envelopes: Record<string, ((t: number) => number)[]>) => {
-    const params = event.parameters;
-    const from_key = params.from_key;
-
-    envelopes[from_key].push(
-        R(params.start_time, 30, params.start_time + params.end_days, f_out, P({ b: params.monthly_amount }))
+    // Handle initial deposit (outflow)
+    const initial_deposit = T(
+        { t_k: params.start_time },
+        f_out,
+        P({ b: params.amount }),
+        { type: "None", r: 0.0 }
     );
 
+    // Add initial deposit to source envelope
+    const from_key = params.from_key;
+    envelopes[from_key].functions.push(initial_deposit);
+
+    // Get growth parameters from destination envelope
+    const [_, theta_growth_dest] = get_growth_parameters(envelopes, undefined, params.to_key);
+
+    // Create savings growth function with daily compounding
+    const savings_func = T(
+        { t_k: params.start_time },
+        f_in,
+        P({ a: params.amount }),
+        theta_growth_dest
+    );
+
+    // Add savings growth to target envelope
+    const to_key = params.to_key;
+    envelopes[to_key].functions.push(savings_func);
+};
+
+export const pay_taxes = (event: any, envelopes: Record<string, any>) => {
+    const params = event.parameters;
+
+    // Handle tax payment (outflow)
+    const tax_payment = T(
+        { t_k: params.start_time },
+        f_out,
+        P({ b: params.total_tax_due }),
+        { type: "None", r: 0.0 }
+    );
+
+    // Add tax payment to source envelope
+    const from_key = params.from_key;
+    envelopes[from_key].functions.push(tax_payment);
+
+    // Handle updating events (tax refunds)
     for (const upd of event.updating_events || []) {
-        if (upd.type === "update_amount") {
-            const upd_params = upd.parameters || {};
-            envelopes[from_key].push(
-                R(upd_params.start_time, 30, params.start_time + params.end_days, f_out, P({ b: upd_params.new_amount }))
+        const upd_type = upd.type;
+        const upd_params = upd.parameters || {};
+
+        if (upd_type === "receive_tax_refund") {
+            // Handle tax refund (inflow)
+            const refund_func = T(
+                { t_k: upd_params.start_time },
+                f_in,
+                P({ a: params.amount }),
+                { type: "None", r: 0.0 }
             );
+            envelopes[upd_params.to_key].functions.push(refund_func);
         }
     }
 };
 
-export const manual_correction = (event: any, envelopes: Record<string, ((t: number) => number)[]>) => {
+export const buy_groceries = (event: any, envelopes: Record<string, any>) => {
     const params = event.parameters;
-    const to_key = params.to_key;
-    const is_positive = params.amount > 0;
 
-    const correction_func = (is_positive ? f_in : f_out)(P({ [is_positive ? "a" : "b"]: Math.abs(params.amount) }), params.start_time);
-    envelopes[to_key].push(D(params.start_time, correction_func, (_t: number) => 0));
+    // Create recurring monthly grocery payment function
+    const grocery_func = R(
+        { t0: params.start_time, dt: 30, tf: params.start_time + params.end_days },
+        f_out,
+        P({ b: params.monthly_amount }),
+        { type: "None", r: 0.0 }
+    );
 
-    if (to_key !== "Cash") {
-        envelopes[to_key].push(
-            f_com(P({ P: params.amount, r: params.rate }), params.start_time)
-        );
+    // Add grocery payments to source envelope
+    const from_key = params.from_key;
+    envelopes[from_key].functions.push(grocery_func);
+
+    // Handle updating events (amount changes)
+    for (const upd of event.updating_events || []) {
+        const upd_type = upd.type;
+        const upd_params = upd.parameters || {};
+
+        if (upd_type === "update_amount") {
+            // Create new payment function with updated amount
+            const new_grocery_func = R(
+                { t0: upd_params.start_time, dt: 30, tf: params.start_time + params.end_days },
+                f_out,
+                P({ b: params.new_amount }),
+                { type: "None", r: 0.0 }
+            );
+            envelopes[from_key].functions.push(new_grocery_func);
+        }
     }
+};
+
+export const f_salary = (theta: Theta, t_i: number) => {
+    const S = theta(t_i).S; // Salary
+    const p = theta(t_i).p; // Pay periods per year
+    const r_SS = theta(t_i).r_SS; // Social Security rate
+    const r_Med = theta(t_i).r_Med; // Medicare rate
+    const r_Fed = theta(t_i).r_Fed; // Federal tax rate
+    const r_401k = theta(t_i).r_401k; // 401k contribution rate
+    const r_state = theta(t_i).r_state; // State tax rate
+
+    return (t: number) => (S / p) * (1 - r_SS - r_Med - r_Fed - r_401k - r_state);
 };

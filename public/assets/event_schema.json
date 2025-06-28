@@ -9,9 +9,18 @@
         "Investments",
         "Retirement"
     ],
+    "parameter_units_list": [
+        "usd",
+        "apy",
+        "date",
+        "envelope",
+        "days",
+        "percentage"
+    ],
     "events": [
         {
             "type": "purchase",
+            "display_type": "Purchase",
             "category": "Living Expenses",
             "weight": 5,
             "description": "Basic purchase or spending of money",
@@ -19,16 +28,22 @@
             "parameters": [
                 {
                     "type": "start_time",
+                    "display_name": "Purchase Date",
+                    "parameter_units": "date",
                     "description": "When the purchase occurs",
                     "default": 0
                 },
                 {
                     "type": "money",
+                    "display_name": "Amount",
+                    "parameter_units": "usd",
                     "description": "Amount of money spent",
                     "default": 20
                 },
                 {
                     "type": "from_key",
+                    "display_name": "From Envelope",
+                    "parameter_units": "envelope",
                     "description": "Which envelope the money comes from",
                     "default": "Cash"
                 }
@@ -36,6 +51,7 @@
         },
         {
             "type": "gift",
+            "display_type": "Gift",
             "weight": 10,
             "category": "Living Expenses",
             "description": " gift of money from something",
@@ -43,16 +59,22 @@
             "parameters": [
                 {
                     "type": "start_time",
+                    "display_name": "Gift Date",
+                    "parameter_units": "date",
                     "description": "When the gift is recieved",
                     "default": 0
                 },
                 {
                     "type": "money",
+                    "display_name": "Amount",
+                    "parameter_units": "usd",
                     "description": "Amount of money gained",
                     "default": 20
                 },
                 {
                     "type": "to_key",
+                    "display_name": "To Envelope",
+                    "parameter_units": "envelope",
                     "description": "Which envelope the money goes to",
                     "default": "Cash"
                 }
@@ -60,6 +82,7 @@
         },
         {
             "type": "get_job",
+            "display_type": "Employment",
             "weight": 90,
             "category": "Income & Employment",
             "description": "Start earning a salary from employment.",
@@ -67,58 +90,87 @@
             "parameters": [
                 {
                     "type": "start_time",
+                    "display_name": "Start Date",
+                    "parameter_units": "date",
                     "description": "When the job starts",
                     "default": 0
                 },
                 {
                     "type": "end_time",
+                    "display_name": "End Date",
+                    "parameter_units": "date",
                     "description": "When the job ends (optional)",
                     "default": 3650
                 },
                 {
                     "type": "salary",
+                    "display_name": "Annual Salary",
+                    "parameter_units": "usd",
                     "description": "Annual salary before taxes.",
                     "default": 60000
                 },
                 {
                     "type": "pay_period",
+                    "display_name": "Pay Periods per Year",
+                    "parameter_units": "days",
                     "description": "Number of pay periods per year.",
                     "default": 26
                 },
                 {
                     "type": "federal_income_tax",
+                    "display_name": "Federal Tax Rate",
+                    "parameter_units": "percentage",
                     "description": "Federal income tax rate.",
                     "default": 0.12
                 },
                 {
                     "type": "state_income_tax",
+                    "display_name": "State Tax Rate",
+                    "parameter_units": "percentage",
                     "description": "State income tax rate.",
                     "default": 0.05
                 },
                 {
                     "type": "social_security_tax",
+                    "display_name": "Social Security Tax Rate",
+                    "parameter_units": "percentage",
                     "description": "Social Security tax rate.",
                     "default": 0.062
                 },
                 {
                     "type": "medicare_tax",
+                    "display_name": "Medicare Tax Rate",
+                    "parameter_units": "percentage",
                     "description": "Medicare tax rate.",
                     "default": 0.0145
                 },
                 {
                     "type": "p_401k_contribution",
+                    "display_name": "401k Contribution Rate",
+                    "parameter_units": "percentage",
                     "description": "Percent of salary contributed to 401k.",
                     "default": 0.05
                 },
                 {
                     "type": "p_401k_match",
+                    "display_name": "401k Match Rate",
+                    "parameter_units": "percentage",
                     "description": "Employer match percent for 401k.",
                     "default": 0.05
                 },
                 {
                     "type": "to_key",
+                    "display_name": "Deposit Envelope",
+                    "parameter_units": "envelope",
                     "description": "Envelope where salary is deposited",
                     "default": "Cash"
+                },
+                {
+                    "type": "p_401k_key",
+                    "display_name": "401k Envelope",
+                    "parameter_units": "envelope",
+                    "description": "Envelope where 401k contributions are tracked",
+                    "default": "Retirement"
                 }
             ],
             "updating_events": [
@@ -176,7 +228,172 @@
             ]
         },
         {
+            "type": "get_wage_job",
+            "display_type": "Wage Employment",
+            "weight": 90,
+            "category": "Income & Employment",
+            "description": "Start earning an hourly wage from employment.",
+            "icon": "clock",
+            "parameters": [
+                {
+                    "type": "start_time",
+                    "display_name": "Start Date",
+                    "parameter_units": "date",
+                    "description": "When the job starts",
+                    "default": 0
+                },
+                {
+                    "type": "end_time",
+                    "display_name": "End Date",
+                    "parameter_units": "date",
+                    "description": "When the job ends (optional)",
+                    "default": 3650
+                },
+                {
+                    "type": "hourly_wage",
+                    "display_name": "Hourly Wage",
+                    "parameter_units": "usd",
+                    "description": "Hourly wage rate.",
+                    "default": 25
+                },
+                {
+                    "type": "hours_per_week",
+                    "display_name": "Hours per Week",
+                    "parameter_units": "days",
+                    "description": "Number of hours worked per week.",
+                    "default": 40
+                },
+                {
+                    "type": "pay_period",
+                    "display_name": "Pay Periods per Year",
+                    "parameter_units": "days",
+                    "description": "Number of pay periods per year.",
+                    "default": 26
+                },
+                {
+                    "type": "federal_income_tax",
+                    "display_name": "Federal Tax Rate",
+                    "parameter_units": "percentage",
+                    "description": "Federal income tax rate.",
+                    "default": 0.12
+                },
+                {
+                    "type": "social_security_tax",
+                    "display_name": "Social Security Tax Rate",
+                    "parameter_units": "percentage",
+                    "description": "Social Security tax rate.",
+                    "default": 0.062
+                },
+                {
+                    "type": "medicare_tax",
+                    "display_name": "Medicare Tax Rate",
+                    "parameter_units": "percentage",
+                    "description": "Medicare tax rate.",
+                    "default": 0.0145
+                },
+                {
+                    "type": "p_401k_contribution",
+                    "display_name": "401k Contribution Rate",
+                    "parameter_units": "percentage",
+                    "description": "Percent of wages contributed to 401k.",
+                    "default": 0.04
+                },
+                {
+                    "type": "employer_match",
+                    "display_name": "401k Match Rate",
+                    "parameter_units": "percentage",
+                    "description": "Employer match percent for 401k.",
+                    "default": 0.04
+                },
+                {
+                    "type": "to_key",
+                    "display_name": "Deposit Envelope",
+                    "parameter_units": "envelope",
+                    "description": "Envelope where wages are deposited",
+                    "default": "Cash"
+                },
+                {
+                    "type": "p_401k_key",
+                    "display_name": "401k Envelope",
+                    "parameter_units": "envelope",
+                    "description": "Envelope where 401k contributions are tracked",
+                    "default": "Retirement"
+                }
+            ],
+            "updating_events": [
+                {
+                    "type": "get_a_raise",
+                    "icon": "arrow-up",
+                    "description": "Receive an increase in hourly wage.",
+                    "parameters": [
+                        {
+                            "type": "start_time",
+                            "description": "When the raise takes effect",
+                            "default": 365
+                        },
+                        {
+                            "type": "new_hourly_wage",
+                            "description": "New hourly wage rate after raise.",
+                            "default": 27
+                        }
+                    ]
+                },
+                {
+                    "type": "change_hours",
+                    "icon": "clock",
+                    "description": "Change the number of hours worked per week.",
+                    "parameters": [
+                        {
+                            "type": "start_time",
+                            "description": "When the new hours take effect",
+                            "default": 365
+                        },
+                        {
+                            "type": "new_hours",
+                            "description": "New number of hours per week.",
+                            "default": 35
+                        }
+                    ]
+                },
+                {
+                    "type": "change_401k_contribution",
+                    "icon": "sliders-horizontal",
+                    "description": "Adjust the percentage of wages contributed to 401k.",
+                    "parameters": [
+                        {
+                            "type": "start_time",
+                            "description": "When the new contribution rate takes effect",
+                            "default": 0
+                        },
+                        {
+                            "type": "p_401k_contribution",
+                            "description": "New 401k contribution percentage.",
+                            "default": 0.06
+                        }
+                    ]
+                },
+                {
+                    "type": "change_employer_match",
+                    "icon": "handshake",
+                    "description": "Update the employer's 401k match rate.",
+                    "parameters": [
+                        {
+                            "type": "start_time",
+                            "description": "When the new match rate takes effect",
+                            "default": 0
+                        },
+                        {
+                            "type": "new_match_rate",
+                            "description": "New employer match percentage.",
+                            "default": 0.05
+                        }
+                    ]
+                }
+            ]
+        },
+        {
             "type": "start_business",
+            "display_type": "Business",
             "weight": 80,
             "category": "Income & Employment",
             "description": "Start your own business by investing capital.",
@@ -184,21 +401,29 @@
             "parameters": [
                 {
                     "type": "start_time",
+                    "display_name": "Start Date",
+                    "parameter_units": "date",
                     "description": "When the business starts",
                     "default": 0
                 },
                 {
                     "type": "initial_investment",
+                    "display_name": "Initial Investment",
+                    "parameter_units": "usd",
                     "description": "Amount of money invested initially.",
                     "default": 50000
                 },
                 {
                     "type": "from_key",
+                    "display_name": "From Envelope",
+                    "parameter_units": "envelope",
                     "description": "Which envelope the money comes from.",
                     "default": "Cash"
                 },
                 {
                     "type": "to_key",
+                    "display_name": "To Envelope",
+                    "parameter_units": "envelope",
                     "description": "Envelope where business assets are tracked",
                     "default": "Investments"
                 }
@@ -257,6 +482,7 @@
         },
         {
             "type": "retirement",
+            "display_type": "Retirement",
             "weight": 70,
             "category": "Income & Employment",
             "description": "Transition from employment to retirement with withdrawals.",
@@ -264,31 +490,43 @@
             "parameters": [
                 {
                     "type": "start_time",
+                    "display_name": "Start Date",
+                    "parameter_units": "date",
                     "description": "When retirement begins",
                     "default": 0
                 },
                 {
                     "type": "end_time",
+                    "display_name": "End Date",
+                    "parameter_units": "date",
                     "description": "When retirement ends",
                     "default": 36500
                 },
                 {
                     "type": "amount",
+                    "display_name": "Withdrawal Amount",
+                    "parameter_units": "usd",
                     "description": "When retirement begins",
                     "default": 0
                 },
                 {
                     "type": "frequency_days",
+                    "display_name": "Withdrawal Frequency",
+                    "parameter_units": "days",
                     "description": "How often withdraws happen",
                     "default": 30
                 },
                 {
                     "type": "from_key",
+                    "display_name": "From Envelope",
+                    "parameter_units": "envelope",
                     "description": "Envelope to withdraw from (e.g., Retirement).",
                     "default": "Retirement"
                 },
                 {
                     "type": "to_key",
+                    "display_name": "To Envelope",
+                    "parameter_units": "envelope",
                     "description": "Envelope where withdrawals are deposited",
                     "default": "Cash"
                 }
@@ -296,6 +534,7 @@
         },
         {
             "type": "buy_house",
+            "display_type": "Home Purchase",
             "weight": 80,
             "category": "Major Purchases",
             "description": "Purchase a home with mortgage terms.",
@@ -303,51 +542,71 @@
             "parameters": [
                 {
                     "type": "start_time",
+                    "display_name": "Purchase Date",
+                    "parameter_units": "date",
                     "description": "When the house is purchased",
                     "default": 0
                 },
                 {
                     "type": "end_time",
+                    "display_name": "End Date",
+                    "parameter_units": "date",
                     "description": "When the house is purchased",
                     "default": 0
                 },
                 {
                     "type": "home_value",
+                    "display_name": "Home Value",
+                    "parameter_units": "usd",
                     "description": "Total price of the house.",
                     "default": 300000
                 },
                 {
                     "type": "loan_term_years",
+                    "display_name": "Loan Term",
+                    "parameter_units": "days",
                     "description": "Length of mortgage in years.",
                     "default": 30
                 },
                 {
                     "type": "loan_rate",
+                    "display_name": "Interest Rate",
+                    "parameter_units": "apy",
                     "description": "Annual interest rate on the mortgage.",
                     "default": 0.03
                 },
                 {
                     "type": "appreciation_rate",
+                    "display_name": "Appreciation Rate",
+                    "parameter_units": "apy",
                     "description": "Estimated yearly value increase.",
                     "default": 0.05
                 },
                 {
                     "type": "downpayment",
+                    "display_name": "Down Payment",
+                    "parameter_units": "usd",
                     "description": "Amount paid upfront.",
                     "default": 60000
                 },
                 {
                     "type": "from_key",
+                    "display_name": "From Envelope",
+                    "parameter_units": "envelope",
                     "description": "Envelope where downpayment comes from",
                     "default": "Cash"
                 },
                 {
                     "type": "to_key",
+                    "display_name": "To Envelope",
+                    "parameter_units": "envelope",
                     "description": "Envelope where house value is tracked",
                     "default": "House"
                 },
                 {
                     "type": "property_tax_rate",
+                    "display_name": "Property Tax Rate",
+                    "parameter_units": "percentage",
                     "description": "Annual tax as a percentage of home value.",
                     "default": 0.015
                 }
@@ -565,6 +824,7 @@
         },
         {
             "type": "buy_car",
+            "display_type": "Car Purchase",
             "weight": 40,
             "category": "Major Purchases",
             "description": "Purchase a car with or without a loan.",
@@ -572,36 +832,50 @@
             "parameters": [
                 {
                     "type": "start_time",
+                    "display_name": "Purchase Date",
+                    "parameter_units": "date",
                     "description": "When the car is purchased",
                     "default": 0
                 },
                 {
                     "type": "car_value",
+                    "display_name": "Car Value",
+                    "parameter_units": "usd",
                     "description": "Price of the car.",
                     "default": 35000
                 },
                 {
                     "type": "loan_term_years",
+                    "display_name": "Loan Term",
+                    "parameter_units": "days",
                     "description": "Length of car loan in years.",
                     "default": 5
                 },
                 {
                     "type": "loan_rate",
+                    "display_name": "Interest Rate",
+                    "parameter_units": "apy",
                     "description": "Annual interest rate for the loan.",
                     "default": 0.045
                 },
                 {
                     "type": "downpayment",
+                    "display_name": "Down Payment",
+                    "parameter_units": "usd",
                     "description": "Upfront payment toward the car.",
                     "default": 7000
                 },
                 {
                     "type": "from_key",
+                    "display_name": "From Envelope",
+                    "parameter_units": "envelope",
                     "description": "Which envelope the money comes from.",
                     "default": "Cash"
                 },
                 {
                     "type": "to_key",
+                    "display_name": "To Envelope",
+                    "parameter_units": "envelope",
                     "description": "Envelope where car value is tracked",
                     "default": "Investments"
                 }
@@ -655,6 +929,7 @@
         },
         {
             "type": "have_kid",
+            "display_type": "Child Birth",
             "weight": 50,
             "category": "Life Events",
             "description": "Have a child and incur related early-life costs.",
@@ -662,16 +937,22 @@
             "parameters": [
                 {
                     "type": "start_time",
+                    "display_name": "Birth Date",
+                    "parameter_units": "date",
                     "description": "When the child is born",
                     "default": 0
                 },
                 {
                     "type": "initial_costs",
+                    "display_name": "Initial Costs",
+                    "parameter_units": "usd",
                     "description": "One-time costs for childbirth, setup, etc.",
                     "default": 15000
                 },
                 {
                     "type": "from_key",
+                    "display_name": "From Envelope",
+                    "parameter_units": "envelope",
                     "description": "Which envelope the cost is paid from.",
                     "default": "Cash"
                 }
@@ -745,6 +1026,7 @@
         },
         {
             "type": "marriage",
+            "display_type": "Marriage",
             "weight": 40,
             "category": "Life Events",
             "description": "Get married and incur event-related expenses.",
@@ -752,16 +1034,22 @@
             "parameters": [
                 {
                     "type": "start_time",
+                    "display_name": "Wedding Date",
+                    "parameter_units": "date",
                     "description": "When the marriage occurs",
                     "default": 0
                 },
                 {
                     "type": "cost",
+                    "display_name": "Wedding Cost",
+                    "parameter_units": "usd",
                     "description": "Total cost of wedding and related expenses.",
                     "default": 30000
                 },
                 {
                     "type": "from_key",
+                    "display_name": "From Envelope",
+                    "parameter_units": "envelope",
                     "description": "Envelope where wedding costs are paid from",
                     "default": "Cash"
                 }
@@ -769,6 +1057,7 @@
         },
         {
             "type": "divorce",
+            "display_type": "Divorce",
             "weight": 60,
             "category": "Life Events",
             "description": "Divorce settlement and legal costs.",
@@ -776,21 +1065,29 @@
             "parameters": [
                 {
                     "type": "start_time",
+                    "display_name": "Divorce Date",
+                    "parameter_units": "date",
                     "description": "When the divorce occurs",
                     "default": 0
                 },
                 {
                     "type": "settlement_amount",
+                    "display_name": "Settlement Amount",
+                    "parameter_units": "usd",
                     "description": "Lump sum paid in settlement.",
                     "default": 25000
                 },
                 {
                     "type": "attorney_fees",
+                    "display_name": "Attorney Fees",
+                    "parameter_units": "usd",
                     "description": "Legal costs paid to attorneys.",
                     "default": 10000
                 },
                 {
                     "type": "from_key",
+                    "display_name": "From Envelope",
+                    "parameter_units": "envelope",
                     "description": "Envelope where divorce costs are paid from",
                     "default": "Cash"
                 }
@@ -798,6 +1095,7 @@
         },
         {
             "type": "pass_away",
+            "display_type": "Death",
             "weight": 90,
             "category": "Life Events",
             "description": "Death of the individual and end-of-life costs.",
@@ -805,6 +1103,8 @@
             "parameters": [
                 {
                     "type": "start_time",
+                    "display_name": "Date of Death",
+                    "parameter_units": "date",
                     "description": "When death occurs",
                     "default": 0
                 }
@@ -812,6 +1112,7 @@
         },
         {
             "type": "buy_health_insurance",
+            "display_type": "Health Insurance",
             "weight": 60,
             "category": "Health & Insurance",
             "description": "Purchase a health insurance plan with monthly payments.",
@@ -819,26 +1120,36 @@
             "parameters": [
                 {
                     "type": "start_time",
+                    "display_name": "Start Date",
+                    "parameter_units": "date",
                     "description": "When health insurance coverage begins",
                     "default": 0
                 },
                 {
                     "type": "monthly_premium",
+                    "display_name": "Monthly Premium",
+                    "parameter_units": "usd",
                     "description": "Cost of health insurance per month.",
                     "default": 500
                 },
                 {
                     "type": "deductible",
+                    "display_name": "Deductible",
+                    "parameter_units": "usd",
                     "description": "Amount paid out-of-pocket before insurance applies.",
                     "default": 2000
                 },
                 {
                     "type": "coverage_percentage",
+                    "display_name": "Coverage Percentage",
+                    "parameter_units": "percentage",
                     "description": "Percent of expenses covered after deductible.",
                     "default": 0.8
                 },
                 {
                     "type": "from_key",
+                    "display_name": "From Envelope",
+                    "parameter_units": "envelope",
                     "description": "Envelope where premiums are paid from",
                     "default": "Cash"
                 }
@@ -880,6 +1191,7 @@
         },
         {
             "type": "buy_life_insurance",
+            "display_type": "Life Insurance",
             "weight": 70,
             "category": "Health & Insurance",
             "description": "Buy term life insurance to protect dependents.",
@@ -887,26 +1199,36 @@
             "parameters": [
                 {
                     "type": "start_time",
+                    "display_name": "Start Date",
+                    "parameter_units": "date",
                     "description": "When life insurance coverage begins",
                     "default": 0
                 },
                 {
                     "type": "coverage_amount",
+                    "display_name": "Coverage Amount",
+                    "parameter_units": "usd",
                     "description": "Total coverage paid out upon death.",
                     "default": 500000
                 },
                 {
                     "type": "monthly_premium",
+                    "display_name": "Monthly Premium",
+                    "parameter_units": "usd",
                     "description": "Recurring payment for the policy.",
                     "default": 100
                 },
                 {
                     "type": "term_years",
+                    "display_name": "Term Length",
+                    "parameter_units": "days",
                     "description": "Duration of the term policy in years.",
                     "default": 20
                 },
                 {
                     "type": "from_key",
+                    "display_name": "From Envelope",
+                    "parameter_units": "envelope",
                     "description": "Funding envelope for premium payments.",
                     "default": "Cash"
                 }
@@ -938,6 +1260,7 @@
         },
         {
             "type": "receive_government_aid",
+            "display_type": "Government Aid",
             "weight": 50,
             "category": "Taxes & Government",
             "description": "Regular cash benefits from government programs.",
@@ -945,26 +1268,36 @@
             "parameters": [
                 {
                     "type": "start_time",
+                    "display_name": "Start Date",
+                    "parameter_units": "date",
                     "description": "When government aid begins",
                     "default": 0
                 },
                 {
                     "type": "amount",
+                    "display_name": "Benefit Amount",
+                    "parameter_units": "usd",
                     "description": "Amount received per interval.",
                     "default": 600
                 },
                 {
                     "type": "frequency_days",
+                    "display_name": "Payment Frequency",
+                    "parameter_units": "days",
                     "description": "Number of days between each benefit payment.",
                     "default": 30
                 },
                 {
                     "type": "to_key",
+                    "display_name": "To Envelope",
+                    "parameter_units": "envelope",
                     "description": "Envelope where aid payments are received",
                     "default": "Cash"
                 },
                 {
                     "type": "end_days",
+                    "display_name": "End Date",
+                    "parameter_units": "date",
                     "description": "When the payments end.",
                     "default": 730
                 }
@@ -972,6 +1305,7 @@
         },
         {
             "type": "invest_money",
+            "display_type": "Investment",
             "weight": 70,
             "category": "Investments & Assets",
             "description": "Invest a lump sum into the stock market or similar vehicle.",
@@ -979,26 +1313,36 @@
             "parameters": [
                 {
                     "type": "start_time",
+                    "display_name": "Investment Date",
+                    "parameter_units": "date",
                     "description": "When the investment is made",
                     "default": 0
                 },
                 {
                     "type": "amount",
+                    "display_name": "Investment Amount",
+                    "parameter_units": "usd",
                     "description": "Amount of money to invest.",
                     "default": 10000
                 },
                 {
                     "type": "from_key",
+                    "display_name": "From Envelope",
+                    "parameter_units": "envelope",
                     "description": "Envelope where funds come from.",
                     "default": "Cash"
                 },
                 {
                     "type": "to_key",
+                    "display_name": "To Envelope",
+                    "parameter_units": "envelope",
                     "description": "Envelope to which the investment is applied.",
                     "default": "Investments"
                 },
                 {
                     "type": "expected_return",
+                    "display_name": "Expected Return",
+                    "parameter_units": "apy",
                     "description": "Estimated annual rate of return.",
                     "default": 0.07
                 }
@@ -1057,6 +1401,7 @@
         },
         {
             "type": "high_yield_savings_account",
+            "display_type": "High Yield Savings",
             "weight": 50,
             "category": "Investments & Assets",
             "description": "Open a high-yield savings account that earns daily interest.",
@@ -1064,26 +1409,36 @@
             "parameters": [
                 {
                     "type": "start_time",
+                    "display_name": "Start Date",
+                    "parameter_units": "date",
                     "description": "When the savings account is opened",
                     "default": 0
                 },
                 {
                     "type": "interest_rate",
+                    "display_name": "Interest Rate",
+                    "parameter_units": "apy",
                     "description": "Annual percentage yield (APY).",
                     "default": 0.045
                 },
                 {
                     "type": "amount",
+                    "display_name": "Initial Deposit",
+                    "parameter_units": "usd",
                     "description": "Initial deposit into the account.",
                     "default": 10000
                 },
                 {
                     "type": "from_key",
+                    "display_name": "From Envelope",
+                    "parameter_units": "envelope",
                     "description": "Envelope where funds originate.",
                     "default": "Cash"
                 },
                 {
                     "type": "to_key",
+                    "display_name": "To Envelope",
+                    "parameter_units": "envelope",
                     "description": "Envelope for savings balance.",
                     "default": "Savings"
                 }
@@ -1091,6 +1446,7 @@
         },
         {
             "type": "pay_taxes",
+            "display_type": "Tax Payment",
             "weight": 30,
             "category": "Taxes & Government",
             "description": "Annual payment of federal and state taxes.",
@@ -1098,16 +1454,22 @@
             "parameters": [
                 {
                     "type": "start_time",
+                    "display_name": "Payment Date",
+                    "parameter_units": "date",
                     "description": "When the tax payment is made",
                     "default": 0
                 },
                 {
                     "type": "total_tax_due",
+                    "display_name": "Tax Amount",
+                    "parameter_units": "usd",
                     "description": "Amount owed in taxes.",
                     "default": 8000
                 },
                 {
                     "type": "from_key",
+                    "display_name": "From Envelope",
+                    "parameter_units": "envelope",
                     "description": "Envelope where taxes are paid from.",
                     "default": "Cash"
                 }
@@ -1139,6 +1501,7 @@
         },
         {
             "type": "buy_groceries",
+            "display_type": "Grocery Purchase",
             "weight": 15,
             "category": "Living Expenses",
             "description": "Spend a recurring amount on monthly groceries.",
@@ -1146,21 +1509,29 @@
             "parameters": [
                 {
                     "type": "start_time",
+                    "display_name": "Start Date",
+                    "parameter_units": "date",
                     "description": "When grocery expenses begin",
                     "default": 0
                 },
                 {
                     "type": "monthly_amount",
+                    "display_name": "Monthly Amount",
+                    "parameter_units": "usd",
                     "description": "Average grocery bill each month.",
                     "default": 800
                 },
                 {
                     "type": "from_key",
+                    "display_name": "From Envelope",
+                    "parameter_units": "envelope",
                     "description": "Envelope where grocery costs are paid from",
                     "default": "Cash"
                 },
                 {
                     "type": "end_days",
+                    "display_name": "End Date",
+                    "parameter_units": "date",
                     "description": "When the expense stops recurring.",
                     "default": 99999
                 }
@@ -1192,6 +1563,7 @@
         },
         {
             "type": "manual_correction",
+            "display_type": "Manual Adjustment",
             "weight": 85,
             "category": "System",
             "description": "Manually adjust the value of an envelope for tracking accuracy.",
@@ -1199,23 +1571,83 @@
             "parameters": [
                 {
                     "type": "start_time",
+                    "display_name": "Adjustment Date",
+                    "parameter_units": "date",
                     "description": "When the correction is applied",
                     "default": 0
                 },
                 {
                     "type": "amount",
+                    "display_name": "Adjustment Amount",
+                    "parameter_units": "usd",
                     "description": "The value added or subtracted (negative values allowed).",
                     "default": 1000
                 },
                 {
                     "type": "rate",
+                    "display_name": "Growth Rate",
+                    "parameter_units": "apy",
                     "description": "Growth Rate of the account if compounded",
-                    "default": 1000
+                    "default": 0
                 },
                 {
                     "type": "to_key",
+                    "display_name": "Target Envelope",
+                    "parameter_units": "envelope",
                     "description": "Envelope to be adjusted.",
                     "default": "Cash"
+                }
+            ]
+        },
+        {
+            "type": "transfer_money",
+            "display_type": "Money Transfer",
+            "weight": 80,
+            "category": "System",
+            "description": "Transfer money between envelopes with optional growth rate for destination.",
+            "icon": "arrow-right-arrow-left",
+            "parameters": [
+                {
+                    "type": "start_time",
+                    "display_name": "Transfer Date",
+                    "parameter_units": "date",
+                    "description": "When the transfer occurs",
+                    "default": 0
+                },
+                {
+                    "type": "amount",
+                    "display_name": "Transfer Amount",
+                    "parameter_units": "usd",
+                    "description": "Amount of money to transfer",
+                    "default": 10000
+                },
+                {
+                    "type": "from_key",
+                    "display_name": "From Envelope",
+                    "parameter_units": "envelope",
+                    "description": "Source envelope for the transfer",
+                    "default": "Cash"
+                },
+                {
+                    "type": "to_key",
+                    "display_name": "To Envelope",
+                    "parameter_units": "envelope",
+                    "description": "Destination envelope for the transfer",
+                    "default": "Investments"
+                },
+                {
+                    "type": "growth_rate",
+                    "display_name": "Growth Rate",
+                    "parameter_units": "apy",
+                    "description": "Annual growth rate applied to transferred amount in destination envelope",
+                    "default": 0
+                },
+                {
+                    "type": "source_growth_rate",
+                    "display_name": "Source Growth Rate",
+                    "parameter_units": "apy",
+                    "description": "Annual growth rate of the source envelope before transfer",
+                    "default": 0
                 }
             ]
         }

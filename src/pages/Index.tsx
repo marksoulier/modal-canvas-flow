@@ -27,12 +27,18 @@ const Index = () => {
   const [settingsModalOpen, setSettingsModalOpen] = useState(false);
   const [subscriptionModalOpen, setSubscriptionModalOpen] = useState(false);
   const [eventParametersOpen, setEventParametersOpen] = useState(false);
+  const [editingEventId, setEditingEventId] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Mock authentication state - replace with real auth logic
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   const { loadPlanFromFile, savePlanToFile } = usePlan();
+
+  const handleAnnotationClick = (eventId: number) => {
+    setEditingEventId(eventId);
+    setEventParametersOpen(true);
+  };
 
   const handleExport = () => {
     savePlanToFile();
@@ -92,7 +98,7 @@ const Index = () => {
 
       {/* Visualization as background layer */}
       <div className="absolute inset-0 z-0">
-        <Visualization />
+        <Visualization onAnnotationClick={handleAnnotationClick} />
       </div>
 
       {/* Overlay elements with higher z-index */}
@@ -161,7 +167,10 @@ const Index = () => {
       <EventLibraryModal
         isOpen={eventLibraryOpen}
         onClose={() => setEventLibraryOpen(false)}
-        schemaPath="/assets/event_schema.json"
+        onEventAdded={(eventId) => {
+          setEditingEventId(eventId);
+          setEventParametersOpen(true);
+        }}
       />
       <AuthModal
         isOpen={authModalOpen}
@@ -189,8 +198,11 @@ const Index = () => {
         onClose={() => setSubscriptionModalOpen(false)}
       />
       <EventParametersForm
+      <EventParametersForm
         isOpen={eventParametersOpen}
         onClose={() => setEventParametersOpen(false)}
+        onSave={handleSaveEvent}
+        onDelete={handleDeleteEvent}
         onSave={handleSaveEvent}
         onDelete={handleDeleteEvent}
         eventType="Financial Event"
