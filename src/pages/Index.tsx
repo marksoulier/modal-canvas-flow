@@ -1,4 +1,3 @@
-
 import React, { useState, useRef } from 'react';
 import { Menu, HelpCircle, Plus, Save, FileText, FolderOpen, Settings } from 'lucide-react';
 import {
@@ -15,7 +14,7 @@ import AuthModal from '../components/AuthModal';
 import SettingsModal from '../components/SettingsModal';
 import SubscriptionModal from '../components/SubscriptionModal';
 import TimelineAnnotation from '../components/TimelineAnnotation';
-import EventParametersForm from '../components/EventParametersForm';
+import EventParameterForm from '../components/EventParameterForm';
 import { Visualization } from '../visualization/Visualization';
 import { usePlan } from '../contexts/PlanContext';
 
@@ -182,7 +181,8 @@ const Index = () => {
         isOpen={subscriptionModalOpen}
         onClose={() => setSubscriptionModalOpen(false)}
       />
-      <EventParametersForm
+      <EventParameterForm
+        isOpen={eventParametersOpen}
         onClose={() => {
           setEventParametersOpen(false);
           setEditingEventId(null);
