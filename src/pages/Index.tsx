@@ -1,5 +1,6 @@
+
 import React, { useState, useRef } from 'react';
-import { Menu, HelpCircle, Plus, Save, FileText, FolderOpen, Settings } from 'lucide-react';
+import { Menu, HelpCircle, Plus, Save, FileText, FolderOpen, Settings, Wallet, List } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,6 +16,8 @@ import SettingsModal from '../components/SettingsModal';
 import SubscriptionModal from '../components/SubscriptionModal';
 import TimelineAnnotation from '../components/TimelineAnnotation';
 import EventParameterForm from '../components/EventParameterForm';
+import AddEnvelopeModal from '../components/AddEnvelopeModal';
+import EnvelopeManagerModal from '../components/EnvelopeManagerModal';
 import { Visualization } from '../visualization/Visualization';
 import { usePlan } from '../contexts/PlanContext';
 
@@ -26,6 +29,8 @@ const Index = () => {
   const [settingsModalOpen, setSettingsModalOpen] = useState(false);
   const [subscriptionModalOpen, setSubscriptionModalOpen] = useState(false);
   const [eventParametersOpen, setEventParametersOpen] = useState(false);
+  const [addEnvelopeModalOpen, setAddEnvelopeModalOpen] = useState(false);
+  const [envelopeManagerModalOpen, setEnvelopeManagerModalOpen] = useState(false);
   const [editingEventId, setEditingEventId] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -109,12 +114,27 @@ const Index = () => {
               <Save className="mr-2 h-4 w-4" />
               Save
             </DropdownMenuItem>
+            <DropdownMenuSeparator />
             <DropdownMenuItem
               onClick={() => setEventLibraryOpen(true)}
               className="cursor-pointer"
             >
               <Plus className="mr-2 h-4 w-4" />
               Add Event
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() => setAddEnvelopeModalOpen(true)}
+              className="cursor-pointer"
+            >
+              <Wallet className="mr-2 h-4 w-4" />
+              + Envelope
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() => setEnvelopeManagerModalOpen(true)}
+              className="cursor-pointer"
+            >
+              <List className="mr-2 h-4 w-4" />
+              Manage Envelopes
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem
@@ -188,6 +208,14 @@ const Index = () => {
           setEditingEventId(null);
         }}
         eventId={editingEventId!}
+      />
+      <AddEnvelopeModal
+        isOpen={addEnvelopeModalOpen}
+        onClose={() => setAddEnvelopeModalOpen(false)}
+      />
+      <EnvelopeManagerModal
+        isOpen={envelopeManagerModalOpen}
+        onClose={() => setEnvelopeManagerModalOpen(false)}
       />
     </div>
   );
