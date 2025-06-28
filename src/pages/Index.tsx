@@ -14,7 +14,6 @@ import EventLibraryModal from '../components/EventLibraryModal';
 import AuthModal from '../components/AuthModal';
 import SettingsModal from '../components/SettingsModal';
 import SubscriptionModal from '../components/SubscriptionModal';
-import TimelineAnnotation from '../components/TimelineAnnotation';
 import EventParameterForm from '../components/EventParameterForm';
 import AddEnvelopeModal from '../components/AddEnvelopeModal';
 import EnvelopeManagerModal from '../components/EnvelopeManagerModal';

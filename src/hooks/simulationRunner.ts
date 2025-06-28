@@ -53,6 +53,7 @@ export async function runSimulation(
         const envelopes = initializeEnvelopes(plan);
 
         for (const event of parsedEvents) {
+            console.log("Event: ", event.type)
             switch (event.type) {
                 case 'purchase': purchase(event, envelopes); break;
                 case 'gift': gift(event, envelopes); break;
@@ -79,6 +80,7 @@ export async function runSimulation(
                     console.warn(`⚠️ Unhandled event type: ${event.type}`);
             }
         }
+        console.log(envelopes)
 
         const results = evaluateResults(envelopes, startDate, endDate, interval);
         const timePoints = Array.from({ length: Math.ceil(endDate / interval) }, (_, i) => i * interval);

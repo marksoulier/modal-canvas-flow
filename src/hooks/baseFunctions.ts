@@ -9,17 +9,19 @@ export const P = (params: Record<string, any>): Theta => {
 
 export const T = (
     theta_event: Record<string, number>,
-    f: FuncWithTheta,
+    f: (params: Record<string, any>, t: number) => number,
     theta: Theta = P({}),
     theta_g: Record<string, any> = { type: "None", r: 0.0 }
 ): ((t: number) => number) => {
     const t_k = theta_event.t_k;
-    return (t: number) => f(theta, t_k)(t - t_k) * u(t - t_k) * f_growth(theta_g, t - t_k);
+    const params = theta(t_k); // θ = θ(t_k) - evaluate at t_k
+
+    return (t: number) => f(params, t_k) * u(t - t_k) * f_growth(theta_g, t - t_k);
 };
 
 export const R = (
     theta_re: Record<string, number>,
-    f: FuncWithTheta,
+    f: (params: Record<string, any>, t: number) => number,
     theta: Theta,
     theta_g: Record<string, any> = { type: "None", r: 0.0 },
     omega: Record<number, [number, Theta]> = {}
@@ -78,22 +80,22 @@ export const f_growth = (theta_g: Record<string, any>, t: number): number => {
     const growth_type = theta_g.type;
     const r = theta_g.r;
 
-    switch (growth_type) {
-        case "Daily Compound":
-            return Math.pow(1 + r / 365, 365 * t / 365);
-        case "Monthly Compound":
-            return Math.pow(1 + r / 12, 12 * t / 365);
-        case "Yearly Compound":
-            return Math.pow(1 + r, t / 365);
-        case "Simple Interest":
-            return 1 + r * (t / 365);
-        case "Appreciation":
-            return 1 + r * (t / 365);
-        case "Depreciation":
-            return 1 - r * (t / 365);
-        case "None":
-        default:
-            return 1;
+    if (growth_type === "Daily Compound") {
+        return Math.pow(1 + r / 365, 365 * t / 365);
+    } else if (growth_type === "Monthly Compound") {
+        return Math.pow(1 + r / 12, 12 * t / 365);
+    } else if (growth_type === "Yearly Compound") {
+        return Math.pow(1 + r, t / 365);
+    } else if (growth_type === "Simple Interest") {
+        return 1 + r * (t / 365);
+    } else if (growth_type === "Appreciation") {
+        return 1 + r * (t / 365);
+    } else if (growth_type === "Depreciation") {
+        return 1 - r * (t / 365);
+    } else if (growth_type === "None") {
+        return 1;
+    } else {
+        throw new Error(`Unknown growth type: ${growth_type}`);
     }
 };
 
@@ -128,15 +130,13 @@ export const get_growth_parameters = (
 
 // baseFunctions.ts
 // f_in: inflow function
-export const f_in = (theta: Theta, t_i: number) => {
-    const params = theta(t_i);
-    return (t: number) => params.a * u(t);
+export const f_in = (theta_in: Record<string, any>, t: number): number => {
+    return theta_in.a;
 };
 
 // f_out: outflow function
-export const f_out = (theta: Theta, t_i: number) => {
-    const params = theta(t_i);
-    return (t: number) => -params.b * u(t);
+export const f_out = (theta_out: Record<string, any>, t: number): number => {
+    return -theta_out.b;
 };
 
 // f_com: compound interest - REMOVED (no longer used)
@@ -168,25 +168,28 @@ export const f_out = (theta: Theta, t_i: number) => {
 // Remove all the deprecated override functions
 // raise_override, wage_raise_override, update_business_income, update_401k, adjust_depreciation, adjust_mortgage - REMOVED
 
-export const f_sal = (theta: Theta, t_i: number) => {
-    const params = theta(t_i);
-    const net = 1 -
-        (params.r_SS + params.r_Med + params.r_Fed + params.r_401k);
-    return (t: number) => (params.S / params.p) * net * u(t);
+export const f_salary = (theta_s: Record<string, any>, t: number): number => {
+    const S = theta_s.S; // Salary
+    const p = theta_s.p; // Pay periods per year
+    const r_SS = theta_s.r_SS; // Social Security rate
+    const r_Med = theta_s.r_Med; // Medicare rate
+    const r_Fed = theta_s.r_Fed; // Federal tax rate
+    const r_401k = theta_s.r_401k; // 401k contribution rate
+
+    return (S / p) * (1 - r_SS - r_Med - r_Fed - r_401k);
 };
 
 // f_wage: wage with deductions
-export const f_wage = (theta: Theta, t_i: number) => {
-    const w = theta(t_i).w; // Hourly wage
-    const h = theta(t_i).h; // Hours per week
-    const p = theta(t_i).p; // Pay periods per year
-    const r_SS = theta(t_i).r_SS; // Social Security rate
-    const r_Fed = theta(t_i).r_Fed; // Federal tax rate
-    const r_Med = theta(t_i).r_Med; // Medicare rate
-    const r_401k = theta(t_i).r_401k; // 401k contribution rate
-    const r_match = theta(t_i).r_match; // Employer match rate
+export const f_wage = (theta_w: Record<string, any>, t: number): number => {
+    const w = theta_w.w; // Hourly wage
+    const h = theta_w.h; // Hours per week
+    const p = theta_w.p; // Pay periods per year
+    const r_SS = theta_w.r_SS; // Social Security rate
+    const r_Fed = theta_w.r_Fed; // Federal tax rate
+    const r_Med = theta_w.r_Med; // Medicare rate
+    const r_401k = theta_w.r_401k; // 401k contribution rate
 
-    return (t: number) => ((w * h * 52) / p) * (1 - r_SS - r_Fed - r_Med - r_401k);
+    return ((w * h * 52) / p) * (1 - r_SS - r_Fed - r_Med - r_401k);
 };
 
 // f_com: compound interest - REMOVED (no longer used)
@@ -200,42 +203,39 @@ export const f_wage = (theta: Theta, t_i: number) => {
 
 // f_wage: wage with deductions
 
-export const f_401 = (theta: Theta, t_i: number) => {
-    const params = theta(t_i);
-    return (t: number) => (params.S / params.p) * params.r_401;
+export const f_401 = (theta_401: Record<string, any>, t: number): number => {
+    const S = theta_401.S; // Salary
+    const p = theta_401.p; // Pay periods per year
+    const r_401 = theta_401.r_401; // 401k contribution rate
+
+    return (S / p) * r_401;
 };
 
 // Mortgage payment calculation - REMOVED (no longer used)
 
-export const f_principal = (theta: Theta, t_i: number) => {
-    const params = theta(t_i);
-    const months = Math.floor(t_i / (365 / 12));
-    const r = params.r;
-    const y = params.y;
-    const Loan = params.P;
+export const f_principal = (theta: Record<string, any>, t: number): number => {
+    const months = Math.floor(t / (365 / 12));
+    const r = theta.r;
+    const y = theta.y;
+    const Loan = theta.P;
     // Calculate default mortgage payment if not provided
     const default_payment = Loan * (r / 12) * Math.pow(1 + r / 12, 12 * y) / (Math.pow(1 + r / 12, 12 * y) - 1);
-    const p_m = params.p_mortgage ?? default_payment;
+    const p_m = theta.p_mortgage ?? default_payment;
     const payment = Loan * Math.pow(1 + r / 12, months) * (r / 12) / (Math.pow(1 + r / 12, 12 * y) - 1);
-    const mortgage_amt = f_mortgage(P({ P: Loan, r: r, y: y }), t_i)(t_i);
-    return (t: number) => payment + Math.max(mortgage_amt - p_m, 0);
+    const mortgage_amt = f_mortgage({ P: Loan, r: r, y: y }, t);
+    return payment + Math.max(mortgage_amt - p_m, 0);
 };
 
-export const f_mortgage = (theta: Theta, t_i: number) => {
-    const params = theta(t_i);
-    return (_t: number) =>
-        (params.P * (params.r / 12) * Math.pow(1 + params.r / 12, 12 * params.y)) /
-        (Math.pow(1 + params.r / 12, 12 * params.y) - 1);
+export const f_mortgage = (theta: Record<string, any>, t: number): number => {
+    return theta.P * (theta.r / 12) * Math.pow(1 + theta.r / 12, 12 * theta.y) / (Math.pow(1 + theta.r / 12, 12 * theta.y) - 1);
 };
 
-export const f_insurance = (theta: Theta, t_i: number) => {
-    const params = theta(t_i);
-    return (t: number) => params.p0 * Math.pow(1 + params.r_adj, t / 365);
+export const f_insurance = (theta: Record<string, any>, t: number): number => {
+    return theta.p0 * Math.pow(1 + theta.r_adj, t / 365);
 };
 
-export const f_maint = (theta: Theta, t_i: number) => {
-    const params = theta(t_i);
-    return (t: number) => params.m0 + params.alpha * (t - params.t0);
+export const f_maint = (theta: Record<string, any>, t: number): number => {
+    return theta.m0 + theta.alpha * (t - theta.t0);
 };
 
 export const f_inflation_adjust = (
@@ -243,19 +243,39 @@ export const f_inflation_adjust = (
     theta: Theta,
     t_i: number
 ) => {
-    const params = theta(t_i);
-    return (t: number) =>
-        t >= params.t_today ? W(t) / Math.pow(1 + params.r_inf, (t - params.t_today) / 365) : W(t);
+    const params = theta(t_i); // Evaluate parameters at time of occurrence
+    return (t: number) => t >= params.t_today ? W(t) / Math.pow(1 + params.r_inf, (t - params.t_today) / 365) : W(t);
 };
 
-export const f_purchase = (theta: Theta, t_i: number) => {
-    const params = theta(t_i);
-    return f_out(P({ b: params.m }), t_i);
+export const f_empirical = (theta: Record<string, any> | Theta, t: number): number => {
+    const params = typeof theta === 'function' ? theta(t) : theta;
+    const V_obs = params.V_obs;
+    const t_k = params.t_k;
+
+    // Dirac delta approximation - returns V_obs when t is very close to t_k
+    const epsilon = 1e-6;
+    if (Math.abs(t - t_k) < epsilon) {
+        return V_obs;
+    } else {
+        return 0.0;
+    }
 };
 
-export const f_get_job = (theta: Theta, t_i: number) => {
-    const params = theta(t_i);
-    return (t: number) => R({ t0: params.time_start, dt: 365 / params.p, tf: params.time_end }, f_sal, theta)(t);
+export const O_empirical = (theta: Record<string, any>, t: number): number => {
+    const V_obs = theta.V_obs;
+    const t_k = theta.t_k;
+
+    // Dirac delta approximation - returns V_obs when t is very close to t_k
+    const epsilon = 1e-6;
+    if (Math.abs(t - t_k) < epsilon) {
+        return V_obs;
+    } else {
+        return 0.0;
+    }
+};
+
+export const f_get_job = (theta: Record<string, any>, t: number): number => {
+    return R({ t0: theta.time_start, dt: 365 / theta.p, tf: theta.time_end }, f_salary, P(theta), { type: "None", r: 0.0 })(t);
 };
 
 // f_get_wage_job: recurring wage payments - REMOVED (no longer used)
@@ -480,13 +500,6 @@ export const get_wage_job = (event: any, envelopes: Record<string, any>) => {
     envelopes[params.p_401k_key].functions.push(
         R({ t0: params.start_time, dt: 365 / params.pay_period, tf: params.end_time },
             f_in, P({ a: contribution_amount }), theta_growth_401k)
-    );
-};
-
-export const purchase = (event: any, envelopes: Record<string, any>) => {
-    const params = event.parameters;
-    envelopes[params.from_key].functions.push(
-        T({ t_k: params.start_time }, f_out, P({ b: params.money }), { type: "None", r: 0.0 })
     );
 };
 
@@ -742,6 +755,56 @@ export const buy_car = (event: any, envelopes: Record<string, any>) => {
     }
 };
 
+export const buy_home_insurance = (event: any, envelopes: Record<string, any>) => {
+    const params = event.parameters;
+
+    // Create monthly premium payment function
+    const premium_func = R(
+        { t0: params.start_time, dt: 30, tf: Infinity },
+        f_out,
+        P({ b: params.monthly_premium }),
+        { type: "None", r: 0.0 }
+    );
+
+    // Add premium payments to source envelope
+    const from_key = params.from_key;
+    envelopes[from_key].functions.push(premium_func);
+
+    // Handle updating events (damage events)
+    for (const upd of event.updating_events || []) {
+        const upd_type = upd.type;
+        const upd_params = upd.parameters || {};
+
+        if (upd_type === "tornado_damage" || upd_type === "house_fire" || upd_type === "flood_damage") {
+            // Calculate insurance payout
+            const damage_cost = upd_params.damage_cost;
+            const coverage = upd_params.insurance_coverage ?? params.coverage_percentage;
+            const payout = damage_cost * coverage;
+
+            // Handle deductible (outflow)
+            const deductible = T(
+                { t_k: upd_params.start_time },
+                f_out,
+                P({ b: params.deductible }),
+                { type: "None", r: 0.0 }
+            );
+            envelopes[from_key].functions.push(deductible);
+
+            // Handle insurance payout (inflow)
+            if (payout > 0) {
+                const payout_func = T(
+                    { t_k: upd_params.start_time },
+                    f_in,
+                    P({ a: payout }),
+                    { type: "None", r: 0.0 }
+                );
+                const to_key = upd_params.to_key ?? from_key;
+                envelopes[to_key].functions.push(payout_func);
+            }
+        }
+    }
+};
+
 export const have_kid = (event: any, envelopes: Record<string, any>) => {
     const params = event.parameters;
 
@@ -852,9 +915,11 @@ export const pass_away = (event: any, envelopes: Record<string, any>) => {
     // For each envelope, create a function that returns 0 after death
     for (const [envelope_name, envelope_data] of Object.entries(envelopes)) {
         if ("functions" in envelope_data) {
-            // For each function in the envelope, wrap it to return 0 after death
+            // For each function in the envelope, wrap it with D to return 0 after death
             const new_funcs = [];
             for (const func of envelope_data.functions) {
+                // Create a function that returns 0 for all time
+                const zero_func = (t: number) => 0;
                 // Wrap the original function to return 0 after death
                 const new_func = (t: number) => t < death_time ? func(t) : 0;
                 new_funcs.push(new_func);
@@ -1132,14 +1197,19 @@ export const buy_groceries = (event: any, envelopes: Record<string, any>) => {
     }
 };
 
-export const f_salary = (theta: Theta, t_i: number) => {
-    const S = theta(t_i).S; // Salary
-    const p = theta(t_i).p; // Pay periods per year
-    const r_SS = theta(t_i).r_SS; // Social Security rate
-    const r_Med = theta(t_i).r_Med; // Medicare rate
-    const r_Fed = theta(t_i).r_Fed; // Federal tax rate
-    const r_401k = theta(t_i).r_401k; // 401k contribution rate
-    const r_state = theta(t_i).r_state; // State tax rate
+export const purchase = (event: any, envelopes: Record<string, any>) => {
+    const params = event.parameters;
 
-    return (t: number) => (S / p) * (1 - r_SS - r_Med - r_Fed - r_401k - r_state);
-};
+    console.log("Event params", event);
+    // Create a one-time outflow function for the purchase
+    const purchase_func = T(
+        { t_k: params.start_time },
+        f_out,
+        P({ b: params.money }),
+        { type: "None", r: 0.0 }
+    );
+
+    // Add the purchase function to the specified envelope
+    const from_key = params.from_key;
+    envelopes[from_key].functions.push(purchase_func);
+}; 

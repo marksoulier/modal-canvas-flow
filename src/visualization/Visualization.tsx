@@ -426,7 +426,7 @@ export function Visualization({ onAnnotationClick }: VisualizationProps) {
               Math.pow(point.x - transformedX, 2) +
               Math.pow(point.y - transformedY, 2)
             );
-            console.log("dsircance: ", distance)
+            console.log("distance: ", distance)
 
             // Only update if within threshold (adjust 0.5 as needed)
             if (distance < 150) {
