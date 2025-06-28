@@ -2,6 +2,38 @@
     "birth_date": "2001-09-11",
     "inflation_rate": 0.03,
     "adjust_for_inflation": true,
+    "envelopes": [
+        {
+            "name": "Cash",
+            "category": "Cash",
+            "growth": "None",
+            "rate": 0.0
+        },
+        {
+            "name": "House",
+            "category": "Asset",
+            "growth": "Appreciation",
+            "rate": 0.03
+        },
+        {
+            "name": "Savings",
+            "category": "Investment",
+            "growth": "Daily Compound",
+            "rate": 0.04
+        },
+        {
+            "name": "Investments",
+            "category": "Investment",
+            "growth": "Yearly Compound",
+            "rate": 0.07
+        },
+        {
+            "name": "Retirement",
+            "category": "Investment",
+            "growth": "Yearly Compound",
+            "rate": 0.06
+        }
+    ],
     "events": [
         {
             "id": 1,

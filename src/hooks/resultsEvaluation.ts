@@ -18,7 +18,7 @@ export function inflationAdjust(
 }
 
 export function evaluateResults(
-    envelopes: Record<string, ((t: number) => number)[]>,
+    envelopes: Record<string, { functions: ((t: number) => number)[], growth_type: string, growth_rate: number }>,
     startDay: number,
     endDay: number,
     frequency: number,
@@ -29,7 +29,7 @@ export function evaluateResults(
     const results: Record<string, number[]> = {};
 
     for (const key in envelopes) {
-        results[key] = tRange.map(t => envelopes[key].reduce((sum, fn) => sum + fn(t), 0));
+        results[key] = tRange.map(t => envelopes[key].functions.reduce((sum, fn) => sum + fn(t), 0));
     }
 
     if (currentDay !== undefined && inflationRate !== undefined) {

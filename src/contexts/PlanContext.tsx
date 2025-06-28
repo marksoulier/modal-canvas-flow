@@ -31,6 +31,12 @@ export interface Plan {
     inflation_rate: number;
     adjust_for_inflation: boolean;
     events: Event[];
+    envelopes: {
+        name: string;
+        category: string;
+        growth: string;
+        rate: number;
+    }[];
 }
 
 export interface SchemaParameter {

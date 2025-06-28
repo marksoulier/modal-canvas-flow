@@ -19,14 +19,17 @@ interface Datum {
     };
 }
 
-export function initializeEnvelopes(): Record<string, ((t: number) => number)[]> {
-    return {
-        Cash: [],
-        House: [],
-        Savings: [],
-        Investments: [],
-        Retirement: []
-    };
+export function initializeEnvelopes(plan: Plan): Record<string, { functions: ((t: number) => number)[], growth_type: string, growth_rate: number }> {
+    const envelopes: Record<string, { functions: ((t: number) => number)[], growth_type: string, growth_rate: number }> = {};
+
+    for (const env of plan.envelopes) {
+        const name = env.name;
+        const growth_type = env.growth || "None";
+        const rate = env.rate || 0.0;
+        envelopes[name] = { functions: [], growth_type, growth_rate: rate };
+    }
+
+    return envelopes;
 }
 
 export async function runSimulation(
@@ -47,7 +50,7 @@ export async function runSimulation(
         }
 
         const parsedEvents = parseEvents(plan);
-        const envelopes = initializeEnvelopes();
+        const envelopes = initializeEnvelopes(plan);
 
         for (const event of parsedEvents) {
             switch (event.type) {
