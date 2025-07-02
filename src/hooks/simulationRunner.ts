@@ -6,7 +6,7 @@ import {
     buy_health_insurance, buy_life_insurance,
     receive_government_aid, invest_money,
     high_yield_savings_account, pay_taxes, buy_groceries, manual_correction,
-    get_wage_job, transfer_money
+    get_wage_job, transfer_money, reoccuring_income, reoccuring_spending, reoccuring_transfer
 } from './baseFunctions';
 import { evaluateResults } from './resultsEvaluation';
 import type { Plan, Schema } from '../contexts/PlanContext';
@@ -52,8 +52,18 @@ export async function runSimulation(
         const parsedEvents = parseEvents(plan);
         const envelopes = initializeEnvelopes(plan);
 
+        // Collect manual_correction events to process at the end
+        const manualCorrectionEvents: any[] = [];
+
         for (const event of parsedEvents) {
             console.log("Event: ", event.type)
+
+            // Skip manual_correction events during the first pass
+            if (event.type === 'manual_correction') {
+                manualCorrectionEvents.push(event);
+                continue;
+            }
+
             switch (event.type) {
                 case 'purchase': purchase(event, envelopes); break;
                 case 'gift': gift(event, envelopes); break;
@@ -73,13 +83,24 @@ export async function runSimulation(
                 case 'high_yield_savings_account': high_yield_savings_account(event, envelopes); break;
                 case 'pay_taxes': pay_taxes(event, envelopes); break;
                 case 'buy_groceries': buy_groceries(event, envelopes); break;
-                case 'manual_correction': manual_correction(event, envelopes); break;
                 case 'transfer_money': transfer_money(event, envelopes); break;
+                case 'reoccuring_income': reoccuring_income(event, envelopes); break;
+                case 'reoccuring_spending': reoccuring_spending(event, envelopes); break;
+                case 'reoccuring_transfer': reoccuring_transfer(event, envelopes); break;
                 case 'pass_away': pass_away(event, envelopes); break;
+
                 default:
                     console.warn(`⚠️ Unhandled event type: ${event.type}`);
             }
         }
+
+        // Process all manual_correction events at the end
+        console.log(`Processing ${manualCorrectionEvents.length} manual correction events at the end`);
+        for (const event of manualCorrectionEvents) {
+            console.log("Manual correction event: ", event.parameters);
+            manual_correction(event, envelopes);
+        }
+
         console.log(envelopes)
 
         const results = evaluateResults(envelopes, startDate, endDate, interval);
@@ -88,10 +109,10 @@ export async function runSimulation(
         // Get all envelope keys from the results
         const envelopeKeys = Object.keys(results);
 
-        // Filter out envelopes that have zero values in the first interval
+        // Filter out envelopes that have zero values in all intervals
         const nonZeroEnvelopeKeys = envelopeKeys.filter(key => {
-            const firstValue = results[key][0];
-            return firstValue !== 0;
+            const allValues = results[key];
+            return allValues.some(value => value !== 0);
         });
 
         // Create a single array of Datum objects where each Datum contains all non-zero envelope values as parts

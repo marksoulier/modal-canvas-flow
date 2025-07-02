@@ -18,13 +18,19 @@ type TimeInterval = 'day' | 'week' | 'month' | 'year';
 // Utility functions
 const formatNumber = (value: { valueOf(): number }): string => {
   const num = value.valueOf();
-  if (num >= 1000000) {
-    return `$${(num / 1000000).toFixed(1)}M`;
+  const absNum = Math.abs(num);
+  const sign = num < 0 ? '-' : '';
+
+  if (absNum >= 1000000) {
+    return `${sign}$${(absNum / 1000000).toFixed(1)}M`;
   }
-  if (num >= 1000) {
-    return `$${(num / 1000).toFixed(0)}k`;
+  if (absNum >= 10000) {
+    return `${sign}$${(absNum / 1000).toFixed(0)}k`;
   }
-  return `$${num.toFixed(0)}`;
+  if (absNum >= 1000) {
+    return `${sign}$${absNum.toLocaleString()}`;
+  }
+  return `${sign}$${absNum.toFixed(0)}`;
 };
 
 // Format date based on time interval

@@ -5,6 +5,7 @@
     "envelopes": [
         "Cash",
         "House",
+        "Debt",
         "Savings",
         "Investments",
         "Retirement"
@@ -1470,7 +1471,7 @@
                     "type": "from_key",
                     "display_name": "From Envelope",
                     "parameter_units": "envelope",
-                    "description": "Envelope where taxes are paid from.",
+                    "description": "Envelope where taxes are paid from",
                     "default": "Cash"
                 }
             ],
@@ -1536,30 +1537,7 @@
                     "default": 99999
                 }
             ],
-            "updating_events": [
-                {
-                    "type": "update_amount",
-                    "icon": "pencil",
-                    "description": "Update monthly grocery cost at specific time.",
-                    "parameters": [
-                        {
-                            "type": "start_time",
-                            "description": "When the replaced monthly cost gets replaced",
-                            "default": 158
-                        },
-                        {
-                            "type": "new_amount",
-                            "description": "Updated monthly cost.",
-                            "default": 900
-                        },
-                        {
-                            "type": "index",
-                            "description": "Which month this update applies to.",
-                            "default": 24
-                        }
-                    ]
-                }
-            ]
+            "updating_events": []
         },
         {
             "type": "manual_correction",
@@ -1582,13 +1560,6 @@
                     "parameter_units": "usd",
                     "description": "The value added or subtracted (negative values allowed).",
                     "default": 1000
-                },
-                {
-                    "type": "rate",
-                    "display_name": "Growth Rate",
-                    "parameter_units": "apy",
-                    "description": "Growth Rate of the account if compounded",
-                    "default": 0
                 },
                 {
                     "type": "to_key",
@@ -1634,20 +1605,148 @@
                     "parameter_units": "envelope",
                     "description": "Destination envelope for the transfer",
                     "default": "Investments"
-                },
+                }
+            ]
+        },
+        {
+            "type": "reoccuring_income",
+            "display_type": "Reoccuring Income",
+            "weight": 40,
+            "category": "Income & Employment",
+            "description": "Receive a recurring income at a specified interval.",
+            "icon": "repeat",
+            "parameters": [
                 {
-                    "type": "growth_rate",
-                    "display_name": "Growth Rate",
-                    "parameter_units": "apy",
-                    "description": "Annual growth rate applied to transferred amount in destination envelope",
+                    "type": "start_time",
+                    "display_name": "Start Date",
+                    "parameter_units": "date",
+                    "description": "When the recurring income begins",
                     "default": 0
                 },
                 {
-                    "type": "source_growth_rate",
-                    "display_name": "Source Growth Rate",
-                    "parameter_units": "apy",
-                    "description": "Annual growth rate of the source envelope before transfer",
+                    "type": "amount",
+                    "display_name": "Amount",
+                    "parameter_units": "usd",
+                    "description": "Amount received each interval.",
+                    "default": 1000
+                },
+                {
+                    "type": "frequency_days",
+                    "display_name": "Frequency (Days)",
+                    "parameter_units": "days",
+                    "description": "Number of days between each income payment.",
+                    "default": 30
+                },
+                {
+                    "type": "to_key",
+                    "display_name": "To Envelope",
+                    "parameter_units": "envelope",
+                    "description": "Envelope where income is deposited.",
+                    "default": "Cash"
+                },
+                {
+                    "type": "end_days",
+                    "display_name": "End Date",
+                    "parameter_units": "date",
+                    "description": "When the recurring income ends.",
+                    "default": 3650
+                }
+            ]
+        },
+        {
+            "type": "reoccuring_spending",
+            "display_type": "Reoccuring Spending",
+            "weight": 30,
+            "category": "Living Expenses",
+            "description": "Spend a recurring amount at a specified interval.",
+            "icon": "repeat-2",
+            "parameters": [
+                {
+                    "type": "start_time",
+                    "display_name": "Start Date",
+                    "parameter_units": "date",
+                    "description": "When the recurring spending begins",
                     "default": 0
+                },
+                {
+                    "type": "amount",
+                    "display_name": "Amount",
+                    "parameter_units": "usd",
+                    "description": "Amount spent each interval.",
+                    "default": 500
+                },
+                {
+                    "type": "frequency_days",
+                    "display_name": "Frequency (Days)",
+                    "parameter_units": "days",
+                    "description": "Number of days between each spending event.",
+                    "default": 30
+                },
+                {
+                    "type": "from_key",
+                    "display_name": "From Envelope",
+                    "parameter_units": "envelope",
+                    "description": "Envelope where spending is deducted from.",
+                    "default": "Cash"
+                },
+                {
+                    "type": "end_days",
+                    "display_name": "End Date",
+                    "parameter_units": "date",
+                    "description": "When the recurring spending ends.",
+                    "default": 3650
+                }
+            ]
+        },
+        {
+            "type": "reoccuring_transfer",
+            "display_type": "Reoccuring Transfer",
+            "weight": 35,
+            "category": "System",
+            "description": "Transfer a recurring amount between envelopes at a specified interval.",
+            "icon": "repeat-3",
+            "parameters": [
+                {
+                    "type": "start_time",
+                    "display_name": "Start Date",
+                    "parameter_units": "date",
+                    "description": "When the recurring transfer begins",
+                    "default": 0
+                },
+                {
+                    "type": "amount",
+                    "display_name": "Amount",
+                    "parameter_units": "usd",
+                    "description": "Amount transferred each interval.",
+                    "default": 200
+                },
+                {
+                    "type": "frequency_days",
+                    "display_name": "Frequency (Days)",
+                    "parameter_units": "days",
+                    "description": "Number of days between each transfer.",
+                    "default": 30
+                },
+                {
+                    "type": "from_key",
+                    "display_name": "From Envelope",
+                    "parameter_units": "envelope",
+                    "description": "Envelope where money is transferred from.",
+                    "default": "Cash"
+                },
+                {
+                    "type": "to_key",
+                    "display_name": "To Envelope",
+                    "parameter_units": "envelope",
+                    "description": "Envelope where money is transferred to.",
+                    "default": "Investments"
+                },
+                {
+                    "type": "end_days",
+                    "display_name": "End Date",
+                    "parameter_units": "date",
+                    "description": "When the recurring transfer ends.",
+                    "default": 3650
                 }
             ]
         }
