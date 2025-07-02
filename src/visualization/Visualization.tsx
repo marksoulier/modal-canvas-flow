@@ -11,9 +11,20 @@ import { LinearGradient } from '@visx/gradient';
 import { TooltipWithBounds, defaultStyles } from '@visx/tooltip';
 import { runSimulation } from '../hooks/simulationRunner';
 import { usePlan } from '../contexts/PlanContext';
+import {
+  ContextMenu,
+  ContextMenuTrigger,
+  ContextMenuContent,
+  ContextMenuItem
+} from '../components/ui/context-menu';
+import { Button } from '../components/ui/button';
+import { Trash2 } from 'lucide-react';
 
 // Time interval type for controlling the visualization granularity
 type TimeInterval = 'day' | 'week' | 'month' | 'year';
+
+// Extended time interval type
+type ExtendedTimeInterval = TimeInterval | 'full';
 
 // Utility functions
 const formatNumber = (value: { valueOf(): number }): string => {
@@ -34,7 +45,7 @@ const formatNumber = (value: { valueOf(): number }): string => {
 };
 
 // Format date based on time interval
-const formatDate = (daysSinceBirth: number, birthDate: Date, interval: TimeInterval): string => {
+const formatDate = (daysSinceBirth: number, birthDate: Date, interval: ExtendedTimeInterval): string => {
   const date = daysToDate(daysSinceBirth, birthDate);
 
   switch (interval) {
@@ -51,6 +62,12 @@ const formatDate = (daysSinceBirth: number, birthDate: Date, interval: TimeInter
       return date.toLocaleString('default', {
         day: 'numeric',
         month: 'short'
+      });
+    case 'full':
+      return date.toLocaleString('default', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric'
       });
     default:
       return date.toLocaleDateString();
@@ -114,6 +131,7 @@ interface DraggingAnnotation {
 
 interface VisualizationProps {
   onAnnotationClick?: (eventId: number) => void;
+  onAnnotationDelete?: (eventId: number) => void;
 }
 
 // Colors for each part
@@ -168,7 +186,7 @@ const Legend = ({ envelopes, colors, currentValues }: {
   </div>
 );
 
-export function Visualization({ onAnnotationClick }: VisualizationProps) {
+export function Visualization({ onAnnotationClick, onAnnotationDelete }: VisualizationProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const [cursorPos, setCursorPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
@@ -202,7 +220,7 @@ export function Visualization({ onAnnotationClick }: VisualizationProps) {
     }
   }, [wheelHandler]);
 
-  const { plan, loadDefaultPlan, getEventIcon, updateParameter, schema } = usePlan();
+  const { plan, loadDefaultPlan, getEventIcon, updateParameter, schema, deleteEvent } = usePlan();
 
   // Base sizes that will be adjusted by zoom
   const baseLineWidth = 2;
@@ -210,7 +228,7 @@ export function Visualization({ onAnnotationClick }: VisualizationProps) {
   const basePointRadius = 4;
 
   const startDate: number = 0
-  const endDate: number = 30 * 365
+  const endDate: number = 100 * 365
 
   // Function to determine time interval based on zoom level
   const getTimeIntervalFromZoom = (zoom: number): TimeInterval => {
@@ -274,14 +292,20 @@ export function Visualization({ onAnnotationClick }: VisualizationProps) {
       new Set(netWorthData.flatMap(d => Object.keys(d.parts)))
     );
 
-    // Create stacked data
     return netWorthData.map(d => {
-      const stackedParts: { [key: string]: number } = {};
-      let currentSum = 0;
+      let posSum = 0;
+      let negSum = 0;
+      const stackedParts: { [key: string]: { y0: number, y1: number } } = {};
 
       partKeys.forEach(key => {
-        currentSum += d.parts[key] || 0;
-        stackedParts[key] = currentSum;
+        const value = d.parts[key] || 0;
+        if (value >= 0) {
+          stackedParts[key] = { y0: posSum, y1: posSum + value };
+          posSum += value;
+        } else {
+          stackedParts[key] = { y0: negSum, y1: negSum + value };
+          negSum += value;
+        }
       });
 
       return {
@@ -323,13 +347,21 @@ export function Visualization({ onAnnotationClick }: VisualizationProps) {
   const yScale = useMemo(() => {
     if (!netWorthData.length) return scaleLinear({ domain: [0, 1], range: [height, 0] });
 
-    const maxValue = Math.max(...netWorthData.map(d => {
-      const totalValue = Object.values(d.parts).reduce((sum, val) => sum + val, 0);
-      return Math.max(d.value, totalValue);
-    }));
+    // Gather all y-values: total value and all stacked part values
+    const allYValues = netWorthData.flatMap(d => [
+      d.value,
+      ...Object.values(d.parts)
+    ]);
+
+    const minY = Math.min(...allYValues);
+    const maxY = Math.max(...allYValues);
+
+    // Avoid zero range
+    const domainMin = minY === maxY ? minY - 1 : minY;
+    const domainMax = minY === maxY ? maxY + 1 : maxY;
 
     return scaleLinear({
-      domain: [0, maxValue],
+      domain: [domainMin, domainMax],
       range: [height, 0],
     });
   }, [netWorthData, height]);
@@ -339,6 +371,20 @@ export function Visualization({ onAnnotationClick }: VisualizationProps) {
     if (!schema?.envelopes) return {};
     return generateEnvelopeColors(schema.envelopes);
   }, [schema]);
+
+  // Group events by date for stacking annotations
+  const eventsByDate = useMemo(() => {
+    if (!plan) return {};
+    const map: { [date: number]: typeof plan.events } = {};
+    for (const event of plan.events) {
+      const startTimeParam = event.parameters.find(p => p.type === 'start_time');
+      if (!startTimeParam) continue;
+      const date = Number(startTimeParam.value);
+      if (!map[date]) map[date] = [];
+      map[date].push(event);
+    }
+    return map;
+  }, [plan]);
 
   return (
     <div className="relative w-full h-full">
@@ -588,7 +634,37 @@ export function Visualization({ onAnnotationClick }: VisualizationProps) {
 
                 {/* Main content with zoom transform */}
                 <g transform={`translate(${zoom.transformMatrix.translateX},${zoom.transformMatrix.translateY}) scale(${zoom.transformMatrix.scaleX},${zoom.transformMatrix.scaleY})`}>
-                  {/* Zero line */}
+                  {/* Add stacked areas - only show for yearly view */}
+                  {timeInterval === 'year' && Object.keys(netWorthData[0]?.parts || {}).map((partKey) => (
+                    <AreaClosed
+                      key={`area-${partKey}`}
+                      data={stackedData}
+                      x={(d) => xScale(d.date)}
+                      y0={(d) => yScale(d.stackedParts[partKey].y0)}
+                      y1={(d) => yScale(d.stackedParts[partKey].y1)}
+                      yScale={yScale}
+                      stroke="none"
+                      fill={envelopeColors[partKey]?.area || '#999'}
+                      fillOpacity={0.2}
+                      curve={curveLinear}
+                    />
+                  ))}
+
+                  {/* Add top/bottom lines for each part - only at y1 */}
+                  {Object.keys(netWorthData[0]?.parts || {}).map((partKey) => (
+                    <LinePath
+                      key={`line-${partKey}-edge`}
+                      data={stackedData}
+                      x={(d) => xScale(d.date)}
+                      y={(d) => yScale(d.stackedParts[partKey].y1)}
+                      stroke={envelopeColors[partKey]?.line || '#999'}
+                      strokeWidth={1 / globalZoom}
+                      strokeOpacity={0.5}
+                      curve={curveLinear}
+                    />
+                  ))}
+
+                  {/* Zero line - moved to be on top of areas and lines */}
                   <line
                     x1={0}
                     x2={width}
@@ -597,54 +673,19 @@ export function Visualization({ onAnnotationClick }: VisualizationProps) {
                     stroke="#bbd4dd"
                     strokeWidth={1 / globalZoom}
                     strokeDasharray="4,4"
-                    opacity={0.8}
+                    opacity={1}
                   />
 
-                  {/* Current day indicator line */}
+                  {/* Current day indicator line - more subtle and full height */}
                   <line
                     x1={xScale(currentDaysSinceBirth)}
                     x2={xScale(currentDaysSinceBirth)}
                     y1={0}
-                    y2={height}
-                    stroke="#ff0000"
-                    strokeWidth={2 / globalZoom}
-                    strokeDasharray="4,4"
-                    opacity={0.8}
+                    y2={height * 2}
+                    stroke="#a0aec0" // subtle gray
+                    strokeWidth={1 / globalZoom}
+                    opacity={0.5}
                   />
-
-                  {/* Add stacked areas - only show for yearly view */}
-                  {timeInterval === 'year' && Object.keys(netWorthData[0]?.parts || {}).map((partKey, index, keys) => (
-                    <AreaClosed
-                      key={`area-${partKey}`}
-                      data={stackedData}
-                      x={(d) => xScale(d.date)}
-                      y0={(d) => {
-                        const prevValue = index === 0 ? 0 : d.stackedParts[keys[index - 1]];
-                        return yScale(prevValue);
-                      }}
-                      y1={(d) => yScale(d.stackedParts[partKey])}
-                      yScale={yScale}
-                      strokeWidth={1}
-                      stroke={envelopeColors[partKey]?.line || '#999'}
-                      fill={envelopeColors[partKey]?.area || '#999'}
-                      fillOpacity={0.2}
-                      curve={curveLinear}
-                    />
-                  ))}
-
-                  {/* Add lines for each part - always show */}
-                  {Object.keys(netWorthData[0]?.parts || {}).map((partKey) => (
-                    <LinePath
-                      key={`line-${partKey}`}
-                      data={stackedData}
-                      x={(d) => xScale(d.date)}
-                      y={(d) => yScale(d.stackedParts[partKey])}
-                      stroke={envelopeColors[partKey]?.line || '#999'}
-                      strokeWidth={1 / globalZoom}
-                      strokeOpacity={0.5}
-                      curve={curveLinear}
-                    />
-                  ))}
 
                   {/* Total line */}
                   <LinePath
@@ -675,20 +716,14 @@ export function Visualization({ onAnnotationClick }: VisualizationProps) {
                 </g>
 
                 {/* Timeline Annotations (outside zoom transform) */}
-                {plan && plan.events.map((event) => {
-                  // Find the start_time parameter
-                  const startTimeParam = event.parameters.find(p => p.type === 'start_time');
-                  if (!startTimeParam) return null;
-                  const date = Number(startTimeParam.value);
-                  if (isNaN(date)) return null;
-
+                {Object.entries(eventsByDate).map(([dateStr, eventsAtDate]) => {
+                  const date = Number(dateStr);
                   // Find the closest visible data point
                   const visibleDataPoints = netWorthData.filter(p =>
                     p.date >= xScale.domain()[0] && p.date <= xScale.domain()[1]
                   );
                   if (visibleDataPoints.length === 0) return null;
-
-                  // Find the closest data point to this event's date
+                  // Find the closest data point to this date
                   const closestDataPoint = [...visibleDataPoints]
                     .sort((a, b) => Math.abs(a.date - date) - Math.abs(b.date - date))[0];
 
@@ -697,44 +732,69 @@ export function Visualization({ onAnnotationClick }: VisualizationProps) {
                   const transformedX = (canvasX * zoom.transformMatrix.scaleX) + zoom.transformMatrix.translateX;
                   const transformedY = (canvasY * zoom.transformMatrix.scaleY) + zoom.transformMatrix.translateY;
 
-                  // If this annotation is being dragged, use cursor position
-                  const isDragging = draggingAnnotation?.eventId === event.id;
-                  const x = isDragging
-                    ? cursorPos!.x - draggingAnnotation!.offsetX - 20
-                    : transformedX - 20;
-                  const y = isDragging
-                    ? cursorPos!.y - draggingAnnotation!.offsetY - 80
-                    : transformedY - 80;
+                  return eventsAtDate.map((event, i) => {
+                    // If this annotation is being dragged, use cursor position
+                    const isDragging = draggingAnnotation?.eventId === event.id;
+                    const yOffset = i * 50; // Stack vertically by 50px per annotation
+                    const x = isDragging
+                      ? cursorPos!.x - draggingAnnotation!.offsetX - 20
+                      : transformedX - 20;
+                    const y = isDragging
+                      ? cursorPos!.y - draggingAnnotation!.offsetY - 80
+                      : transformedY - 80 - yOffset;
 
-                  return (
-                    <foreignObject
-                      key={`annotation-${event.id}`}
-                      x={x}
-                      y={y}
-                      width={40}
-                      height={40}
-                      style={{
-                        overflow: 'visible',
-                        cursor: 'move'
-                      }}
-                      onMouseDown={(e) => {
-                        // Start drag operation
-                        handleAnnotationDragStart(e, event.id, closestDataPoint.date);
-                      }}
-                      onClick={(e) => {
-                        // Only trigger click if we haven't dragged
-                        if (!hasDragged) {
-                          e.stopPropagation();
-                          onAnnotationClick?.(event.id);
-                        }
-                        setHasDragged(false);
-                      }}
-                    >
-                      <div>
-                        <TimelineAnnotation icon={getEventIcon(event.icon)} label={event.description} />
-                      </div>
-                    </foreignObject>
-                  );
+                    return (
+                      <foreignObject
+                        key={`annotation-${event.id}`}
+                        x={x}
+                        y={y}
+                        width={40}
+                        height={40}
+                        style={{
+                          overflow: 'visible',
+                          cursor: 'move'
+                        }}
+                        onMouseDown={(e) => {
+                          // Start drag operation
+                          handleAnnotationDragStart(e, event.id, closestDataPoint.date);
+                        }}
+                      >
+                        <ContextMenu>
+                          <ContextMenuTrigger asChild>
+                            <div>
+                              <TimelineAnnotation
+                                icon={getEventIcon(event.icon)}
+                                label={event.description}
+                                onClick={() => {
+                                  // Only trigger click if we haven't dragged
+                                  if (!hasDragged) {
+                                    onAnnotationClick?.(event.id);
+                                  }
+                                  setHasDragged(false);
+                                }}
+                              />
+                            </div>
+                          </ContextMenuTrigger>
+                          <ContextMenuContent>
+                            <ContextMenuItem asChild>
+                              <Button
+                                variant="destructive"
+                                size="sm"
+                                className="w-full h-7 text-xs justify-start bg-red-50 text-red-600 border-red-200 hover:bg-red-100 hover:text-red-700"
+                                onClick={() => {
+                                  deleteEvent(event.id);
+                                  onAnnotationDelete?.(event.id);
+                                }}
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Delete Event
+                              </Button>
+                            </ContextMenuItem>
+                          </ContextMenuContent>
+                        </ContextMenu>
+                      </foreignObject>
+                    );
+                  });
                 })}
 
                 {/* Axes with visible domain */}
@@ -828,6 +888,52 @@ export function Visualization({ onAnnotationClick }: VisualizationProps) {
                     ))} */}
                   </div>
                 </TooltipWithBounds>
+              )}
+
+              {/* Bottom axis tooltip for vertical blue line (closestPoint) */}
+              {closestPoint && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    left: (xScale(closestPoint.date) * zoom.transformMatrix.scaleX) + zoom.transformMatrix.translateX,
+                    bottom: 24, // just above the x axis
+                    transform: 'translateX(-50%)',
+                    background: 'white',
+                    border: '1px solid #03c6fc',
+                    color: '#03c6fc',
+                    padding: '4px 10px',
+                    borderRadius: '4px',
+                    fontSize: '12px',
+                    pointerEvents: 'none',
+                    zIndex: 10,
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.08)'
+                  }}
+                >
+                  {formatDate(closestPoint.date, birthDate, 'full')}
+                </div>
+              )}
+
+              {/* Bottom axis tooltip for current day indicator line (gray, more transparent) */}
+              {typeof currentDaysSinceBirth === 'number' && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    left: (xScale(currentDaysSinceBirth) * zoom.transformMatrix.scaleX) + zoom.transformMatrix.translateX,
+                    bottom: 24, // just above the x axis
+                    transform: 'translateX(-50%)',
+                    background: 'rgba(255,255,255,0.85)',
+                    border: '1px solid #d1d5db',
+                    color: '#6b7280',
+                    padding: '4px 10px',
+                    borderRadius: '4px',
+                    fontSize: '12px',
+                    pointerEvents: 'none',
+                    zIndex: 9,
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.04)'
+                  }}
+                >
+                  {formatDate(currentDaysSinceBirth, birthDate, 'full')}
+                </div>
               )}
             </>
           );
