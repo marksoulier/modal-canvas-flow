@@ -1,4 +1,3 @@
-
 import React, { useState, useRef } from 'react';
 import { Menu, HelpCircle, Plus, Save, FileText, FolderOpen, Settings, Wallet, List } from 'lucide-react';
 import {
@@ -19,6 +18,7 @@ import AddEnvelopeModal from '../components/AddEnvelopeModal';
 import EnvelopeManagerModal from '../components/EnvelopeManagerModal';
 import { Visualization } from '../visualization/Visualization';
 import { usePlan } from '../contexts/PlanContext';
+import ErrorToast from '../components/ErrorToast';
 
 const Index = () => {
   const [helpModalOpen, setHelpModalOpen] = useState(false);
@@ -37,6 +37,9 @@ const Index = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   const { loadPlanFromFile, savePlanToFile } = usePlan();
+
+  const [errorOpen, setErrorOpen] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
   const handleAnnotationClick = (eventId: number) => {
     setEditingEventId(eventId);
@@ -75,6 +78,13 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-white relative overflow-hidden">
+      {/* Error Toast at the top */}
+      <ErrorToast
+        message={errorMessage}
+        isOpen={errorOpen}
+        onClose={() => setErrorOpen(false)}
+        onClick={() => { console.log("Error message clicked"); }}
+      />
       {/* Hidden file input */}
       <input
         type="file"

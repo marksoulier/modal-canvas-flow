@@ -39,39 +39,63 @@ const formatNumber = (value: { valueOf(): number }): string => {
     return `${sign}$${(absNum / 1000).toFixed(0)}k`;
   }
   if (absNum >= 1000) {
-    return `${sign}$${absNum.toLocaleString()}`;
+    return `${sign}$${Number(absNum.toFixed(0)).toLocaleString()}`;
   }
   return `${sign}$${absNum.toFixed(0)}`;
 };
 
-// Format date based on time interval
-const formatDate = (daysSinceBirth: number, birthDate: Date, interval: ExtendedTimeInterval): string => {
-  const date = daysToDate(daysSinceBirth, birthDate);
+// Helper to calculate age in years from days since birth
+const getAgeFromDays = (daysSinceBirth: number): number => {
+  return Math.floor(daysSinceBirth / 365.25);
+};
 
+// Format date based on time interval, now also returns age if requested
+// If showAgeAsJSX is true, returns JSX with age in light gray
+const formatDate = (
+  daysSinceBirth: number,
+  birthDate: Date,
+  interval: ExtendedTimeInterval,
+  showAge: boolean = false,
+  showAgeAsJSX: boolean = false
+): string | JSX.Element => {
+  const date = daysToDate(daysSinceBirth, birthDate);
+  let dateStr = '';
   switch (interval) {
     case 'year':
-      return date.getFullYear().toString();
+      dateStr = date.getFullYear().toString();
+      break;
     case 'month':
-      // Only show year on January
       if (date.getMonth() === 0) {
-        return `${date.toLocaleString('default', { month: 'short' })} ${date.getFullYear()}`;
+        dateStr = `${date.toLocaleString('default', { month: 'short' })} ${date.getFullYear()}`;
+      } else {
+        dateStr = date.toLocaleString('default', { month: 'short' });
       }
-      return date.toLocaleString('default', { month: 'short' });
+      break;
     case 'week':
     case 'day':
-      return date.toLocaleString('default', {
+      dateStr = date.toLocaleString('default', {
         day: 'numeric',
         month: 'short'
       });
+      break;
     case 'full':
-      return date.toLocaleString('default', {
+      dateStr = date.toLocaleString('default', {
         day: 'numeric',
         month: 'short',
         year: 'numeric'
       });
+      break;
     default:
-      return date.toLocaleDateString();
+      dateStr = date.toLocaleDateString();
   }
+  if (showAge) {
+    const age = getAgeFromDays(daysSinceBirth);
+    if (showAgeAsJSX) {
+      return <><span>{dateStr} </span><span style={{ color: '#b0b0b0', fontWeight: 400 }}>({age})</span></>;
+    }
+    return `${dateStr} (${age})`;
+  }
+  return dateStr;
 };
 
 // Convert days since birth to actual date
@@ -186,6 +210,41 @@ const Legend = ({ envelopes, colors, currentValues }: {
   </div>
 );
 
+// Custom tick renderer for AxisBottom to style age in light gray
+const AxisBottomTick = ({
+  x,
+  y,
+  formattedValue
+}: {
+  x: number;
+  y: number;
+  formattedValue: string;
+}) => {
+  // Split date and age
+  const match = formattedValue.match(/^(.*) \((\d+)\)$/);
+  let datePart = formattedValue;
+  let agePart = '';
+  if (match) {
+    datePart = match[1];
+    agePart = match[2];
+  }
+  return (
+    <text
+      x={x}
+      y={y}
+      fill="#335966"
+      fontSize={12}
+      textAnchor="middle"
+      dy="0.33em"
+    >
+      {datePart}
+      {agePart && (
+        <tspan fill="#b0b0b0"> ({agePart})</tspan>
+      )}
+    </text>
+  );
+};
+
 export function Visualization({ onAnnotationClick, onAnnotationDelete }: VisualizationProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const [cursorPos, setCursorPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
@@ -228,7 +287,7 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
   const basePointRadius = 4;
 
   const startDate: number = 0
-  const endDate: number = 100 * 365
+  const endDate: number = 80 * 365
 
   // Function to determine time interval based on zoom level
   const getTimeIntervalFromZoom = (zoom: number): TimeInterval => {
@@ -840,13 +899,14 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
                           scale={visibleXScale}
                           stroke="#bbd4dd"
                           tickStroke="#bbd4dd"
-                          tickFormat={(value) => formatDate(value.valueOf(), birthDate, timeInterval)}
-                          tickLabelProps={() => ({
-                            fill: '#335966',
-                            fontSize: 12,
-                            textAnchor: 'middle',
-                            dy: '0.33em',
-                          })}
+                          tickFormat={(value) => formatDate(value.valueOf(), birthDate, timeInterval, true, false) as string}
+                          tickComponent={({ x, y, formattedValue }) => (
+                            <AxisBottomTick
+                              x={x}
+                              y={y}
+                              formattedValue={formattedValue as string}
+                            />
+                          )}
                           left={0}
                         />
                       </>
@@ -909,7 +969,7 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
                     boxShadow: '0 2px 4px rgba(0,0,0,0.08)'
                   }}
                 >
-                  {formatDate(closestPoint.date, birthDate, 'full')}
+                  {formatDate(closestPoint.date, birthDate, 'full', true, true)}
                 </div>
               )}
 
@@ -932,7 +992,7 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
                     boxShadow: '0 2px 4px rgba(0,0,0,0.04)'
                   }}
                 >
-                  {formatDate(currentDaysSinceBirth, birthDate, 'full')}
+                  {formatDate(currentDaysSinceBirth, birthDate, 'full', true, true)}
                 </div>
               )}
             </>

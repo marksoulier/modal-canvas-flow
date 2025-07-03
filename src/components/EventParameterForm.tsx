@@ -177,7 +177,7 @@ const EventParametersForm: React.FC<EventParametersFormProps> = ({
                         defaultMonth={date}
                         className="pointer-events-auto"
                         footer={
-                            <div className="flex justify-between px-2 py-1.5 border-t">
+                            <div className="flex justify-between px-2 py-1.5 border-t gap-2">
                                 <Button
                                     variant="ghost"
                                     size="sm"
@@ -192,6 +192,21 @@ const EventParametersForm: React.FC<EventParametersFormProps> = ({
                                     }}
                                 >
                                     Previous Year
+                                </Button>
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-7 text-xs text-muted-foreground hover:text-foreground"
+                                    onClick={() => {
+                                        const today = new Date();
+                                        const daysDiff = Math.floor((today.getTime() - birthDate.getTime()) / (1000 * 60 * 60 * 24));
+                                        handleInputChange(param.id, daysDiff.toString());
+                                        handleInputBlur(param.id, daysDiff.toString());
+                                        updateCalendarMonth(param.id, today);
+                                    }}
+                                    style={{ opacity: 0.7 }}
+                                >
+                                    Today
                                 </Button>
                                 <Button
                                     variant="ghost"
