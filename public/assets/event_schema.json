@@ -177,16 +177,21 @@
             "updating_events": [
                 {
                     "type": "get_a_raise",
+                    "display_type": "Raise",
                     "icon": "arrow-up",
                     "description": "Receive an increase in salary.",
                     "parameters": [
                         {
                             "type": "start_time",
+                            "display_name": "Raise Effective Date",
+                            "parameter_units": "date",
                             "description": "When the raise takes effect",
                             "default": 365
                         },
                         {
                             "type": "salary",
+                            "display_name": "New Annual Salary",
+                            "parameter_units": "usd",
                             "description": "New annual salary after raise.",
                             "default": 65000
                         }
@@ -194,16 +199,21 @@
                 },
                 {
                     "type": "get_a_bonus",
+                    "display_type": "Bonus",
                     "icon": "dollar-sign",
                     "description": "Receive a one-time cash bonus.",
                     "parameters": [
                         {
                             "type": "start_time",
+                            "display_name": "Bonus Date",
+                            "parameter_units": "date",
                             "description": "When the bonus is received",
                             "default": 365
                         },
                         {
                             "type": "bonus",
+                            "display_name": "Bonus Amount",
+                            "parameter_units": "usd",
                             "description": "Bonus amount received.",
                             "default": 5000
                         }
@@ -211,16 +221,21 @@
                 },
                 {
                     "type": "change_401k_contribution",
+                    "display_type": "Adjust 401k Contribution",
                     "icon": "sliders-horizontal",
                     "description": "Adjust the percentage of income contributed to 401k.",
                     "parameters": [
                         {
                             "type": "start_time",
+                            "display_name": "Change Effective Date",
+                            "parameter_units": "date",
                             "description": "When the new contribution rate takes effect",
                             "default": 0
                         },
                         {
                             "type": "p_401k_contribution",
+                            "display_name": "New 401k Contribution %",
+                            "parameter_units": "percentage",
                             "description": "New 401k contribution percentage.",
                             "default": 0.1
                         }
@@ -324,16 +339,21 @@
             "updating_events": [
                 {
                     "type": "get_a_raise",
+                    "display_type": "Raise",
                     "icon": "arrow-up",
                     "description": "Receive an increase in hourly wage.",
                     "parameters": [
                         {
                             "type": "start_time",
+                            "display_name": "Raise Effective Date",
+                            "parameter_units": "date",
                             "description": "When the raise takes effect",
                             "default": 365
                         },
                         {
                             "type": "new_hourly_wage",
+                            "display_name": "New Hourly Wage",
+                            "parameter_units": "usd",
                             "description": "New hourly wage rate after raise.",
                             "default": 27
                         }
@@ -341,16 +361,21 @@
                 },
                 {
                     "type": "change_hours",
+                    "display_type": "Change Hours",
                     "icon": "clock",
                     "description": "Change the number of hours worked per week.",
                     "parameters": [
                         {
                             "type": "start_time",
+                            "display_name": "Change Effective Date",
+                            "parameter_units": "date",
                             "description": "When the new hours take effect",
                             "default": 365
                         },
                         {
                             "type": "new_hours",
+                            "display_name": "New Hours per Week",
+                            "parameter_units": "days",
                             "description": "New number of hours per week.",
                             "default": 35
                         }
@@ -358,16 +383,21 @@
                 },
                 {
                     "type": "change_401k_contribution",
+                    "display_type": "Adjust 401k Contribution",
                     "icon": "sliders-horizontal",
                     "description": "Adjust the percentage of wages contributed to 401k.",
                     "parameters": [
                         {
                             "type": "start_time",
+                            "display_name": "Change Effective Date",
+                            "parameter_units": "date",
                             "description": "When the new contribution rate takes effect",
                             "default": 0
                         },
                         {
                             "type": "p_401k_contribution",
+                            "display_name": "New 401k Contribution %",
+                            "parameter_units": "percentage",
                             "description": "New 401k contribution percentage.",
                             "default": 0.06
                         }
@@ -375,16 +405,21 @@
                 },
                 {
                     "type": "change_employer_match",
+                    "display_type": "Update Employer Match",
                     "icon": "handshake",
                     "description": "Update the employer's 401k match rate.",
                     "parameters": [
                         {
                             "type": "start_time",
+                            "display_name": "Change Effective Date",
+                            "parameter_units": "date",
                             "description": "When the new match rate takes effect",
                             "default": 0
                         },
                         {
                             "type": "new_match_rate",
+                            "display_name": "New Employer Match %",
+                            "parameter_units": "percentage",
                             "description": "New employer match percentage.",
                             "default": 0.05
                         }
@@ -432,26 +467,35 @@
             "updating_events": [
                 {
                     "type": "business_income",
+                    "display_type": "Business Income",
                     "icon": "bar-chart",
                     "description": "Start receiving business revenue.",
                     "parameters": [
                         {
                             "type": "start_time",
+                            "display_name": "Income Start Date",
+                            "parameter_units": "date",
                             "description": "When business income starts",
                             "default": 0
                         },
                         {
                             "type": "end_time",
+                            "display_name": "Income End Date",
+                            "parameter_units": "date",
                             "description": "When business income ends",
                             "default": 0
                         },
                         {
                             "type": "monthly_income",
+                            "display_name": "Monthly Income",
+                            "parameter_units": "usd",
                             "description": "Monthly income earned by the business.",
                             "default": 5000
                         },
                         {
                             "type": "to_key",
+                            "display_name": "Deposit Envelope",
+                            "parameter_units": "envelope",
                             "description": "Envelope where business income is deposited",
                             "default": "Cash"
                         }
@@ -459,21 +503,28 @@
                 },
                 {
                     "type": "business_loss",
+                    "display_type": "Business Loss",
                     "icon": "x-octagon",
                     "description": "Incur a business loss from operations.",
                     "parameters": [
                         {
                             "type": "start_time",
+                            "display_name": "Loss Date",
+                            "parameter_units": "date",
                             "description": "When the loss occurs",
                             "default": 0
                         },
                         {
                             "type": "loss_amount",
+                            "display_name": "Loss Amount",
+                            "parameter_units": "usd",
                             "description": "Amount lost due to business expense or failure.",
                             "default": 20000
                         },
                         {
                             "type": "from_key",
+                            "display_name": "From Envelope",
+                            "parameter_units": "envelope",
                             "description": "Envelope where loss is deducted from",
                             "default": "Cash"
                         }
@@ -615,16 +666,21 @@
             "updating_events": [
                 {
                     "type": "new_appraisal",
+                    "display_type": "New Appraisal",
                     "icon": "clipboard-check",
                     "description": "New professional appraisal of home value.",
                     "parameters": [
                         {
                             "type": "start_time",
+                            "display_name": "Appraisal Date",
+                            "parameter_units": "date",
                             "description": "When the new appraisal takes effect",
                             "default": 0
                         },
                         {
                             "type": "appraised_value",
+                            "display_name": "Appraised Value",
+                            "parameter_units": "usd",
                             "description": "New home valuation.",
                             "default": 450000
                         }
@@ -632,26 +688,35 @@
                 },
                 {
                     "type": "extra_mortgage_payment",
+                    "display_type": "Extra Mortgage Payment",
                     "icon": "plus",
                     "description": "Make an extra one-time payment toward principal.",
                     "parameters": [
                         {
                             "type": "start_time",
+                            "display_name": "Payment Date",
+                            "parameter_units": "date",
                             "description": "When the extra payment is made",
                             "default": 0
                         },
                         {
                             "type": "amount",
+                            "display_name": "Extra Payment Amount",
+                            "parameter_units": "usd",
                             "description": "Extra amount paid.",
                             "default": 10000
                         },
                         {
                             "type": "from_key",
+                            "display_name": "From Envelope",
+                            "parameter_units": "envelope",
                             "description": "Envelope where payment comes from",
                             "default": "Cash"
                         },
                         {
                             "type": "month_index",
+                            "display_name": "Month Index",
+                            "parameter_units": "days",
                             "description": "Which month the payment applies to.",
                             "default": 60
                         }
@@ -659,26 +724,35 @@
                 },
                 {
                     "type": "late_payment",
+                    "display_type": "Late Payment",
                     "icon": "clock",
                     "description": "Make a mortgage payment late.",
                     "parameters": [
                         {
                             "type": "start_time",
+                            "display_name": "Late Payment Date",
+                            "parameter_units": "date",
                             "description": "When the late payment occurs",
                             "default": 0
                         },
                         {
                             "type": "amount",
+                            "display_name": "Missed Payment Amount",
+                            "parameter_units": "usd",
                             "description": "Missed payment amount.",
                             "default": 1500
                         },
                         {
                             "type": "from_key",
+                            "display_name": "From Envelope",
+                            "parameter_units": "envelope",
                             "description": "Envelope where payment comes from",
                             "default": "Cash"
                         },
                         {
                             "type": "month_index",
+                            "display_name": "Month Index",
+                            "parameter_units": "days",
                             "description": "Which month was missed.",
                             "default": 85
                         }
@@ -686,26 +760,35 @@
                 },
                 {
                     "type": "sell_house",
+                    "display_type": "Sell House",
                     "icon": "dollar-sign",
                     "description": "Sell your home and receive proceeds.",
                     "parameters": [
                         {
                             "type": "start_time",
+                            "display_name": "Sale Date",
+                            "parameter_units": "date",
                             "description": "When the house is sold",
                             "default": 0
                         },
                         {
                             "type": "sale_price",
+                            "display_name": "Sale Price",
+                            "parameter_units": "usd",
                             "description": "Final sale value of the house.",
                             "default": 400000
                         },
                         {
                             "type": "from_key",
+                            "display_name": "From Envelope",
+                            "parameter_units": "envelope",
                             "description": "Envelope where house value is tracked",
                             "default": "House"
                         },
                         {
                             "type": "to_key",
+                            "display_name": "To Envelope",
+                            "parameter_units": "envelope",
                             "description": "Envelope where sale proceeds are deposited",
                             "default": "Cash"
                         }
@@ -713,31 +796,42 @@
                 },
                 {
                     "type": "buy_home_insurance",
+                    "display_type": "Home Insurance",
                     "icon": "shield-check",
                     "description": "Purchase insurance policy for the house.",
                     "parameters": [
                         {
                             "type": "start_time",
+                            "display_name": "Coverage Start Date",
+                            "parameter_units": "date",
                             "description": "When insurance coverage begins",
                             "default": 0
                         },
                         {
                             "type": "monthly_premium",
+                            "display_name": "Monthly Premium",
+                            "parameter_units": "usd",
                             "description": "Monthly cost of the insurance.",
                             "default": 100
                         },
                         {
                             "type": "deductible",
+                            "display_name": "Deductible",
+                            "parameter_units": "usd",
                             "description": "Out-of-pocket amount before coverage.",
                             "default": 2000
                         },
                         {
                             "type": "coverage_percentage",
+                            "display_name": "Coverage Percentage",
+                            "parameter_units": "percentage",
                             "description": "Percentage of damage the policy covers.",
                             "default": 0.9
                         },
                         {
                             "type": "from_key",
+                            "display_name": "From Envelope",
+                            "parameter_units": "envelope",
                             "description": "Envelope where premiums are paid from",
                             "default": "Cash"
                         }
@@ -745,26 +839,35 @@
                     "updating_events": [
                         {
                             "type": "tornado_damage",
+                            "display_type": "Tornado Damage",
                             "icon": "wind",
                             "description": "Damage to property due to tornado.",
                             "parameters": [
                                 {
                                     "type": "start_time",
+                                    "display_name": "Damage Date",
+                                    "parameter_units": "date",
                                     "description": "When the damage occurs",
                                     "default": 0
                                 },
                                 {
                                     "type": "damage_cost",
+                                    "display_name": "Damage Cost",
+                                    "parameter_units": "usd",
                                     "description": "Cost of tornado-related damages.",
                                     "default": 75000
                                 },
                                 {
                                     "type": "insurance_coverage",
+                                    "display_name": "Insurance Coverage %",
+                                    "parameter_units": "percentage",
                                     "description": "Percentage reimbursed by insurance.",
                                     "default": 0.9
                                 },
                                 {
                                     "type": "to_key",
+                                    "display_name": "To Envelope",
+                                    "parameter_units": "envelope",
                                     "description": "Envelope where insurance payout is received",
                                     "default": "Cash"
                                 }
@@ -772,26 +875,35 @@
                         },
                         {
                             "type": "house_fire",
+                            "display_type": "House Fire",
                             "icon": "flame",
                             "description": "Damage to property due to fire.",
                             "parameters": [
                                 {
                                     "type": "start_time",
+                                    "display_name": "Damage Date",
+                                    "parameter_units": "date",
                                     "description": "When the damage occurs",
                                     "default": 0
                                 },
                                 {
                                     "type": "damage_cost",
+                                    "display_name": "Damage Cost",
+                                    "parameter_units": "usd",
                                     "description": "Repair cost after fire.",
                                     "default": 100000
                                 },
                                 {
                                     "type": "insurance_coverage",
+                                    "display_name": "Insurance Coverage %",
+                                    "parameter_units": "percentage",
                                     "description": "Coverage from insurance.",
                                     "default": 0.95
                                 },
                                 {
                                     "type": "to_key",
+                                    "display_name": "To Envelope",
+                                    "parameter_units": "envelope",
                                     "description": "Envelope where insurance payout is received",
                                     "default": "Cash"
                                 }
@@ -799,23 +911,23 @@
                         },
                         {
                             "type": "flood_damage",
+                            "display_type": "Flood Damage",
                             "icon": "waves",
                             "description": "Damage to home due to flood.",
                             "parameters": [
                                 {
                                     "type": "start_time",
+                                    "display_name": "Damage Date",
+                                    "parameter_units": "date",
                                     "description": "When the damage occurs",
                                     "default": 0
                                 },
                                 {
                                     "type": "damage_cost",
+                                    "display_name": "Damage Cost",
+                                    "parameter_units": "usd",
                                     "description": "Repair cost after flooding.",
                                     "default": 50000
-                                },
-                                {
-                                    "type": "insurance_coverage",
-                                    "description": "Percent of cost covered.",
-                                    "default": 0.8
                                 }
                             ]
                         }
@@ -884,21 +996,28 @@
             "updating_events": [
                 {
                     "type": "pay_loan_early",
+                    "display_type": "Pay Loan Early",
                     "icon": "badge-dollar-sign",
                     "description": "Pay off the car loan ahead of schedule.",
                     "parameters": [
                         {
                             "type": "start_time",
+                            "display_name": "Early Payment Date",
+                            "parameter_units": "date",
                             "description": "When the early payment is made",
                             "default": 0
                         },
                         {
                             "type": "amount",
+                            "display_name": "Payoff Amount",
+                            "parameter_units": "usd",
                             "description": "Remaining balance paid off.",
                             "default": 20000
                         },
                         {
                             "type": "from_key",
+                            "display_name": "From Envelope",
+                            "parameter_units": "envelope",
                             "description": "Envelope where payment comes from",
                             "default": "Cash"
                         }
@@ -906,21 +1025,28 @@
                 },
                 {
                     "type": "car_repair",
+                    "display_type": "Car Repair",
                     "icon": "wrench",
                     "description": "Pay for major car repairs.",
                     "parameters": [
                         {
                             "type": "start_time",
+                            "display_name": "Repair Date",
+                            "parameter_units": "date",
                             "description": "When the repair occurs",
                             "default": 0
                         },
                         {
                             "type": "cost",
+                            "display_name": "Repair Cost",
+                            "parameter_units": "usd",
                             "description": "Repair bill total.",
                             "default": 3000
                         },
                         {
                             "type": "from_key",
+                            "display_name": "From Envelope",
+                            "parameter_units": "envelope",
                             "description": "Envelope where repair cost is paid from",
                             "default": "Cash"
                         }
@@ -961,26 +1087,35 @@
             "updating_events": [
                 {
                     "type": "childcare_costs",
+                    "display_type": "Childcare Costs",
                     "icon": "hand-coins",
                     "description": "Monthly childcare expenses after birth.",
                     "parameters": [
                         {
                             "type": "start_time",
+                            "display_name": "Childcare Start Date",
+                            "parameter_units": "date",
                             "description": "When childcare costs begin",
                             "default": 0
                         },
                         {
                             "type": "monthly_cost",
+                            "display_name": "Monthly Childcare Cost",
+                            "parameter_units": "usd",
                             "description": "Monthly cost for daycare or other care.",
                             "default": 1200
                         },
                         {
                             "type": "from_key",
+                            "display_name": "From Envelope",
+                            "parameter_units": "envelope",
                             "description": "Envelope where childcare costs are paid from",
                             "default": "Cash"
                         },
                         {
                             "type": "end_days",
+                            "display_name": "End Date",
+                            "parameter_units": "date",
                             "description": "When childcare costs end.",
                             "default": 2190
                         }
@@ -988,36 +1123,49 @@
                 },
                 {
                     "type": "college_fund",
+                    "display_type": "College Fund",
                     "icon": "graduation-cap",
                     "description": "Start saving for your child's college education.",
                     "parameters": [
                         {
                             "type": "start_time",
+                            "display_name": "Contribution Start Date",
+                            "parameter_units": "date",
                             "description": "When college fund contributions begin",
                             "default": 0
                         },
                         {
                             "type": "initial_contribution",
+                            "display_name": "Initial Contribution",
+                            "parameter_units": "usd",
                             "description": "Starting amount deposited.",
                             "default": 5000
                         },
                         {
                             "type": "monthly_contribution",
+                            "display_name": "Monthly Contribution",
+                            "parameter_units": "usd",
                             "description": "Recurring monthly contribution.",
                             "default": 200
                         },
                         {
                             "type": "from_key",
+                            "display_name": "From Envelope",
+                            "parameter_units": "envelope",
                             "description": "Envelope where contributions come from",
                             "default": "Cash"
                         },
                         {
                             "type": "to_key",
+                            "display_name": "To Envelope",
+                            "parameter_units": "envelope",
                             "description": "Envelope where college fund is tracked",
                             "default": "Savings"
                         },
                         {
                             "type": "end_days",
+                            "display_name": "End Date",
+                            "parameter_units": "date",
                             "description": "End of contribution period.",
                             "default": 6570
                         }
@@ -1158,31 +1306,42 @@
             "updating_events": [
                 {
                     "type": "medical_expense",
+                    "display_type": "Medical Expense",
                     "icon": "pill",
                     "description": "Major medical procedure or cost covered by insurance.",
                     "parameters": [
                         {
                             "type": "start_time",
+                            "display_name": "Expense Date",
+                            "parameter_units": "date",
                             "description": "When the medical expense occurs",
                             "default": 0
                         },
                         {
                             "type": "total_cost",
+                            "display_name": "Total Cost",
+                            "parameter_units": "usd",
                             "description": "Full amount billed by the hospital or provider.",
                             "default": 25000
                         },
                         {
                             "type": "from_key",
+                            "display_name": "From Envelope",
+                            "parameter_units": "envelope",
                             "description": "Envelope to cover the out-of-pocket portion.",
                             "default": "Cash"
                         },
                         {
                             "type": "insurance_coverage",
+                            "display_name": "Insurance Coverage %",
+                            "parameter_units": "percentage",
                             "description": "Insurance reimbursement percentage.",
                             "default": 0.8
                         },
                         {
                             "type": "deductible",
+                            "display_name": "Deductible",
+                            "parameter_units": "usd",
                             "description": "How much must be paid first by the user.",
                             "default": 2000
                         }
@@ -1237,21 +1396,28 @@
             "updating_events": [
                 {
                     "type": "increase_coverage",
+                    "display_type": "Increase Coverage",
                     "icon": "plus-circle",
                     "description": "Change to a higher coverage amount and premium.",
                     "parameters": [
                         {
                             "type": "start_time",
+                            "display_name": "Coverage Increase Date",
+                            "parameter_units": "date",
                             "description": "When the coverage increase takes effect",
                             "default": 0
                         },
                         {
                             "type": "new_coverage_amount",
+                            "display_name": "New Coverage Amount",
+                            "parameter_units": "usd",
                             "description": "Updated payout amount.",
                             "default": 750000
                         },
                         {
                             "type": "new_monthly_premium",
+                            "display_name": "New Monthly Premium",
+                            "parameter_units": "usd",
                             "description": "New monthly cost of policy.",
                             "default": 150
                         }
@@ -1351,21 +1517,28 @@
             "updating_events": [
                 {
                     "type": "Reoccuring Dividend Payout",
+                    "display_type": "Dividend Payout",
                     "icon": "badge-dollar-sign",
                     "description": "Receive dividend payments from invested stocks.",
                     "parameters": [
                         {
                             "type": "start_time",
+                            "display_name": "Dividend Start Date",
+                            "parameter_units": "date",
                             "description": "When dividend payments begin",
                             "default": 0
                         },
                         {
                             "type": "amount",
+                            "display_name": "Dividend Amount",
+                            "parameter_units": "usd",
                             "description": "Dividend amount received.",
                             "default": 200
                         },
                         {
                             "type": "to_key",
+                            "display_name": "To Envelope",
+                            "parameter_units": "envelope",
                             "description": "Envelope where dividends are received",
                             "default": "Cash"
                         }
@@ -1373,26 +1546,35 @@
                 },
                 {
                     "type": "Reoccuring Contribution",
+                    "display_type": "Reoccuring Contribution",
                     "icon": "dollar-bill",
                     "description": "Put in reoccuring deposits",
                     "parameters": [
                         {
                             "type": "start_time",
+                            "display_name": "Contribution Start Date",
+                            "parameter_units": "date",
                             "description": "When reoccuring payments begin",
                             "default": 0
                         },
                         {
                             "type": "end_time",
+                            "display_name": "Contribution End Date",
+                            "parameter_units": "date",
                             "description": "When reoccuring payments end",
                             "default": 3650
                         },
                         {
                             "type": "amount",
+                            "display_name": "Contribution Amount",
+                            "parameter_units": "usd",
                             "description": "Amount put in.",
                             "default": 200
                         },
                         {
                             "type": "from_key",
+                            "display_name": "From Envelope",
+                            "parameter_units": "envelope",
                             "description": "Envelope where contributions are from",
                             "default": "Cash"
                         }
@@ -1478,21 +1660,28 @@
             "updating_events": [
                 {
                     "type": "receive_tax_refund",
+                    "display_type": "Tax Refund",
                     "icon": "wallet",
                     "description": "Receive refund from overpaid taxes.",
                     "parameters": [
                         {
                             "type": "start_time",
+                            "display_name": "Refund Date",
+                            "parameter_units": "date",
                             "description": "When the tax refund is received",
                             "default": 0
                         },
                         {
                             "type": "amount",
+                            "display_name": "Refund Amount",
+                            "parameter_units": "usd",
                             "description": "Amount of tax refund received.",
                             "default": 1500
                         },
                         {
                             "type": "to_key",
+                            "display_name": "To Envelope",
+                            "parameter_units": "envelope",
                             "description": "Envelope where refund is received",
                             "default": "Cash"
                         }

@@ -260,6 +260,7 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
   const [timeInterval, setTimeInterval] = useState<TimeInterval>('year');
   const [birthDate, setBirthDate] = useState<Date>(new Date(2000, 0, 1)); // Default to Jan 1, 2000
   const [currentDaysSinceBirth, setCurrentDaysSinceBirth] = useState<number>(0);
+  const [hoveredEventId, setHoveredEventId] = useState<number | null>(null);
   const width = window.innerWidth;
   const height = window.innerHeight;
 
@@ -445,6 +446,25 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
     return map;
   }, [plan]);
 
+  const updatingEventsByDate = useMemo(() => {
+    if (!plan) return {};
+    const map: { [date: number]: any[] } = {};
+    for (const event of plan.events) {
+      if (event.updating_events) {
+        for (const updatingEvent of event.updating_events) {
+          // Find the start_time parameter
+          const startTimeParam = updatingEvent.parameters.find(p => p.type === 'start_time');
+          if (!startTimeParam) continue;
+          const date = Number(startTimeParam.value);
+          if (!map[date]) map[date] = [];
+          // Attach parent event id if needed for deletion, etc.
+          map[date].push({ ...updatingEvent, parentEventId: event.id });
+        }
+      }
+    }
+    return map;
+  }, [plan]);
+
   return (
     <div className="relative w-full h-full">
       <Zoom
@@ -543,17 +563,29 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
             if (distance < 150) {
               // Find the event in the plan
               if (plan) {
-                const event = plan.events.find(e => e.id === draggingAnnotation.eventId);
+                // Try main event first
+                let event = plan.events.find(e => e.id === draggingAnnotation.eventId);
                 if (event) {
                   const startTimeParam = event.parameters.find(p => p.type === 'start_time');
                   if (startTimeParam) {
                     // Update the event's start_time parameter
                     updateParameter(event.id, startTimeParam.id, closestPoint.date);
                   }
+                } else {
+                  // Try updating event
+                  for (const parentEvent of plan.events) {
+                    const updatingEvent = parentEvent.updating_events?.find(ue => ue.id === draggingAnnotation.eventId);
+                    if (updatingEvent) {
+                      const startTimeParam = updatingEvent.parameters.find(p => p.type === 'start_time');
+                      if (startTimeParam) {
+                        updateParameter(parentEvent.id, startTimeParam.id, closestPoint.date);
+                      }
+                      break;
+                    }
+                  }
                 }
               }
             }
-
             setClosestPoint(closestPoint);
           };
 
@@ -792,16 +824,15 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
                   const transformedY = (canvasY * zoom.transformMatrix.scaleY) + zoom.transformMatrix.translateY;
 
                   return eventsAtDate.map((event, i) => {
-                    // If this annotation is being dragged, use cursor position
-                    const isDragging = draggingAnnotation?.eventId === event.id;
-                    const yOffset = i * 50; // Stack vertically by 50px per annotation
-                    const x = isDragging
+                    const isDraggingMain = draggingAnnotation?.eventId === event.id;
+                    const yOffset = i * 50;
+                    const x = isDraggingMain
                       ? cursorPos!.x - draggingAnnotation!.offsetX - 20
                       : transformedX - 20;
-                    const y = isDragging
+                    const y = isDraggingMain
                       ? cursorPos!.y - draggingAnnotation!.offsetY - 80
                       : transformedY - 80 - yOffset;
-
+                    const isHighlighted = hoveredEventId === event.id;
                     return (
                       <foreignObject
                         key={`annotation-${event.id}`}
@@ -811,21 +842,22 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
                         height={40}
                         style={{
                           overflow: 'visible',
-                          cursor: 'move'
+                          cursor: isDraggingMain ? 'grabbing' : 'move'
                         }}
                         onMouseDown={(e) => {
-                          // Start drag operation
                           handleAnnotationDragStart(e, event.id, closestDataPoint.date);
                         }}
+                        onMouseEnter={() => setHoveredEventId(event.id)}
+                        onMouseLeave={() => setHoveredEventId(null)}
                       >
                         <ContextMenu>
                           <ContextMenuTrigger asChild>
                             <div>
                               <TimelineAnnotation
-                                icon={getEventIcon(event.icon)}
+                                icon={getEventIcon(event.type)}
                                 label={event.description}
+                                highlighted={isHighlighted}
                                 onClick={() => {
-                                  // Only trigger click if we haven't dragged
                                   if (!hasDragged) {
                                     onAnnotationClick?.(event.id);
                                   }
@@ -847,6 +879,84 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
                               >
                                 <Trash2 className="mr-2 h-4 w-4" />
                                 Delete Event
+                              </Button>
+                            </ContextMenuItem>
+                          </ContextMenuContent>
+                        </ContextMenu>
+                      </foreignObject>
+                    );
+                  });
+                })}
+
+                {/* Updating Event Annotations (outside zoom transform) */}
+                {Object.entries(updatingEventsByDate).map(([dateStr, updatingEventsAtDate]) => {
+                  const date = Number(dateStr);
+                  // Find the closest visible data point
+                  const visibleDataPoints = netWorthData.filter(p =>
+                    p.date >= xScale.domain()[0] && p.date <= xScale.domain()[1]
+                  );
+                  if (visibleDataPoints.length === 0) return null;
+                  // Find the closest data point to this date
+                  const closestDataPoint = [...visibleDataPoints]
+                    .sort((a, b) => Math.abs(a.date - date) - Math.abs(b.date - date))[0];
+
+                  const canvasX = xScale(closestDataPoint.date);
+                  const canvasY = yScale(closestDataPoint.value);
+                  const transformedX = (canvasX * zoom.transformMatrix.scaleX) + zoom.transformMatrix.translateX;
+                  const transformedY = (canvasY * zoom.transformMatrix.scaleY) + zoom.transformMatrix.translateY;
+
+                  return updatingEventsAtDate.map((updatingEvent, i) => {
+                    const isDraggingUpdating = draggingAnnotation?.eventId === updatingEvent.id;
+                    const yOffset = i * 50;
+                    const x = isDraggingUpdating
+                      ? cursorPos!.x - draggingAnnotation!.offsetX - 20
+                      : transformedX + 30;
+                    const y = isDraggingUpdating
+                      ? cursorPos!.y - draggingAnnotation!.offsetY - 80
+                      : transformedY - 80 - yOffset;
+                    const isHighlighted = hoveredEventId === updatingEvent.parentEventId;
+                    return (
+                      <foreignObject
+                        key={`updating-annotation-${updatingEvent.id}`}
+                        x={x}
+                        y={y}
+                        width={40}
+                        height={40}
+                        style={{
+                          overflow: 'visible',
+                          cursor: isDraggingUpdating ? 'grabbing' : 'move'
+                        }}
+                        onMouseDown={(e) => {
+                          // Start drag operation for updating event
+                          // Prevent zoom from handling mouse down and drag when starting to drag an annotation
+                          e.stopPropagation();
+                          // handleAnnotationDragStart(e, updatingEvent.id, closestDataPoint.date);
+                        }}
+                        onMouseEnter={() => setHoveredEventId(updatingEvent.parentEventId)}
+                        onMouseLeave={() => setHoveredEventId(null)}
+                      >
+                        <ContextMenu>
+                          <ContextMenuTrigger asChild>
+                            <div>
+                              <TimelineAnnotation
+                                icon={getEventIcon(updatingEvent.type)}
+                                label={updatingEvent.description}
+                                highlighted={isHighlighted}
+                              />
+                            </div>
+                          </ContextMenuTrigger>
+                          <ContextMenuContent>
+                            <ContextMenuItem asChild>
+                              <Button
+                                variant="destructive"
+                                size="sm"
+                                className="w-full h-7 text-xs justify-start bg-red-50 text-red-600 border-red-200 hover:bg-red-100 hover:text-red-700"
+                                onClick={() => {
+                                  deleteEvent(updatingEvent.id);
+                                }}
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Delete Updating Event
                               </Button>
                             </ContextMenuItem>
                           </ContextMenuContent>

@@ -6,7 +6,6 @@ export interface EventParameter {
 
 export interface UpdatingEvent {
     type: string;
-    icon: string;
     description: string;
     parameters: EventParameter[];
 }
@@ -67,4 +66,29 @@ export const iconMap: Record<string, string> = {
     'dollar-bill': 'DollarBill',
     'wallet': 'Wallet',
     'pencil': 'Pencil'
-}; 
+};
+
+export interface SchemaUpdatingEvent {
+    type: string;
+    display_type: string;
+    description: string;
+    parameters: SchemaParameter[];
+}
+
+export interface SchemaEvent {
+    type: string;
+    display_type: string;
+    category: string;
+    weight: number;
+    description: string;
+    parameters: SchemaParameter[];
+    updating_events?: SchemaUpdatingEvent[];
+}
+
+export interface SchemaParameter {
+    type: string;
+    display_name: string;
+    parameter_units: string;
+    description: string;
+    default: number | string;
+} 

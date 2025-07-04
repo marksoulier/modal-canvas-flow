@@ -13,7 +13,6 @@ export interface UpdatingEvent {
     id: number;
     type: string;
     description: string;
-    icon: string;
     parameters: Parameter[];
 }
 
@@ -21,12 +20,12 @@ export interface Event {
     id: number;
     type: string;
     description: string;
-    icon: string;
     parameters: Parameter[];
     updating_events?: UpdatingEvent[];
 }
 
 export interface Plan {
+    title: string;
     birth_date: string;
     inflation_rate: number;
     adjust_for_inflation: boolean;
@@ -49,6 +48,7 @@ export interface SchemaParameter {
 
 export interface SchemaUpdatingEvent {
     type: string;
+    display_type: string;
     icon: string;
     description: string;
     parameters: SchemaParameter[];
@@ -86,10 +86,14 @@ interface PlanContextType {
     deleteEvent: (eventId: number) => void;
     addEvent: (eventType: string) => number;
     addUpdatingEvent: (mainEventId: number, updatingEventType: string) => number;
-    getEventIcon: (iconName: string) => React.ReactNode;
+    getEventIcon: (eventType: string) => React.ReactNode;
     getEventDisplayType: (eventType: string) => string;
     getParameterDisplayName: (eventType: string, parameterType: string) => string;
     getParameterUnits: (eventType: string, parameterType: string) => string;
+    getParameterDescription: (eventType: string, parameterType: string) => string;
+    updateEventDescription: (eventId: number, newDescription: string) => void;
+    updatePlanTitle: (newTitle: string) => void;
+    updateBirthDate: (newBirthDate: string) => void;
 }
 
 const SCHEMA_PATH = '/assets/event_schema.json';
@@ -307,7 +311,6 @@ export function PlanProvider({ children }: PlanProviderProps) {
             id: newId,
             type: eventType,
             description: eventSchema.description,
-            icon: eventSchema.icon,
             parameters: parameters,
             updating_events: []
         };
@@ -366,7 +369,6 @@ export function PlanProvider({ children }: PlanProviderProps) {
             id: newId,
             type: updatingEventType,
             description: updatingEventSchema.description,
-            icon: updatingEventSchema.icon,
             parameters: parameters
         };
 
@@ -389,11 +391,26 @@ export function PlanProvider({ children }: PlanProviderProps) {
         return newId;
     }, [plan, schema]);
 
-    const getEventIcon = useCallback((iconName: string) => {
+    const getEventIcon = useCallback((eventType: string) => {
+        if (!schema) return null;
+        // Try main events first
+        let eventSchema = schema.events.find(e => e.type === eventType);
+        let iconName = eventSchema?.icon;
+        // If not found, try updating events
+        if (!iconName) {
+            for (const evt of schema.events) {
+                const updating = evt.updating_events?.find(ue => ue.type === eventType);
+                if (updating) {
+                    iconName = updating.icon;
+                    break;
+                }
+            }
+        }
+        if (!iconName) iconName = 'Circle';
         const lucideIconName = iconMap[iconName] || 'Circle';
         const IconComponent = (LucideIcons as any)[lucideIconName] || LucideIcons.Circle;
         return <IconComponent size={20} />;
-    }, []);
+    }, [schema]);
 
     const getEventDisplayType = useCallback((eventType: string) => {
         if (!schema) return eventType;
@@ -403,21 +420,113 @@ export function PlanProvider({ children }: PlanProviderProps) {
 
     const getParameterDisplayName = useCallback((eventType: string, parameterType: string) => {
         if (!schema) return parameterType;
-        const eventSchema = schema.events.find(e => e.type === eventType);
-        if (!eventSchema) return parameterType;
-
-        const parameter = eventSchema.parameters.find(p => p.type === parameterType);
+        // Try main events first
+        let eventSchema = schema.events.find(e => e.type === eventType);
+        let parameter;
+        if (eventSchema) {
+            parameter = eventSchema.parameters.find(p => p.type === parameterType);
+        }
+        // If not found, try updating events
+        if (!parameter) {
+            for (const evt of schema.events) {
+                const updating = evt.updating_events?.find(ue => ue.type === eventType);
+                if (updating) {
+                    parameter = updating.parameters.find(p => p.type === parameterType);
+                    if (parameter) break;
+                }
+            }
+        }
         return parameter?.display_name || parameterType;
     }, [schema]);
 
     const getParameterUnits = useCallback((eventType: string, parameterType: string) => {
         if (!schema) return '';
-        const eventSchema = schema.events.find(e => e.type === eventType);
-        if (!eventSchema) return '';
-
-        const parameter = eventSchema.parameters.find(p => p.type === parameterType);
+        // Try main events first
+        let eventSchema = schema.events.find(e => e.type === eventType);
+        let parameter;
+        if (eventSchema) {
+            parameter = eventSchema.parameters.find(p => p.type === parameterType);
+        }
+        // If not found, try updating events
+        if (!parameter) {
+            for (const evt of schema.events) {
+                const updating = evt.updating_events?.find(ue => ue.type === eventType);
+                if (updating) {
+                    parameter = updating.parameters.find(p => p.type === parameterType);
+                    if (parameter) break;
+                }
+            }
+        }
         return parameter?.parameter_units || '';
     }, [schema]);
+
+    const getParameterDescription = useCallback((eventType: string, parameterType: string) => {
+        if (!schema) return '';
+        // Try main events first
+        let eventSchema = schema.events.find(e => e.type === eventType);
+        let parameter;
+        if (eventSchema) {
+            parameter = eventSchema.parameters.find(p => p.type === parameterType);
+        }
+        // If not found, try updating events
+        if (!parameter) {
+            for (const evt of schema.events) {
+                const updating = evt.updating_events?.find(ue => ue.type === eventType);
+                if (updating) {
+                    parameter = updating.parameters.find(p => p.type === parameterType);
+                    if (parameter) break;
+                }
+            }
+        }
+        return parameter?.description || '';
+    }, [schema]);
+
+    const updateEventDescription = useCallback((eventId: number, newDescription: string) => {
+        if (!plan) {
+            throw new Error('No plan data available');
+        }
+        setPlan(prevPlan => {
+            if (!prevPlan) return null;
+            // Try to update main event first
+            const updatedEvents = prevPlan.events.map(event => {
+                if (event.id === eventId) {
+                    return { ...event, description: newDescription };
+                }
+                // Try updating events
+                if (event.updating_events) {
+                    const updatedUpdatingEvents = event.updating_events.map(updatingEvent => {
+                        if (updatingEvent.id === eventId) {
+                            return { ...updatingEvent, description: newDescription };
+                        }
+                        return updatingEvent;
+                    });
+                    return { ...event, updating_events: updatedUpdatingEvents };
+                }
+                return event;
+            });
+            return { ...prevPlan, events: updatedEvents };
+        });
+    }, [plan]);
+
+    const updatePlanTitle = useCallback((newTitle: string) => {
+        if (!plan) {
+            throw new Error('No plan data available');
+        }
+        setPlan(prevPlan => {
+            if (!prevPlan) return null;
+            return { ...prevPlan, title: newTitle };
+        });
+    }, [plan]);
+
+    const updateBirthDate = useCallback((newBirthDate: string) => {
+        if (!plan) {
+            throw new Error('No plan data available');
+        }
+        setPlan(prevPlan => {
+            if (!prevPlan) return null;
+            return { ...prevPlan, birth_date: newBirthDate };
+        });
+    }, [plan]);
 
     const value = {
         plan,
@@ -435,6 +544,10 @@ export function PlanProvider({ children }: PlanProviderProps) {
         getEventDisplayType,
         getParameterDisplayName,
         getParameterUnits,
+        getParameterDescription,
+        updateEventDescription,
+        updatePlanTitle,
+        updateBirthDate,
     };
 
     // Don't render children until we've attempted to load the default plan and schema
