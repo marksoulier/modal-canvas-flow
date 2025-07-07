@@ -19,7 +19,7 @@ import {
     SelectValue,
 } from './ui/select';
 import { usePlan } from '../contexts/PlanContext';
-import type { Plan, Event, Parameter, Schema, SchemaEvent } from '../contexts/PlanContext';
+import type { Plan, Event, Parameter, Schema, SchemaEvent, UpdatingEvent } from '../contexts/PlanContext';
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from './ui/accordion';
 import DatePicker from './DatePicker';
 
@@ -28,12 +28,14 @@ interface EventParametersFormProps {
     isOpen: boolean;
     onClose: () => void;
     eventId: number;
+    onSelectEvent: (eventId: number) => void;
 }
 
 const EventParametersForm: React.FC<EventParametersFormProps> = ({
     isOpen,
     onClose,
-    eventId
+    eventId,
+    onSelectEvent
 }) => {
     const { plan, schema, getEventIcon, updateParameter, deleteEvent, getParameterDisplayName, getParameterUnits, getEventDisplayType, addUpdatingEvent, getParameterDescription, updateEventDescription } = usePlan();
     const [parameters, setParameters] = useState<Record<number, { type: string; value: string | number }>>({});
@@ -47,29 +49,48 @@ const EventParametersForm: React.FC<EventParametersFormProps> = ({
     // State for updating event descriptions
     const [updatingDescriptions, setUpdatingDescriptions] = useState<Record<number, string>>({});
 
+    // Helper to find event or updating event by id
+    function findEventOrUpdatingEventById(
+        plan: Plan | null,
+        id: number
+    ): { event: Event | null; updatingEvent: UpdatingEvent | null; parentEvent: Event | null } {
+        if (!plan) return { event: null, updatingEvent: null, parentEvent: null };
+        for (const event of plan.events) {
+            if (event.id === id) return { event, updatingEvent: null, parentEvent: null };
+            if (event.updating_events) {
+                for (const updatingEvent of event.updating_events) {
+                    if (updatingEvent.id === id) return { event: null, updatingEvent, parentEvent: event };
+                }
+            }
+        }
+        return { event: null, updatingEvent: null, parentEvent: null };
+    }
+
     useEffect(() => {
         if (schema && plan) {
-            const event = plan.events.find(e => e.id === eventId);
+            const { event, updatingEvent, parentEvent } = findEventOrUpdatingEventById(plan, eventId);
+            let eventType = '';
+            let params: Parameter[] = [];
             if (event) {
-                const eventDef = schema.events.find(e => e.type === event.type);
-                if (eventDef) {
-                    const newParams: Record<number, { type: string; value: string | number }> = {};
-                    const newCalendarMonths: Record<number, Date> = {};
-
-                    event.parameters.forEach(param => {
-                        const paramUnits = getParameterUnits(event.type, param.type);
-                        newParams[param.id] = {
-                            type: param.type,
-                            value: paramUnits === 'percentage' ? ((param.value as number) * 100).toFixed(2) : param.value
-                        };
-                    });
-
-                    setParameters(newParams);
-                }
-            } else {
-                // Reset parameters if event not found
-                setParameters({});
+                eventType = event.type;
+                params = event.parameters;
+            } else if (updatingEvent && parentEvent) {
+                eventType = updatingEvent.type;
+                params = updatingEvent.parameters;
             }
+            const newParams: Record<number, { type: string; value: string | number }> = {};
+            params.forEach(param => {
+                const paramUnits = getParameterUnits(eventType, param.type);
+                newParams[param.id] = {
+                    type: param.type,
+                    value: paramUnits === 'percentage' ? ((param.value as number) * 100).toFixed(2) : param.value
+                };
+            });
+            setParameters(newParams);
+            console.log("Event ID:", eventId, "Starting parameters:", newParams);
+        } else {
+            // Reset parameters if event not found
+            setParameters({});
         }
     }, [schema, plan, eventId, getParameterUnits]);
 
@@ -115,7 +136,11 @@ const EventParametersForm: React.FC<EventParametersFormProps> = ({
                 } else if (paramUnits === 'usd') {
                     value = parseFloat(paramData.value as string) || 0;
                 }
-                updateParameter(eventId, parseInt(paramId), value);
+                // Find the parameter type from the paramId
+                const paramObj = parameters[parseInt(paramId)];
+                if (paramObj && paramObj.type) {
+                    updateParameter(eventId, paramObj.type, value);
+                }
             });
         }
 
@@ -144,7 +169,11 @@ const EventParametersForm: React.FC<EventParametersFormProps> = ({
         } else if (paramUnits === 'usd') {
             saveValue = parseFloat(value) || 0;
         }
-        updateParameter(eventId, paramId, saveValue);
+        // Find the parameter type from the paramId
+        const paramObj = parameters[paramId];
+        if (paramObj && paramObj.type) {
+            updateParameter(eventId, paramObj.type, saveValue);
+        }
     };
 
     const getEventDefinition = (): SchemaEvent | undefined => {
@@ -316,8 +345,10 @@ const EventParametersForm: React.FC<EventParametersFormProps> = ({
         );
     };
 
-    const event = getEventDefinition();
-    const currentEvent = plan?.events.find(e => e.id === eventId);
+    // For rendering parameters, use the helper to get the right event/updating event
+    const { event: foundEvent, updatingEvent: foundUpdatingEvent, parentEvent: foundParentEvent } = findEventOrUpdatingEventById(plan, eventId);
+    const currentEvent = foundEvent;
+    const currentUpdatingEvent = foundUpdatingEvent;
 
     // --- Updating Events Section ---
     // Helper to get main event and its updating events
@@ -343,26 +374,27 @@ const EventParametersForm: React.FC<EventParametersFormProps> = ({
             <DialogContent className="sm:max-w-md max-h-[80vh] overflow-y-auto p-6">
                 <DialogHeader className="mb-6">
                     <div className="flex items-center gap-3 mb-4">
-                        {event && getEventIcon(event.type)}
-                        <DialogTitle>{event ? getEventDisplayType(event.type) : 'Event'}</DialogTitle>
+                        {currentEvent && getEventIcon(currentEvent.type)}
+                        <DialogTitle>{currentEvent ? getEventDisplayType(currentEvent.type) : 'Event'}</DialogTitle>
                     </div>
                     <DialogDescription>
                         Configure the parameters for this event. Changes will be saved automatically.
                     </DialogDescription>
                 </DialogHeader>
 
+
                 <form onSubmit={handleSubmit} className="space-y-6">
-                    {currentEvent?.parameters.map((param) => (
+                    {(currentEvent?.parameters || currentUpdatingEvent?.parameters)?.map((param) => (
                         <div key={param.id} className="space-y-2">
                             <div className="space-y-1">
                                 <Label htmlFor={param.id.toString()} className="text-sm font-medium">
-                                    {getParameterDisplayName(currentEvent.type, param.type)}
+                                    {getParameterDisplayName((currentEvent ? currentEvent.type : currentUpdatingEvent?.type) || '', param.type)}
                                 </Label>
                                 <p className="text-xs text-muted-foreground">
-                                    {event?.parameters.find(p => p.type === param.type)?.description}
+                                    {getEventDefinition()?.parameters.find(p => p.type === param.type)?.description}
                                 </p>
                             </div>
-                            {renderInput(param)}
+                            {renderInput(param, (currentEvent ? currentEvent.type : currentUpdatingEvent?.type) || undefined)}
                         </div>
                     ))}
                 </form>
@@ -489,6 +521,7 @@ const EventParametersForm: React.FC<EventParametersFormProps> = ({
                     </div>
                 )}
 
+
                 <div className="flex flex-col gap-3 pt-6">
                     <Button
                         type="submit"
@@ -512,6 +545,22 @@ const EventParametersForm: React.FC<EventParametersFormProps> = ({
                         Delete Event
                     </Button>
                 </div>
+
+                {/* Go to Parent Event Button */}
+                {foundParentEvent && (
+                    <div className="mb-4">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => {
+                                onClose();
+                                onSelectEvent(foundParentEvent.id);
+                            }}
+                        >
+                            Go to Parent Event
+                        </Button>
+                    </div>
+                )}
             </DialogContent>
         </Dialog>
     );

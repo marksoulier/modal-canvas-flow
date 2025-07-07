@@ -335,6 +335,20 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
             const annotationY = canvasY - annotationYOffset;
             const annotationX = canvasX;
 
+            // Log event info at drag start
+            let event = plan?.events.find(e => e.id === eventId);
+            if (!event) {
+              for (const parentEvent of plan?.events || []) {
+                event = parentEvent.updating_events?.find(ue => ue.id === eventId);
+                if (event) break;
+              }
+            }
+            if (event) {
+              console.log('[Drag Start] Dragging event:', event.id, event.description || event.type);
+            } else {
+              console.log('[Drag Start] Dragging event id:', eventId, '(event not found)');
+            }
+
             setDraggingAnnotation({
               index: date,
               eventId: eventId,
@@ -382,8 +396,10 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
                   const startTimeParam = event.parameters.find(p => p.type === 'start_time');
                   if (startTimeParam) {
                     // Update the event's start_time parameter
-                    updateParameter(event.id, startTimeParam.id, closestPoint.date);
+                    updateParameter(event.id, startTimeParam.type, closestPoint.date);
                   }
+                  // Log event info during drag
+                  console.log('[Drag Move] Dragging event:', event.id, event.description || event.type);
                 } else {
                   // Try updating event
                   for (const parentEvent of plan.events) {
@@ -391,8 +407,10 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
                     if (updatingEvent) {
                       const startTimeParam = updatingEvent.parameters.find(p => p.type === 'start_time');
                       if (startTimeParam) {
-                        updateParameter(parentEvent.id, startTimeParam.id, closestPoint.date);
+                        updateParameter(updatingEvent.id, startTimeParam.type, closestPoint.date);
                       }
+                      // Log event info during drag
+                      console.log('[Drag Move] Dragging updating event:', updatingEvent.id, updatingEvent.description || updatingEvent.type);
                       break;
                     }
                   }

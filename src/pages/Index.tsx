@@ -262,6 +262,10 @@ const Index = () => {
           setEditingEventId(null);
         }}
         eventId={editingEventId!}
+        onSelectEvent={(parentId) => {
+          setEditingEventId(parentId);
+          setEventParametersOpen(true);
+        }}
       />
       <AddEnvelopeModal
         isOpen={addEnvelopeModalOpen}

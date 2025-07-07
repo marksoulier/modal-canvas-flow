@@ -122,7 +122,7 @@ interface PlanContextType {
     loadPlanFromFile: (file: File) => Promise<void>;
     savePlanToFile: () => void;
     loadDefaultPlan: () => Promise<void>;
-    updateParameter: (eventId: number, parameterId: number, newValue: number | string) => void;
+    updateParameter: (eventId: number, parameterType: string, newValue: number | string) => void;
     deleteEvent: (eventId: number) => void;
     addEvent: (eventType: string) => number;
     addUpdatingEvent: (mainEventId: number, updatingEventType: string) => number;
@@ -243,7 +243,7 @@ export function PlanProvider({ children }: PlanProviderProps) {
         URL.revokeObjectURL(url);
     }, [plan]);
 
-    const updateParameter = useCallback((eventId: number, parameterId: number, newValue: number | string) => {
+    const updateParameter = useCallback((eventId: number, parameterType: string, newValue: number | string) => {
         if (!plan) {
             throw new Error('No plan data available');
         }
@@ -255,12 +255,11 @@ export function PlanProvider({ children }: PlanProviderProps) {
                 // Check if this is the main event we're looking for
                 if (event.id === eventId) {
                     const updatedParameters = event.parameters.map(param => {
-                        if (param.id === parameterId) {
+                        if (param.type === parameterType) {
                             return { ...param, value: newValue };
                         }
                         return param;
                     });
-
                     return { ...event, parameters: updatedParameters };
                 }
 
@@ -269,7 +268,7 @@ export function PlanProvider({ children }: PlanProviderProps) {
                     const updatedUpdatingEvents = event.updating_events.map(updatingEvent => {
                         if (updatingEvent.id === eventId) {
                             const updatedParameters = updatingEvent.parameters.map(param => {
-                                if (param.id === parameterId) {
+                                if (param.type === parameterType) {
                                     return { ...param, value: newValue };
                                 }
                                 return param;
@@ -278,7 +277,6 @@ export function PlanProvider({ children }: PlanProviderProps) {
                         }
                         return updatingEvent;
                     });
-
                     return { ...event, updating_events: updatedUpdatingEvents };
                 }
 
