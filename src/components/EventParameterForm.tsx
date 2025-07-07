@@ -66,6 +66,26 @@ const EventParametersForm: React.FC<EventParametersFormProps> = ({
         return { event: null, updatingEvent: null, parentEvent: null };
     }
 
+    // Helper to get eventType and paramType for any eventId and paramId (main or updating)
+    function getEventTypeAndParamType(eventId: number, paramId: number): { eventType: string, paramType: string } | null {
+        if (!plan) return null;
+        for (const event of plan.events) {
+            if (event.id === eventId) {
+                const param = event.parameters.find(p => p.id === paramId);
+                if (param) return { eventType: event.type, paramType: param.type };
+            }
+            if (event.updating_events) {
+                for (const updatingEvent of event.updating_events) {
+                    if (updatingEvent.id === eventId) {
+                        const param = updatingEvent.parameters.find(p => p.id === paramId);
+                        if (param) return { eventType: updatingEvent.type, paramType: param.type };
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
     useEffect(() => {
         if (schema && plan) {
             const { event, updatingEvent, parentEvent } = findEventOrUpdatingEventById(plan, eventId);
@@ -122,6 +142,7 @@ const EventParametersForm: React.FC<EventParametersFormProps> = ({
     }, [plan, eventId]);
 
     const handleSubmit = async (e: React.FormEvent) => {
+        console.log('handleSubmit called');
         e.preventDefault();
         setLoading(true);
 
@@ -161,19 +182,16 @@ const EventParametersForm: React.FC<EventParametersFormProps> = ({
     };
 
     const handleInputBlur = (paramId: number, value: any) => {
-        const event = plan?.events.find(e => e.id === eventId);
-        const paramUnits = event ? getParameterUnits(event.type, parameters[paramId].type) : '';
+        const info = getEventTypeAndParamType(eventId, paramId);
+        if (!info) return;
+        const paramUnits = getParameterUnits(info.eventType, info.paramType);
         let saveValue = value;
         if (paramUnits === 'percentage') {
             saveValue = parseFloat(value) / 100;
         } else if (paramUnits === 'usd') {
             saveValue = parseFloat(value) || 0;
         }
-        // Find the parameter type from the paramId
-        const paramObj = parameters[paramId];
-        if (paramObj && paramObj.type) {
-            updateParameter(eventId, paramObj.type, saveValue);
-        }
+        updateParameter(eventId, info.paramType, saveValue);
     };
 
     const getEventDefinition = (): SchemaEvent | undefined => {
@@ -285,15 +303,16 @@ const EventParametersForm: React.FC<EventParametersFormProps> = ({
                 <div className="relative">
                     <Input
                         type="number"
-                        value={displayValue}
+                        value={String(value)}
                         placeholder={placeholder}
                         onChange={(e) => {
-                            const newValue = parseFloat(e.target.value) || 0;
-                            handleInputChange(param.id, newValue);
+                            // Store as string to allow decimal typing
+                            handleInputChange(param.id, e.target.value);
                         }}
                         onBlur={(e) => {
-                            const newValue = parseFloat(e.target.value) || 0;
-                            handleInputBlur(param.id, newValue);
+                            // Only parse to number on blur
+                            const parsed = parseFloat(e.target.value);
+                            handleInputBlur(param.id, isNaN(parsed) ? '' : parsed);
                         }}
                         step={paramUnits === 'percentage' ? '0.01' : 'any'}
                         className="w-full pr-12 placeholder:text-muted-foreground"
@@ -397,31 +416,56 @@ const EventParametersForm: React.FC<EventParametersFormProps> = ({
                             {renderInput(param, (currentEvent ? currentEvent.type : currentUpdatingEvent?.type) || undefined)}
                         </div>
                     ))}
+
+                    {/* Main Event Description Edit Box (before Updating Events) */}
+                    <div className="mt-2">
+                        <Label htmlFor="event-description" className="text-sm font-medium">Description</Label>
+                        {descExpanded ? (
+                            <Textarea
+                                id="event-description"
+                                value={description}
+                                onChange={e => setDescription(e.target.value)}
+                                onBlur={e => { updateEventDescription(eventId, e.target.value); setDescExpanded(false); }}
+                                className="w-full mt-1"
+                                rows={2}
+                                autoFocus
+                            />
+                        ) : (
+                            <Input
+                                id="event-description"
+                                value={description}
+                                onFocus={() => setDescExpanded(true)}
+                                onChange={e => setDescription(e.target.value)}
+                                className="w-full mt-1 cursor-pointer"
+                                readOnly
+                            />
+                        )}
+                    </div>
+
+                    <div className="flex flex-col gap-3 pt-6">
+                        <Button
+                            type="submit"
+                            className="w-full"
+                            disabled={loading}
+                        >
+                            {loading ? 'Saving...' : 'Save Event'}
+                        </Button>
+
+                        <Button
+                            type="button"
+                            variant="destructive"
+                            onClick={() => {
+                                deleteEvent(eventId);
+                                onClose();
+                            }}
+                            className="w-full bg-red-50 text-red-600 border-red-200 hover:bg-red-100 hover:text-red-700"
+                            disabled={loading}
+                        >
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Delete Event
+                        </Button>
+                    </div>
                 </form>
-                {/* Main Event Description Edit Box (before Updating Events) */}
-                <div className="mt-2">
-                    <Label htmlFor="event-description" className="text-sm font-medium">Description</Label>
-                    {descExpanded ? (
-                        <Textarea
-                            id="event-description"
-                            value={description}
-                            onChange={e => setDescription(e.target.value)}
-                            onBlur={e => { updateEventDescription(eventId, e.target.value); setDescExpanded(false); }}
-                            className="w-full mt-1"
-                            rows={2}
-                            autoFocus
-                        />
-                    ) : (
-                        <Input
-                            id="event-description"
-                            value={description}
-                            onFocus={() => setDescExpanded(true)}
-                            onChange={e => setDescription(e.target.value)}
-                            className="w-full mt-1 cursor-pointer"
-                            readOnly
-                        />
-                    )}
-                </div>
                 {/* --- Updating Events Section --- */}
                 {mainEvent && (
                     <div className="pt-8 border-t mt-8">
@@ -521,30 +565,6 @@ const EventParametersForm: React.FC<EventParametersFormProps> = ({
                     </div>
                 )}
 
-
-                <div className="flex flex-col gap-3 pt-6">
-                    <Button
-                        type="submit"
-                        className="w-full"
-                        disabled={loading}
-                    >
-                        {loading ? 'Saving...' : 'Save Event'}
-                    </Button>
-
-                    <Button
-                        type="button"
-                        variant="destructive"
-                        onClick={() => {
-                            deleteEvent(eventId);
-                            onClose();
-                        }}
-                        className="w-full bg-red-50 text-red-600 border-red-200 hover:bg-red-100 hover:text-red-700"
-                        disabled={loading}
-                    >
-                        <Trash2 className="mr-2 h-4 w-4" />
-                        Delete Event
-                    </Button>
-                </div>
 
                 {/* Go to Parent Event Button */}
                 {foundParentEvent && (
