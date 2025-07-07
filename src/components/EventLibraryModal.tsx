@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { X, Search, Calendar } from 'lucide-react';
-import { iconMap } from '../types/eventSchema';
+import { iconMap } from '../contexts/PlanContext';
 import * as LucideIcons from 'lucide-react';
 import { usePlan } from '../contexts/PlanContext';
 import {

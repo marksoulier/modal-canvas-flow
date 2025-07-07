@@ -19,132 +19,22 @@ import {
 } from '../components/ui/context-menu';
 import { Button } from '../components/ui/button';
 import { Trash2 } from 'lucide-react';
-
-// Time interval type for controlling the visualization granularity
-type TimeInterval = 'day' | 'week' | 'month' | 'year';
-
-// Extended time interval type
-type ExtendedTimeInterval = TimeInterval | 'full';
-
-// Utility functions
-const formatNumber = (value: { valueOf(): number }): string => {
-  const num = value.valueOf();
-  const absNum = Math.abs(num);
-  const sign = num < 0 ? '-' : '';
-
-  if (absNum >= 1000000) {
-    return `${sign}$${(absNum / 1000000).toFixed(1)}M`;
-  }
-  if (absNum >= 10000) {
-    return `${sign}$${(absNum / 1000).toFixed(0)}k`;
-  }
-  if (absNum >= 1000) {
-    return `${sign}$${Number(absNum.toFixed(0)).toLocaleString()}`;
-  }
-  return `${sign}$${absNum.toFixed(0)}`;
-};
-
-// Helper to calculate age in years from days since birth
-const getAgeFromDays = (daysSinceBirth: number): number => {
-  return Math.floor(daysSinceBirth / 365.25);
-};
-
-// Format date based on time interval, now also returns age if requested
-// If showAgeAsJSX is true, returns JSX with age in light gray
-const formatDate = (
-  daysSinceBirth: number,
-  birthDate: Date,
-  interval: ExtendedTimeInterval,
-  showAge: boolean = false,
-  showAgeAsJSX: boolean = false
-): string | JSX.Element => {
-  const date = daysToDate(daysSinceBirth, birthDate);
-  let dateStr = '';
-  switch (interval) {
-    case 'year':
-      dateStr = date.getFullYear().toString();
-      break;
-    case 'month':
-      if (date.getMonth() === 0) {
-        dateStr = `${date.toLocaleString('default', { month: 'short' })} ${date.getFullYear()}`;
-      } else {
-        dateStr = date.toLocaleString('default', { month: 'short' });
-      }
-      break;
-    case 'week':
-    case 'day':
-      dateStr = date.toLocaleString('default', {
-        day: 'numeric',
-        month: 'short'
-      });
-      break;
-    case 'full':
-      dateStr = date.toLocaleString('default', {
-        day: 'numeric',
-        month: 'short',
-        year: 'numeric'
-      });
-      break;
-    default:
-      dateStr = date.toLocaleDateString();
-  }
-  if (showAge) {
-    const age = getAgeFromDays(daysSinceBirth);
-    if (showAgeAsJSX) {
-      return <><span>{dateStr} </span><span style={{ color: '#b0b0b0', fontWeight: 400 }}>({age})</span></>;
-    }
-    return `${dateStr} (${age})`;
-  }
-  return dateStr;
-};
-
-// Convert days since birth to actual date
-const daysToDate = (daysSinceBirth: number, birthDate: Date): Date => {
-  const result = new Date(birthDate);
-  result.setDate(result.getDate() + daysSinceBirth);
-  return result;
-};
-
-// Get interval in days based on selected time interval
-const getIntervalInDays = (interval: TimeInterval): number => {
-  switch (interval) {
-    case 'day':
-      return 1;
-    case 'week':
-      return 7;
-    case 'month':
-      return 365 / 12;
-    case 'year':
-      return 365;
-    default:
-      return 365;
-  }
-};
-
-interface Datum {
-  date: number;
-  value: number;
-  parts: {
-    [key: string]: number;
-  };
-}
-
-interface ZoomTransform {
-  scaleX: number;
-  scaleY: number;
-  translateX: number;
-  translateY: number;
-  skewX: number;
-  skewY: number;
-}
-
-interface ZoomObject {
-  transformMatrix: ZoomTransform;
-  scale: (params: { scaleX: number; scaleY: number }) => void;
-  dragStart: (event: React.MouseEvent) => void;
-  dragMove: (event: React.MouseEvent) => void;
-  dragEnd: (event: React.MouseEvent) => void;
-}
+import {
+  formatNumber,
+  getAgeFromDays,
+  formatDate,
+  daysToDate,
+  getIntervalInDays,
+  generateEnvelopeColors,
+  Legend,
+  findClosestPoint,
+} from './viz_utils';
+import type {
+  TimeInterval,
+  ExtendedTimeInterval,
+  Datum
+} from './viz_utils';
+import { getAllEventsByDate } from './Events';
 
 interface DraggingAnnotation {
   index: number; // the day/data point
@@ -157,58 +47,6 @@ interface VisualizationProps {
   onAnnotationClick?: (eventId: number) => void;
   onAnnotationDelete?: (eventId: number) => void;
 }
-
-// Colors for each part
-const partColors: Record<string, string> = {
-  Cash: '#03c6fc',
-  House: '#75daad',
-  Savings: '#ff9f1c',
-  Investments: '#ff6b6b',
-  Retirement: '#6b66ff'
-};
-
-// Generate subtle colors for envelopes
-const generateEnvelopeColors = (envelopes: string[]): Record<string, { area: string; line: string }> => {
-  const baseColors = [
-    { area: '#E3F2FD', line: '#2196F3' }, // Blue
-    { area: '#E8F5E9', line: '#4CAF50' }, // Green
-    { area: '#FFF3E0', line: '#FF9800' }, // Orange
-    { area: '#F3E5F5', line: '#9C27B0' }, // Purple
-    { area: '#FFEBEE', line: '#F44336' }, // Red
-    { area: '#E0F7FA', line: '#00BCD4' }, // Cyan
-    { area: '#F1F8E9', line: '#8BC34A' }, // Light Green
-    { area: '#FCE4EC', line: '#E91E63' }, // Pink
-  ];
-
-  return envelopes.reduce((acc, envelope, index) => {
-    acc[envelope] = baseColors[index % baseColors.length];
-    return acc;
-  }, {} as Record<string, { area: string; line: string }>);
-};
-
-// Legend component
-const Legend = ({ envelopes, colors, currentValues }: {
-  envelopes: string[];
-  colors: Record<string, { area: string; line: string }>;
-  currentValues: { [key: string]: number };
-}) => (
-  <div className="absolute right-4 bottom-4 bg-white p-4 rounded-lg shadow-lg">
-    <h3 className="text-sm font-semibold mb-2">Envelopes</h3>
-    <div className="space-y-2">
-      {envelopes.map((envelope) => (
-        <div key={envelope} className="flex items-center justify-between space-x-4">
-          <div className="flex items-center space-x-2">
-            <div className="w-4 h-4 rounded" style={{ backgroundColor: colors[envelope].area, border: `2px solid ${colors[envelope].line}` }} />
-            <span className="text-sm">{envelope}</span>
-          </div>
-          <span className="text-xs text-gray-500">
-            {formatNumber({ valueOf: () => currentValues[envelope] || 0 })}
-          </span>
-        </div>
-      ))}
-    </div>
-  </div>
-);
 
 // Custom tick renderer for AxisBottom to style age in light gray
 const AxisBottomTick = ({
@@ -384,15 +222,6 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
     };
   };
 
-  const findClosestPoint = (dataX: number): Datum | null => {
-    if (!netWorthData.length) return null;
-    return netWorthData.reduce((closest, point) => {
-      const distance = Math.abs(point.date - dataX);
-      const closestDistance = Math.abs(closest.date - dataX);
-      return distance < closestDistance ? point : closest;
-    });
-  };
-
   // Calculate scales based on simulation data
   const xScale = useMemo(() => {
     if (!netWorthData.length) return scaleLinear({ domain: [0, 1], range: [0, width] });
@@ -432,38 +261,7 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
     return generateEnvelopeColors(schema.envelopes);
   }, [schema]);
 
-  // Group events by date for stacking annotations
-  const eventsByDate = useMemo(() => {
-    if (!plan) return {};
-    const map: { [date: number]: typeof plan.events } = {};
-    for (const event of plan.events) {
-      const startTimeParam = event.parameters.find(p => p.type === 'start_time');
-      if (!startTimeParam) continue;
-      const date = Number(startTimeParam.value);
-      if (!map[date]) map[date] = [];
-      map[date].push(event);
-    }
-    return map;
-  }, [plan]);
-
-  const updatingEventsByDate = useMemo(() => {
-    if (!plan) return {};
-    const map: { [date: number]: any[] } = {};
-    for (const event of plan.events) {
-      if (event.updating_events) {
-        for (const updatingEvent of event.updating_events) {
-          // Find the start_time parameter
-          const startTimeParam = updatingEvent.parameters.find(p => p.type === 'start_time');
-          if (!startTimeParam) continue;
-          const date = Number(startTimeParam.value);
-          if (!map[date]) map[date] = [];
-          // Attach parent event id if needed for deletion, etc.
-          map[date].push({ ...updatingEvent, parentEventId: event.id });
-        }
-      }
-    }
-    return map;
-  }, [plan]);
+  const allEventsByDate = getAllEventsByDate(plan!);
 
   return (
     <div className="relative w-full h-full">
@@ -516,7 +314,6 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
 
           // Calculate adjusted sizes based on zoom
           const adjustedLineWidth = baseLineWidth / globalZoom;
-          const adjustedTextSize = baseTextSize / globalZoom;
           const adjustedPointRadius = basePointRadius / globalZoom;
 
           const handleAnnotationDragStart = (e: React.MouseEvent, eventId: number, date: number) => {
@@ -543,7 +340,7 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
 
             const point = getSVGPoint(e);
             const dataPoint = screenToData(point.x, point.y, zoom);
-            const closestPoint = findClosestPoint(dataPoint.x);
+            const closestPoint = findClosestPoint(netWorthData, dataPoint.x);
             if (!closestPoint) return;
 
             // Convert data points to screen coordinates
@@ -594,7 +391,7 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
 
             const point = getSVGPoint(e);
             const dataPoint = screenToData(point.x, point.y, zoom);
-            const closestPoint = findClosestPoint(dataPoint.x);
+            const closestPoint = findClosestPoint(netWorthData, dataPoint.x);
             const closestIndex = netWorthData.findIndex(p => p.date === closestPoint?.date);
 
             setDraggingAnnotation(null);
@@ -619,7 +416,7 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
                     handleAnnotationDragMove(e);
                   } else {
                     const dataPoint = screenToData(point.x, point.y, zoom);
-                    const closest = findClosestPoint(dataPoint.x);
+                    const closest = findClosestPoint(netWorthData, dataPoint.x);
                     setClosestPoint(closest);
 
                     // Update tooltip position and data
@@ -807,7 +604,7 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
                 </g>
 
                 {/* Timeline Annotations (outside zoom transform) */}
-                {Object.entries(eventsByDate).map(([dateStr, eventsAtDate]) => {
+                {Object.entries(allEventsByDate).map(([dateStr, eventsAtDate]) => {
                   const date = Number(dateStr);
                   // Find the closest visible data point
                   const visibleDataPoints = netWorthData.filter(p =>
@@ -824,7 +621,7 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
                   const transformedY = (canvasY * zoom.transformMatrix.scaleY) + zoom.transformMatrix.translateY;
 
                   return eventsAtDate.map((event, i) => {
-                    const isDraggingMain = draggingAnnotation?.eventId === event.id;
+                    const isDraggingMain = draggingAnnotation?.eventId === event.event.id;
                     const yOffset = i * 50;
                     const x = isDraggingMain
                       ? cursorPos!.x - draggingAnnotation!.offsetX - 20
@@ -832,10 +629,10 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
                     const y = isDraggingMain
                       ? cursorPos!.y - draggingAnnotation!.offsetY - 80
                       : transformedY - 80 - yOffset;
-                    const isHighlighted = hoveredEventId === event.id;
+                    const isHighlighted = hoveredEventId === event.event.id;
                     return (
                       <foreignObject
-                        key={`annotation-${event.id}`}
+                        key={`annotation-${event.event.id}`}
                         x={x}
                         y={y}
                         width={40}
@@ -845,21 +642,21 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
                           cursor: isDraggingMain ? 'grabbing' : 'move'
                         }}
                         onMouseDown={(e) => {
-                          handleAnnotationDragStart(e, event.id, closestDataPoint.date);
+                          handleAnnotationDragStart(e, event.event.id, closestDataPoint.date);
                         }}
-                        onMouseEnter={() => setHoveredEventId(event.id)}
+                        onMouseEnter={() => setHoveredEventId(event.event.id)}
                         onMouseLeave={() => setHoveredEventId(null)}
                       >
                         <ContextMenu>
                           <ContextMenuTrigger asChild>
                             <div>
                               <TimelineAnnotation
-                                icon={getEventIcon(event.type)}
-                                label={event.description}
+                                icon={getEventIcon(event.event.type)}
+                                label={event.event.description}
                                 highlighted={isHighlighted}
                                 onClick={() => {
                                   if (!hasDragged) {
-                                    onAnnotationClick?.(event.id);
+                                    onAnnotationClick?.(event.event.id);
                                   }
                                   setHasDragged(false);
                                 }}
@@ -873,90 +670,12 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
                                 size="sm"
                                 className="w-full h-7 text-xs justify-start bg-red-50 text-red-600 border-red-200 hover:bg-red-100 hover:text-red-700"
                                 onClick={() => {
-                                  deleteEvent(event.id);
-                                  onAnnotationDelete?.(event.id);
+                                  deleteEvent(event.event.id);
+                                  onAnnotationDelete?.(event.event.id);
                                 }}
                               >
                                 <Trash2 className="mr-2 h-4 w-4" />
                                 Delete Event
-                              </Button>
-                            </ContextMenuItem>
-                          </ContextMenuContent>
-                        </ContextMenu>
-                      </foreignObject>
-                    );
-                  });
-                })}
-
-                {/* Updating Event Annotations (outside zoom transform) */}
-                {Object.entries(updatingEventsByDate).map(([dateStr, updatingEventsAtDate]) => {
-                  const date = Number(dateStr);
-                  // Find the closest visible data point
-                  const visibleDataPoints = netWorthData.filter(p =>
-                    p.date >= xScale.domain()[0] && p.date <= xScale.domain()[1]
-                  );
-                  if (visibleDataPoints.length === 0) return null;
-                  // Find the closest data point to this date
-                  const closestDataPoint = [...visibleDataPoints]
-                    .sort((a, b) => Math.abs(a.date - date) - Math.abs(b.date - date))[0];
-
-                  const canvasX = xScale(closestDataPoint.date);
-                  const canvasY = yScale(closestDataPoint.value);
-                  const transformedX = (canvasX * zoom.transformMatrix.scaleX) + zoom.transformMatrix.translateX;
-                  const transformedY = (canvasY * zoom.transformMatrix.scaleY) + zoom.transformMatrix.translateY;
-
-                  return updatingEventsAtDate.map((updatingEvent, i) => {
-                    const isDraggingUpdating = draggingAnnotation?.eventId === updatingEvent.id;
-                    const yOffset = i * 50;
-                    const x = isDraggingUpdating
-                      ? cursorPos!.x - draggingAnnotation!.offsetX - 20
-                      : transformedX + 30;
-                    const y = isDraggingUpdating
-                      ? cursorPos!.y - draggingAnnotation!.offsetY - 80
-                      : transformedY - 80 - yOffset;
-                    const isHighlighted = hoveredEventId === updatingEvent.parentEventId;
-                    return (
-                      <foreignObject
-                        key={`updating-annotation-${updatingEvent.id}`}
-                        x={x}
-                        y={y}
-                        width={40}
-                        height={40}
-                        style={{
-                          overflow: 'visible',
-                          cursor: isDraggingUpdating ? 'grabbing' : 'move'
-                        }}
-                        onMouseDown={(e) => {
-                          // Start drag operation for updating event
-                          // Prevent zoom from handling mouse down and drag when starting to drag an annotation
-                          e.stopPropagation();
-                          // handleAnnotationDragStart(e, updatingEvent.id, closestDataPoint.date);
-                        }}
-                        onMouseEnter={() => setHoveredEventId(updatingEvent.parentEventId)}
-                        onMouseLeave={() => setHoveredEventId(null)}
-                      >
-                        <ContextMenu>
-                          <ContextMenuTrigger asChild>
-                            <div>
-                              <TimelineAnnotation
-                                icon={getEventIcon(updatingEvent.type)}
-                                label={updatingEvent.description}
-                                highlighted={isHighlighted}
-                              />
-                            </div>
-                          </ContextMenuTrigger>
-                          <ContextMenuContent>
-                            <ContextMenuItem asChild>
-                              <Button
-                                variant="destructive"
-                                size="sm"
-                                className="w-full h-7 text-xs justify-start bg-red-50 text-red-600 border-red-200 hover:bg-red-100 hover:text-red-700"
-                                onClick={() => {
-                                  deleteEvent(updatingEvent.id);
-                                }}
-                              >
-                                <Trash2 className="mr-2 h-4 w-4" />
-                                Delete Updating Event
                               </Button>
                             </ContextMenuItem>
                           </ContextMenuContent>
