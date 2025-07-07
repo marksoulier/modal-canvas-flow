@@ -365,31 +365,32 @@ const EventParametersForm: React.FC<EventParametersFormProps> = ({
                             {renderInput(param)}
                         </div>
                     ))}
+                    
+                    {/* Main Event Description Edit Box */}
+                    <div className="mt-2">
+                        <Label htmlFor="event-description" className="text-sm font-medium">Description</Label>
+                        {descExpanded ? (
+                            <Textarea
+                                id="event-description"
+                                value={description}
+                                onChange={e => setDescription(e.target.value)}
+                                onBlur={e => { updateEventDescription(eventId, e.target.value); setDescExpanded(false); }}
+                                className="w-full mt-1"
+                                rows={2}
+                                autoFocus
+                            />
+                        ) : (
+                            <Input
+                                id="event-description"
+                                value={description}
+                                onFocus={() => setDescExpanded(true)}
+                                onChange={e => setDescription(e.target.value)}
+                                className="w-full mt-1 cursor-pointer"
+                                readOnly
+                            />
+                        )}
+                    </div>
                 </form>
-                {/* Main Event Description Edit Box (before Updating Events) */}
-                <div className="mt-2">
-                    <Label htmlFor="event-description" className="text-sm font-medium">Description</Label>
-                    {descExpanded ? (
-                        <Textarea
-                            id="event-description"
-                            value={description}
-                            onChange={e => setDescription(e.target.value)}
-                            onBlur={e => { updateEventDescription(eventId, e.target.value); setDescExpanded(false); }}
-                            className="w-full mt-1"
-                            rows={2}
-                            autoFocus
-                        />
-                    ) : (
-                        <Input
-                            id="event-description"
-                            value={description}
-                            onFocus={() => setDescExpanded(true)}
-                            onChange={e => setDescription(e.target.value)}
-                            className="w-full mt-1 cursor-pointer"
-                            readOnly
-                        />
-                    )}
-                </div>
                 {/* --- Updating Events Section --- */}
                 {mainEvent && (
                     <div className="pt-8 border-t mt-8">
@@ -494,6 +495,7 @@ const EventParametersForm: React.FC<EventParametersFormProps> = ({
                         type="submit"
                         className="w-full"
                         disabled={loading}
+                        onClick={handleSubmit}
                     >
                         {loading ? 'Saving...' : 'Save Event'}
                     </Button>

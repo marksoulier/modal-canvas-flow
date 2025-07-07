@@ -252,6 +252,7 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
   const [closestPoint, setClosestPoint] = useState<Datum | null>(null);
   const [draggingAnnotation, setDraggingAnnotation] = useState<DraggingAnnotation | null>(null);
   const [hasDragged, setHasDragged] = useState(false);
+  const [dragStartPos, setDragStartPos] = useState<{ x: number; y: number } | null>(null);
   const [tooltipData, setTooltipData] = useState<Datum | null>(null);
   const [tooltipLeft, setTooltipLeft] = useState<number>(0);
   const [tooltipTop, setTooltipTop] = useState<number>(0);
@@ -523,6 +524,7 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
             e.stopPropagation();
             const point = getSVGPoint(e);
             setHasDragged(false);
+            setDragStartPos({ x: point.x, y: point.y });
 
             const dataPoint = netWorthData.find(p => p.date === date);
             if (!dataPoint) return;
@@ -538,10 +540,23 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
           };
 
           const handleAnnotationDragMove = (e: React.MouseEvent) => {
-            if (!draggingAnnotation) return;
-            setHasDragged(true);
-
+            if (!draggingAnnotation || !dragStartPos) return;
+            
             const point = getSVGPoint(e);
+            
+            // Check if we've dragged far enough to actually start dragging
+            const dragDistance = Math.sqrt(
+              Math.pow(point.x - dragStartPos.x, 2) + 
+              Math.pow(point.y - dragStartPos.y, 2)
+            );
+            
+            if (dragDistance > 10) {
+              setHasDragged(true);
+            }
+            
+            // Only proceed with drag logic if we've moved far enough
+            if (!hasDragged && dragDistance < 10) return;
+
             const dataPoint = screenToData(point.x, point.y, zoom);
             const closestPoint = findClosestPoint(dataPoint.x);
             if (!closestPoint) return;
@@ -557,10 +572,9 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
               Math.pow(point.x - transformedX, 2) +
               Math.pow(point.y - transformedY, 2)
             );
-            console.log("distance: ", distance)
-
-            // Only update if within threshold (adjust 0.5 as needed)
-            if (distance < 150) {
+            
+            // Only update if within threshold (adjust 100 as needed)
+            if (distance < 100) {
               // Find the event in the plan
               if (plan) {
                 // Try main event first
@@ -578,7 +592,8 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
                     if (updatingEvent) {
                       const startTimeParam = updatingEvent.parameters.find(p => p.type === 'start_time');
                       if (startTimeParam) {
-                        updateParameter(parentEvent.id, startTimeParam.id, closestPoint.date);
+                        // Update the updating event's start_time parameter directly
+                        updateParameter(updatingEvent.id, startTimeParam.id, closestPoint.date);
                       }
                       break;
                     }
@@ -599,6 +614,7 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
 
             setDraggingAnnotation(null);
             setClosestPoint(null);
+            setDragStartPos(null);
           };
 
           return (
@@ -825,7 +841,7 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
 
                   return eventsAtDate.map((event, i) => {
                     const isDraggingMain = draggingAnnotation?.eventId === event.id;
-                    const yOffset = i * 50;
+                    const yOffset = i * 60; // Increased spacing for better visibility
                     const x = isDraggingMain
                       ? cursorPos!.x - draggingAnnotation!.offsetX - 20
                       : transformedX - 20;
@@ -845,7 +861,15 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
                           cursor: isDraggingMain ? 'grabbing' : 'move'
                         }}
                         onMouseDown={(e) => {
+                          e.stopPropagation();
                           handleAnnotationDragStart(e, event.id, closestDataPoint.date);
+                        }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (!hasDragged) {
+                            onAnnotationClick?.(event.id);
+                          }
+                          setHasDragged(false);
                         }}
                         onMouseEnter={() => setHoveredEventId(event.id)}
                         onMouseLeave={() => setHoveredEventId(null)}
@@ -857,12 +881,6 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
                                 icon={getEventIcon(event.type)}
                                 label={event.description}
                                 highlighted={isHighlighted}
-                                onClick={() => {
-                                  if (!hasDragged) {
-                                    onAnnotationClick?.(event.id);
-                                  }
-                                  setHasDragged(false);
-                                }}
                               />
                             </div>
                           </ContextMenuTrigger>
@@ -907,13 +925,16 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
 
                   return updatingEventsAtDate.map((updatingEvent, i) => {
                     const isDraggingUpdating = draggingAnnotation?.eventId === updatingEvent.id;
-                    const yOffset = i * 50;
+                    const yOffset = i * 60; // Increased spacing for better visibility
+                    // Calculate the number of main events at this date to offset properly
+                    const mainEventsCount = eventsByDate[dateStr]?.length || 0;
+                    const baseYOffset = mainEventsCount * 60;
                     const x = isDraggingUpdating
                       ? cursorPos!.x - draggingAnnotation!.offsetX - 20
-                      : transformedX + 30;
+                      : transformedX + 30; // Offset to the right of main events
                     const y = isDraggingUpdating
                       ? cursorPos!.y - draggingAnnotation!.offsetY - 80
-                      : transformedY - 80 - yOffset;
+                      : transformedY - 80 - baseYOffset - yOffset;
                     const isHighlighted = hoveredEventId === updatingEvent.parentEventId;
                     return (
                       <foreignObject
@@ -927,10 +948,15 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
                           cursor: isDraggingUpdating ? 'grabbing' : 'move'
                         }}
                         onMouseDown={(e) => {
-                          // Start drag operation for updating event
-                          // Prevent zoom from handling mouse down and drag when starting to drag an annotation
                           e.stopPropagation();
-                          // handleAnnotationDragStart(e, updatingEvent.id, closestDataPoint.date);
+                          handleAnnotationDragStart(e, updatingEvent.id, closestDataPoint.date);
+                        }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (!hasDragged) {
+                            onAnnotationClick?.(updatingEvent.parentEventId);
+                          }
+                          setHasDragged(false);
                         }}
                         onMouseEnter={() => setHoveredEventId(updatingEvent.parentEventId)}
                         onMouseLeave={() => setHoveredEventId(null)}

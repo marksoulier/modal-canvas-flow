@@ -29,18 +29,6 @@ const DatePicker: React.FC<DatePickerProps> = ({
     disabled = false,
     isBirthDate = false
 }) => {
-    const [calendarMonth, setCalendarMonth] = useState<Date>(() => {
-        if (isBirthDate && value) {
-            return new Date(value as string);
-        }
-        if (birthDate && value) {
-            const birth = new Date(birthDate);
-            const daysSinceBirth = typeof value === 'string' ? parseInt(value) : value;
-            return addDays(birth, daysSinceBirth);
-        }
-        return new Date();
-    });
-
     const getDisplayDate = (): Date | undefined => {
         if (isBirthDate) {
             return value ? new Date(value as string) : undefined;
@@ -50,6 +38,11 @@ const DatePicker: React.FC<DatePickerProps> = ({
         const daysSinceBirth = typeof value === 'string' ? parseInt(value) : value;
         return addDays(birth, daysSinceBirth);
     };
+
+    const [calendarMonth, setCalendarMonth] = useState<Date>(() => {
+        const displayDate = getDisplayDate();
+        return displayDate || new Date();
+    });
 
     const handleDateSelect = (newDate: Date | undefined) => {
         if (!newDate) return;
@@ -68,50 +61,22 @@ const DatePicker: React.FC<DatePickerProps> = ({
     };
 
     const handlePreviousYear = () => {
-        const currentDate = getDisplayDate();
-        if (!currentDate) return;
-
+        const currentDate = getDisplayDate() || new Date();
         const newDate = new Date(currentDate);
         newDate.setFullYear(newDate.getFullYear() - 1);
-
-        if (isBirthDate) {
-            onChange(newDate.toISOString().split('T')[0]);
-        } else if (birthDate) {
-            const birth = new Date(birthDate);
-            const daysDiff = Math.floor((newDate.getTime() - birth.getTime()) / (1000 * 60 * 60 * 24));
-            onChange(daysDiff.toString());
-        }
-        setCalendarMonth(newDate);
+        handleDateSelect(newDate);
     };
 
     const handleNextYear = () => {
-        const currentDate = getDisplayDate();
-        if (!currentDate) return;
-
+        const currentDate = getDisplayDate() || new Date();
         const newDate = new Date(currentDate);
         newDate.setFullYear(newDate.getFullYear() + 1);
-
-        if (isBirthDate) {
-            onChange(newDate.toISOString().split('T')[0]);
-        } else if (birthDate) {
-            const birth = new Date(birthDate);
-            const daysDiff = Math.floor((newDate.getTime() - birth.getTime()) / (1000 * 60 * 60 * 24));
-            onChange(daysDiff.toString());
-        }
-        setCalendarMonth(newDate);
+        handleDateSelect(newDate);
     };
 
     const handleToday = () => {
         const today = new Date();
-
-        if (isBirthDate) {
-            onChange(today.toISOString().split('T')[0]);
-        } else if (birthDate) {
-            const birth = new Date(birthDate);
-            const daysDiff = Math.floor((today.getTime() - birth.getTime()) / (1000 * 60 * 60 * 24));
-            onChange(daysDiff.toString());
-        }
-        setCalendarMonth(today);
+        handleDateSelect(today);
     };
 
     const displayDate = getDisplayDate();
