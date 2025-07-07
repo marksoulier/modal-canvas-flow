@@ -133,7 +133,7 @@ interface PlanContextType {
     getParameterDescription: (eventType: string, parameterType: string) => string;
     updateEventDescription: (eventId: number, newDescription: string) => void;
     updatePlanTitle: (newTitle: string) => void;
-    updateBirthDate: (newBirthDate: string) => void;
+    updateBirthDate: (daysFromCurrent: number) => void;
 }
 
 const SCHEMA_PATH = '/assets/event_schema.json';
@@ -556,13 +556,16 @@ export function PlanProvider({ children }: PlanProviderProps) {
         });
     }, [plan]);
 
-    const updateBirthDate = useCallback((newBirthDate: string) => {
+    const updateBirthDate = useCallback((daysFromCurrent: number) => {
         if (!plan) {
             throw new Error('No plan data available');
         }
         setPlan(prevPlan => {
             if (!prevPlan) return null;
-            return { ...prevPlan, birth_date: newBirthDate };
+            const currentBirthDate = new Date(prevPlan.birth_date);
+            const newBirthDate = new Date(currentBirthDate.getTime() + daysFromCurrent * 24 * 60 * 60 * 1000);
+            const newBirthDateStr = newBirthDate.toISOString().split('T')[0];
+            return { ...prevPlan, birth_date: newBirthDateStr };
         });
     }, [plan]);
 

@@ -58,7 +58,8 @@ const PlanPreferencesModal: React.FC<PlanPreferencesModalProps> = ({
         }
     };
 
-    const handleBirthDateChange = (value: string) => {
+    const handleBirthDateChange = (value: number) => {
+
         updateBirthDate(value);
     };
 
@@ -104,10 +105,10 @@ const PlanPreferencesModal: React.FC<PlanPreferencesModalProps> = ({
                     <div className="space-y-3">
                         <h3 className="text-lg font-medium text-gray-900">Birth Date</h3>
                         <DatePicker
-                            value={plan?.birth_date || ''}
+                            value={0}
                             onChange={handleBirthDateChange}
+                            birthDate={plan?.birth_date || ''}
                             placeholder="Select birth date"
-                            isBirthDate={true}
                         />
                     </div>
 

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { format, addDays } from 'date-fns';
 import { CalendarIcon, ChevronDownIcon } from 'lucide-react';
 import { Button } from './ui/button';
@@ -17,7 +17,6 @@ interface DatePickerProps {
     placeholder?: string;
     className?: string;
     disabled?: boolean;
-    isBirthDate?: boolean;
 }
 
 const DatePicker: React.FC<DatePickerProps> = ({
@@ -26,95 +25,66 @@ const DatePicker: React.FC<DatePickerProps> = ({
     birthDate,
     placeholder = "Pick a date",
     className,
-    disabled = false,
-    isBirthDate = false
+    disabled = false
 }) => {
-    const [calendarMonth, setCalendarMonth] = useState<Date>(() => {
-        if (isBirthDate && value) {
-            return new Date(value as string);
-        }
-        if (birthDate && value) {
+    // viewMonth is the calendar's current view, independent of the selected value
+    const [viewMonth, setViewMonth] = useState<Date>(() => {
+        if (birthDate && value !== undefined && value !== null) {
             const birth = new Date(birthDate);
-            const daysSinceBirth = typeof value === 'string' ? parseInt(value) : value;
+            const daysSinceBirth = Number(value);
             return addDays(birth, daysSinceBirth);
         }
         return new Date();
     });
 
     const getDisplayDate = (): Date | undefined => {
-        if (isBirthDate) {
-            return value ? new Date(value as string) : undefined;
-        }
-        if (!birthDate || !value) return undefined;
+        if (!birthDate || value === undefined || value === null) return undefined;
         const birth = new Date(birthDate);
-        const daysSinceBirth = typeof value === 'string' ? parseInt(value) : value;
+        const daysSinceBirth = Number(value);
         return addDays(birth, daysSinceBirth);
     };
 
+    const displayDate = getDisplayDate();
+
+    useEffect(() => {
+        console.log('[DatePicker] viewMonth:', viewMonth, 'displayDate:', displayDate);
+    }, [viewMonth, displayDate]);
+
     const handleDateSelect = (newDate: Date | undefined) => {
         if (!newDate) return;
-
-        if (isBirthDate) {
-            onChange(newDate.toISOString().split('T')[0]);
-            setCalendarMonth(newDate);
-            return;
-        }
 
         if (!birthDate) return;
         const birth = new Date(birthDate);
         const daysDiff = Math.floor((newDate.getTime() - birth.getTime()) / (1000 * 60 * 60 * 24));
         onChange(daysDiff.toString());
-        setCalendarMonth(newDate);
+        setViewMonth(newDate);
     };
 
     const handlePreviousYear = () => {
-        const currentDate = getDisplayDate();
-        if (!currentDate) return;
-
-        const newDate = new Date(currentDate);
+        const newDate = new Date(viewMonth);
         newDate.setFullYear(newDate.getFullYear() - 1);
-
-        if (isBirthDate) {
-            onChange(newDate.toISOString().split('T')[0]);
-        } else if (birthDate) {
-            const birth = new Date(birthDate);
-            const daysDiff = Math.floor((newDate.getTime() - birth.getTime()) / (1000 * 60 * 60 * 24));
-            onChange(daysDiff.toString());
-        }
-        setCalendarMonth(newDate);
+        setViewMonth(newDate);
     };
 
     const handleNextYear = () => {
-        const currentDate = getDisplayDate();
-        if (!currentDate) return;
-
-        const newDate = new Date(currentDate);
+        const newDate = new Date(viewMonth);
         newDate.setFullYear(newDate.getFullYear() + 1);
-
-        if (isBirthDate) {
-            onChange(newDate.toISOString().split('T')[0]);
-        } else if (birthDate) {
-            const birth = new Date(birthDate);
-            const daysDiff = Math.floor((newDate.getTime() - birth.getTime()) / (1000 * 60 * 60 * 24));
-            onChange(daysDiff.toString());
-        }
-        setCalendarMonth(newDate);
+        setViewMonth(newDate);
     };
 
     const handleToday = () => {
-        const today = new Date();
-
-        if (isBirthDate) {
-            onChange(today.toISOString().split('T')[0]);
-        } else if (birthDate) {
-            const birth = new Date(birthDate);
-            const daysDiff = Math.floor((today.getTime() - birth.getTime()) / (1000 * 60 * 60 * 24));
-            onChange(daysDiff.toString());
-        }
-        setCalendarMonth(today);
+        setViewMonth(new Date());
     };
 
-    const displayDate = getDisplayDate();
+    // When the selected value changes (e.g. user picks a date or parent changes it),
+    // reset the viewMonth to the selected date (so popover always opens to the right month)
+    useEffect(() => {
+        if (birthDate && value !== undefined && value !== null) {
+            const birth = new Date(birthDate);
+            const daysSinceBirth = Number(value);
+            setViewMonth(addDays(birth, daysSinceBirth));
+        }
+    }, [birthDate, value]);
 
     return (
         <Popover>
@@ -140,9 +110,9 @@ const DatePicker: React.FC<DatePickerProps> = ({
                     mode="single"
                     selected={displayDate}
                     onSelect={handleDateSelect}
-                    month={calendarMonth}
-                    onMonthChange={setCalendarMonth}
-                    defaultMonth={displayDate}
+                    month={viewMonth}
+                    onMonthChange={setViewMonth}
+                    defaultMonth={viewMonth}
                     className="pointer-events-auto"
                     footer={
                         <div className="flex justify-between px-2 py-1.5 border-t gap-2">
