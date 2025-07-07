@@ -220,9 +220,9 @@ const Index = () => {
         {/* Add Event Button - Bottom Center (more subtle and higher up) */}
         <button
           onClick={() => setEventLibraryOpen(true)}
-          className="fixed bottom-16 left-1/2 transform -translate-x-1/2 bg-slate-100/90 backdrop-blur-sm hover:bg-blue-50/90 text-slate-700 hover:text-blue-700 px-5 py-2.5 rounded-lg shadow-sm border border-slate-200 hover:border-blue-200 transition-all duration-200 flex items-center gap-2 text-sm font-medium"
+          className="fixed bottom-16 left-1/2 transform -translate-x-1/2 bg-[#03c6fc]/10 backdrop-blur-sm hover:bg-[#03c6fc]/20 text-slate-700 px-5 py-2.5 rounded-lg shadow-sm border border-[#03c6fc]/20 hover:border-[#03c6fc]/40 transition-all duration-200 flex items-center gap-2 text-sm font-medium"
         >
-          <Plus size={18} className="text-blue-600" />
+          <Plus size={18} className="" />
           Add Event
         </button>
       </div>
