@@ -99,6 +99,8 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
   const [birthDate, setBirthDate] = useState<Date>(new Date(2000, 0, 1)); // Default to Jan 1, 2000
   const [currentDaysSinceBirth, setCurrentDaysSinceBirth] = useState<number>(0);
   const [hoveredEventId, setHoveredEventId] = useState<number | null>(null);
+  const [lastMouse, setLastMouse] = useState<{ x: number, y: number } | null>(null);
+
   const width = window.innerWidth;
   const height = window.innerHeight;
 
@@ -263,20 +265,47 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
 
   const allEventsByDate = getAllEventsByDate(plan!);
 
+  // Utility to apply a transform matrix to a point
+  function applyMatrixToPoint(matrix: any, point: { x: number; y: number }) {
+    return {
+      x: point.x * matrix.scaleX + matrix.translateX,
+      y: point.y * matrix.scaleY + matrix.translateY,
+    };
+  }
+
+  // Constrain transform to keep content within [0,0,width,height]
+  function constrainTransform(transformMatrix: any, prevTransformMatrix: any, width: number, height: number) {
+    const xPad = 80; // or whatever value you want
+    const min = applyMatrixToPoint(transformMatrix, { x: 0, y: 0 });
+    const max = applyMatrixToPoint(transformMatrix, { x: width, y: height });
+
+    (window as any).debugMin = min;
+    (window as any).debugMax = max;
+
+    if (max.x < width - xPad) {
+      console.log('Constraint: max out of bounds', max);
+      return prevTransformMatrix;
+    } else if (min.x > 0 + xPad) {
+      console.log('Constraint: min out of bounds', min);
+      return prevTransformMatrix;
+    }
+    return transformMatrix;
+  }
+
   return (
     <div className="relative w-full h-full">
       <Zoom
         width={width}
         height={height}
-        scaleXMin={0.8}
+        scaleXMin={1.0}
         scaleXMax={100}
-        scaleYMin={0.8}
+        scaleYMin={1.0}
         scaleYMax={100}
         initialTransformMatrix={{
-          scaleX: 0.8,
-          scaleY: 0.8,
-          translateX: 60,
-          translateY: 40,
+          scaleX: 1.0,
+          scaleY: 1.0,
+          translateX: 0,
+          translateY: 0,
           skewX: 0,
           skewY: 0,
         }}
@@ -289,8 +318,8 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
             return svgPoint.matrixTransform(svgRef.current!.getScreenCTM()!.inverse());
           };
 
-          // Calculate global zoom level (average of x and y scale)
-          const globalZoom = (zoom.transformMatrix.scaleX + zoom.transformMatrix.scaleY) / 2;
+          // Calculate global zoom level (now only depends on scaleX)
+          const globalZoom = zoom.transformMatrix.scaleX;
 
           // Calculate visible date range based on current viewport with padding
           const viewportPadding = width * 0.2; // 20% padding on each side
@@ -312,9 +341,44 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
             }
           }, [globalZoom]);
 
-          // Calculate adjusted sizes based on zoom
+          // Calculate adjusted sizes based on scaleX only
           const adjustedLineWidth = baseLineWidth / globalZoom;
           const adjustedPointRadius = basePointRadius / globalZoom;
+
+          // Get envelope colors from schema
+          const envelopeColors = useMemo(() => {
+            if (!schema?.envelopes) return {};
+            return generateEnvelopeColors(schema.envelopes);
+          }, [schema]);
+
+          const allEventsByDate = getAllEventsByDate(plan!);
+
+          // Utility to apply a transform matrix to a point
+          function applyMatrixToPoint(matrix: any, point: { x: number; y: number }) {
+            return {
+              x: point.x * matrix.scaleX + matrix.translateX,
+              y: point.y * matrix.scaleY + matrix.translateY,
+            };
+          }
+
+          // Constrain transform to keep content within [0,0,width,height]
+          function constrainTransform(transformMatrix: any, prevTransformMatrix: any, width: number, height: number) {
+            const xPad = 80; // or whatever value you want
+            const min = applyMatrixToPoint(transformMatrix, { x: 0, y: 0 });
+            const max = applyMatrixToPoint(transformMatrix, { x: width, y: height });
+
+            (window as any).debugMin = min;
+            (window as any).debugMax = max;
+
+            if (max.x < width - xPad) {
+              console.log('Constraint: max out of bounds', max);
+              return prevTransformMatrix;
+            } else if (min.x > 0 + xPad) {
+              console.log('Constraint: min out of bounds', min);
+              return prevTransformMatrix;
+            }
+            return transformMatrix;
+          }
 
           const handleAnnotationDragStart = (e: React.MouseEvent, eventId: number, date: number) => {
             e.stopPropagation();
@@ -398,6 +462,23 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
             setClosestPoint(null);
           };
 
+          // Calculate visibleYScale based on visibleData only
+          const visibleYScale = useMemo(() => {
+            if (!visibleData.length) return scaleLinear({ domain: [0, 1], range: [height, 0] });
+            const allYValues = visibleData.flatMap((d: any) => [
+              d.value,
+              ...Object.values(d.parts)
+            ]);
+            const minY = Math.min(...allYValues);
+            const maxY = Math.max(...allYValues);
+            const domainMin = minY === maxY ? minY - 1 : minY;
+            const domainMax = minY === maxY ? maxY + 1 : maxY;
+            return scaleLinear({
+              domain: [domainMin, domainMax],
+              range: [height, 0],
+            });
+          }, [visibleData, height]);
+
           return (
             <>
               <svg
@@ -422,7 +503,7 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
                     // Update tooltip position and data
                     if (closest) {
                       const canvasX = xScale(closest.date);
-                      const canvasY = yScale(closest.value);
+                      const canvasY = visibleYScale(closest.value);
                       const transformedX = (canvasX * zoom.transformMatrix.scaleX) + zoom.transformMatrix.translateX;
                       const transformedY = (canvasY * zoom.transformMatrix.scaleY) + zoom.transformMatrix.translateY;
 
@@ -432,8 +513,19 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
                     }
                   }
 
-                  if (isDragging) {
-                    zoom.dragMove(e);
+                  if (isDragging && lastMouse) {
+                    const dx = e.clientX - lastMouse.x;
+                    const dy = e.clientY - lastMouse.y;
+                    // Calculate new transform
+                    let newTransform = {
+                      ...zoom.transformMatrix,
+                      translateX: zoom.transformMatrix.translateX + dx,
+                      translateY: zoom.transformMatrix.translateY + dy,
+                    };
+                    // Clamp
+                    newTransform = constrainTransform(newTransform, zoom.transformMatrix, width, height);
+                    zoom.setTransformMatrix(newTransform);
+                    setLastMouse({ x: e.clientX, y: e.clientY });
                   }
                 }}
                 onMouseLeave={() => {
@@ -445,6 +537,8 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
                 onMouseDown={(e) => {
                   setIsDragging(true);
                   zoom.dragStart(e);
+                  setLastMouse({ x: e.clientX, y: e.clientY });
+
                 }}
                 onMouseUp={(e) => {
                   if (draggingAnnotation) {
@@ -454,50 +548,61 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
                   zoom.dragEnd();
                 }}
                 onWheel={(e) => {
-                  const point = localPoint(e) || { x: 0, y: 0 };
                   const scaleFactor = e.deltaY > 0 ? 0.99 : 1.01;
 
                   // Get the center X position in screen coordinates
                   const centerX = width / 2;
-                  //const centerX = point.x;
+                  const centerY = height / 2;
 
-                  // Convert center X to data coordinates
+                  // Convert center X to data coordinates (before zoom)
                   const centerXData = xScale.invert((centerX - zoom.transformMatrix.translateX) / zoom.transformMatrix.scaleX);
 
-                  // Find the closest point to the center
-                  let closestPoint = netWorthData[0];
-                  let minDistance = Math.abs(netWorthData[0].date - centerXData);
-
-                  netWorthData.forEach(point => {
-                    const distance = Math.abs(point.date - centerXData);
-                    if (distance < minDistance) {
-                      minDistance = distance;
-                      closestPoint = point;
-                    }
-                  });
-
-                  // Calculate where the point would be after scaling
+                  // Only change scaleX, keep scaleY the same
                   const newScaleX = zoom.transformMatrix.scaleX * scaleFactor;
-                  const newScaleY = zoom.transformMatrix.scaleY * scaleFactor;
+                  const newScaleY = zoom.transformMatrix.scaleY; // unchanged
 
-                  const scaledPointX = xScale(closestPoint.date) * newScaleX;
-                  const scaledPointY = yScale(closestPoint.value) * newScaleY;
+                  // After zoom, the centerXData should remain at centerX
+                  // So, solve for new translateX:
+                  // centerX = xScale(centerXData) * newScaleX + translateX
+                  // => translateX = centerX - xScale(centerXData) * newScaleX
+                  const newTranslateX = centerX - xScale(centerXData) * newScaleX;
 
-                  // Calculate translation needed to center the point
-                  const translateX = width / 2 - scaledPointX;
-                  const translateY = height / 2 - scaledPointY;
+                  // For Y: center the average of min and max stacked y values in the visible data
+                  let minY = Infinity;
+                  let maxY = -Infinity;
+                  visibleData.forEach(d => {
+                    Object.values(d.parts).forEach((v) => {
+                      minY = Math.min(minY, v);
+                      maxY = Math.max(maxY, v);
+                    });
+                    // Also consider the total value
+                    minY = Math.min(minY, d.value);
+                    maxY = Math.max(maxY, d.value);
+                  });
+                  // Fallback if no data
+                  if (!isFinite(minY) || !isFinite(maxY)) {
+                    minY = 0;
+                    maxY = 1;
+                  }
+                  const avgY = (minY + maxY) / 2;
+                  // Center this y value in the screen
+                  // y = visibleYScale(avgY) * scaleY + translateY = centerY
+                  // => translateY = centerY - visibleYScale(avgY) * scaleY
+                  const newTranslateY = centerY - visibleYScale(avgY) * newScaleY;
 
+                  // Save previous transform
+                  const prevTransform = { ...zoom.transformMatrix };
                   // Create new transform matrix
                   const newTransform = {
                     ...zoom.transformMatrix,
                     scaleX: newScaleX,
                     scaleY: newScaleY,
-                    translateX,
-                    translateY,
+                    translateX: newTranslateX,
+                    translateY: newTranslateY,
                   };
-
-                  // Apply the new transform matrix
-                  zoom.setTransformMatrix(newTransform);
+                  // Constrain after zoom
+                  const constrained = constrainTransform(newTransform, prevTransform, width, height);
+                  zoom.setTransformMatrix(constrained);
                 }}
               >
                 <defs>
@@ -528,9 +633,9 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
                       key={`area-${partKey}`}
                       data={stackedData}
                       x={(d) => xScale(d.date)}
-                      y0={(d) => yScale(d.stackedParts[partKey].y0)}
-                      y1={(d) => yScale(d.stackedParts[partKey].y1)}
-                      yScale={yScale}
+                      y0={(d) => visibleYScale(d.stackedParts[partKey].y0)}
+                      y1={(d) => visibleYScale(d.stackedParts[partKey].y1)}
+                      yScale={visibleYScale}
                       stroke="none"
                       fill={envelopeColors[partKey]?.area || '#999'}
                       fillOpacity={0.2}
@@ -544,7 +649,7 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
                       key={`line-${partKey}-edge`}
                       data={stackedData}
                       x={(d) => xScale(d.date)}
-                      y={(d) => yScale(d.stackedParts[partKey].y1)}
+                      y={(d) => visibleYScale(d.stackedParts[partKey].y1)}
                       stroke={envelopeColors[partKey]?.line || '#999'}
                       strokeWidth={1 / globalZoom}
                       strokeOpacity={0.5}
@@ -556,8 +661,8 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
                   <line
                     x1={0}
                     x2={width}
-                    y1={yScale(0)}
-                    y2={yScale(0)}
+                    y1={visibleYScale(0)}
+                    y2={visibleYScale(0)}
                     stroke="#bbd4dd"
                     strokeWidth={1 / globalZoom}
                     strokeDasharray="4,4"
@@ -579,7 +684,7 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
                   <LinePath
                     data={netWorthData}
                     x={(d) => xScale(d.date)}
-                    y={(d) => yScale(d.value)}
+                    y={(d) => visibleYScale(d.value)}
                     stroke="#335966"
                     strokeWidth={3 / globalZoom}
                     curve={curveLinear}
@@ -588,7 +693,7 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
                   {/* Data Points */}
                   {visibleData.map((point, index) => {
                     const canvasX = xScale(point.date);
-                    const canvasY = yScale(point.value);
+                    const canvasY = visibleYScale(point.value);
                     return (
                       <circle
                         key={`point-${index}`}
@@ -616,7 +721,7 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
                     .sort((a, b) => Math.abs(a.date - date) - Math.abs(b.date - date))[0];
 
                   const canvasX = xScale(closestDataPoint.date);
-                  const canvasY = yScale(closestDataPoint.value);
+                  const canvasY = visibleYScale(closestDataPoint.value);
                   const transformedX = (canvasX * zoom.transformMatrix.scaleX) + zoom.transformMatrix.translateX;
                   const transformedY = (canvasY * zoom.transformMatrix.scaleY) + zoom.transformMatrix.translateY;
 
@@ -692,9 +797,9 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
                       xScale.invert((-zoom.transformMatrix.translateX) / zoom.transformMatrix.scaleX),
                       xScale.invert((width - zoom.transformMatrix.translateX) / zoom.transformMatrix.scaleX)
                     ];
-                    const visibleYDomain = [
-                      yScale.invert((height - zoom.transformMatrix.translateY) / zoom.transformMatrix.scaleY),
-                      yScale.invert((-zoom.transformMatrix.translateY) / zoom.transformMatrix.scaleY)
+                    const visibleYDomain: [number, number] = [
+                      visibleYScale.invert((height - zoom.transformMatrix.translateY) / zoom.transformMatrix.scaleY),
+                      visibleYScale.invert((-zoom.transformMatrix.translateY) / zoom.transformMatrix.scaleY)
                     ];
 
                     const visibleXScale = scaleLinear({
@@ -702,7 +807,7 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
                       range: [0, width], // I dont think range this does anything
                     });
 
-                    const visibleYScale = scaleLinear({
+                    const visibleYScaleForAxis = scaleLinear({
                       domain: visibleYDomain,
                       range: [height, 0],
                     });
@@ -710,7 +815,7 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
                     return (
                       <>
                         <AxisLeft
-                          scale={visibleYScale}
+                          scale={visibleYScaleForAxis}
                           stroke="#bbd4dd"
                           tickStroke="#bbd4dd"
                           tickFormat={(value) => formatNumber(value)}
