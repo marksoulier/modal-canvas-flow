@@ -1,3 +1,4 @@
+
 import React, { useState, useRef } from 'react';
 import { Menu, HelpCircle, Plus, Save, FileText, FolderOpen, User, List, Edit3 } from 'lucide-react';
 import {
@@ -143,15 +144,15 @@ const Index = () => {
           {/* Hamburger Dropdown Menu */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <button className="p-3 bg-gray-100 hover:bg-gray-200 rounded-lg shadow-sm transition-all duration-200">
-                <Menu size={20} className="text-gray-700" />
+              <button className="p-3 bg-white/90 backdrop-blur-sm hover:bg-white/95 rounded-lg shadow-md border border-gray-100 transition-all duration-200">
+                <Menu size={20} className="text-gray-600" />
               </button>
             </DropdownMenuTrigger>
 
             {/* Editable Title */}
             <div className="flex items-center gap-2">
               {isEditingTitle ? (
-                <div className="flex items-center gap-2 bg-white rounded-lg shadow-sm border border-gray-200 px-3 py-2">
+                <div className="flex items-center gap-2 bg-white/90 backdrop-blur-sm rounded-lg shadow-sm border border-gray-200 px-3 py-2">
                   <input
                     ref={titleInputRef}
                     type="text"
@@ -166,9 +167,9 @@ const Index = () => {
               ) : (
                 <button
                   onClick={handleTitleClick}
-                  className="group flex items-center gap-2 text-gray-400 hover:text-gray-600 transition-colors duration-200"
+                  className="group flex items-center gap-2 text-gray-500 hover:text-gray-700 transition-colors duration-200"
                 >
-                  <h1 className="text-lg font-medium text-gray-400 group-hover:text-gray-600 transition-colors duration-200">
+                  <h1 className="text-lg font-medium text-gray-500 group-hover:text-gray-700 transition-colors duration-200">
                     {plan?.title || 'Untitled Plan'}
                   </h1>
                   <Edit3 size={16} className="opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
@@ -212,17 +213,17 @@ const Index = () => {
         {/* Help Button - Top Right */}
         <button
           onClick={() => setHelpModalOpen(true)}
-          className="absolute top-6 right-6 p-3 bg-blue-50 hover:bg-blue-100 rounded-lg shadow-sm transition-all duration-200"
+          className="absolute top-6 right-6 p-3 bg-slate-50/90 backdrop-blur-sm hover:bg-slate-100/90 rounded-lg shadow-sm border border-slate-200 transition-all duration-200"
         >
-          <HelpCircle size={20} className="text-blue-600" />
+          <HelpCircle size={20} className="text-slate-600" />
         </button>
 
-        {/* Add Event Button - Bottom Center */}
+        {/* Add Event Button - Bottom Center (more subtle and higher up) */}
         <button
           onClick={() => setEventLibraryOpen(true)}
-          className="fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg shadow-lg transition-all duration-200 flex items-center gap-2"
+          className="fixed bottom-12 left-1/2 transform -translate-x-1/2 bg-slate-100/90 backdrop-blur-sm hover:bg-slate-200/90 text-slate-700 hover:text-slate-900 px-5 py-2.5 rounded-lg shadow-sm border border-slate-200 transition-all duration-200 flex items-center gap-2 text-sm font-medium"
         >
-          <Plus size={20} />
+          <Plus size={18} />
           Add Event
         </button>
       </div>
