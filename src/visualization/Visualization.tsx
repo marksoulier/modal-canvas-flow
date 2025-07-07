@@ -100,6 +100,7 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
   const [currentDaysSinceBirth, setCurrentDaysSinceBirth] = useState<number>(0);
   const [hoveredEventId, setHoveredEventId] = useState<number | null>(null);
   const [lastMouse, setLastMouse] = useState<{ x: number, y: number } | null>(null);
+  const [dragStartPos, setDragStartPos] = useState<{ x: number; y: number } | null>(null);
 
   const width = window.innerWidth;
   const height = window.innerHeight;
@@ -215,7 +216,7 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
     });
   }, [netWorthData]);
 
-  const screenToData = (screenX: number, screenY: number, zoom: any) => {
+  const screenToData = (screenX: number, screenY: number, zoom: any, yScale: any) => {
     const x = (screenX - zoom.transformMatrix.translateX) / zoom.transformMatrix.scaleX;
     const y = (screenY - zoom.transformMatrix.translateY) / zoom.transformMatrix.scaleY;
     return {
@@ -235,63 +236,6 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
     });
   }, [netWorthData, width]);
 
-  const yScale = useMemo(() => {
-    if (!netWorthData.length) return scaleLinear({ domain: [0, 1], range: [height, 0] });
-
-    // Gather all y-values: total value and all stacked part values
-    const allYValues = netWorthData.flatMap(d => [
-      d.value,
-      ...Object.values(d.parts)
-    ]);
-
-    const minY = Math.min(...allYValues);
-    const maxY = Math.max(...allYValues);
-
-    // Avoid zero range
-    const domainMin = minY === maxY ? minY - 1 : minY;
-    const domainMax = minY === maxY ? maxY + 1 : maxY;
-
-    return scaleLinear({
-      domain: [domainMin, domainMax],
-      range: [height, 0],
-    });
-  }, [netWorthData, height]);
-
-  // Get envelope colors from schema
-  const envelopeColors = useMemo(() => {
-    if (!schema?.envelopes) return {};
-    return generateEnvelopeColors(schema.envelopes);
-  }, [schema]);
-
-  const allEventsByDate = getAllEventsByDate(plan!);
-
-  // Utility to apply a transform matrix to a point
-  function applyMatrixToPoint(matrix: any, point: { x: number; y: number }) {
-    return {
-      x: point.x * matrix.scaleX + matrix.translateX,
-      y: point.y * matrix.scaleY + matrix.translateY,
-    };
-  }
-
-  // Constrain transform to keep content within [0,0,width,height]
-  function constrainTransform(transformMatrix: any, prevTransformMatrix: any, width: number, height: number) {
-    const xPad = 80; // or whatever value you want
-    const min = applyMatrixToPoint(transformMatrix, { x: 0, y: 0 });
-    const max = applyMatrixToPoint(transformMatrix, { x: width, y: height });
-
-    (window as any).debugMin = min;
-    (window as any).debugMax = max;
-
-    if (max.x < width - xPad) {
-      console.log('Constraint: max out of bounds', max);
-      return prevTransformMatrix;
-    } else if (min.x > 0 + xPad) {
-      console.log('Constraint: min out of bounds', min);
-      return prevTransformMatrix;
-    }
-    return transformMatrix;
-  }
-
   return (
     <div className="relative w-full h-full">
       <Zoom
@@ -304,7 +248,7 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
         initialTransformMatrix={{
           scaleX: 1.0,
           scaleY: 1.0,
-          translateX: 0,
+          translateX: 80,
           translateY: 0,
           skewX: 0,
           skewY: 0,
@@ -341,10 +285,6 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
             }
           }, [globalZoom]);
 
-          // Calculate adjusted sizes based on scaleX only
-          const adjustedLineWidth = baseLineWidth / globalZoom;
-          const adjustedPointRadius = basePointRadius / globalZoom;
-
           // Get envelope colors from schema
           const envelopeColors = useMemo(() => {
             if (!schema?.envelopes) return {};
@@ -380,36 +320,48 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
             return transformMatrix;
           }
 
-          const handleAnnotationDragStart = (e: React.MouseEvent, eventId: number, date: number) => {
+          const handleAnnotationDragStart = (e: React.MouseEvent, eventId: number, date: number, annotationYOffset: number, DRAG_Y_OFFSET: number) => {
             e.stopPropagation();
             const point = getSVGPoint(e);
             setHasDragged(false);
+            setDragStartPos({ x: point.x, y: point.y });
 
             const dataPoint = netWorthData.find(p => p.date === date);
             if (!dataPoint) return;
-            const transformedX = (xScale(dataPoint.date) * zoom.transformMatrix.scaleX) + zoom.transformMatrix.translateX;
-            const transformedY = (yScale(dataPoint.value) * zoom.transformMatrix.scaleY) + zoom.transformMatrix.translateY;
+            // Use the same transform as annotation rendering
+            const canvasX = xScale(dataPoint.date) * zoom.transformMatrix.scaleX + zoom.transformMatrix.translateX;
+            const canvasY = visibleYScale(dataPoint.value) * zoom.transformMatrix.scaleY + zoom.transformMatrix.translateY;
+            // DRAG_Y_OFFSET and annotationYOffset must match rendering
+            const annotationY = canvasY - annotationYOffset;
+            const annotationX = canvasX;
 
             setDraggingAnnotation({
               index: date,
               eventId: eventId,
-              offsetX: point.x - transformedX,
-              offsetY: point.y - transformedY
+              offsetX: point.x - annotationX,
+              offsetY: point.y - annotationY
             });
           };
 
           const handleAnnotationDragMove = (e: React.MouseEvent) => {
             if (!draggingAnnotation) return;
-            setHasDragged(true);
-
             const point = getSVGPoint(e);
-            const dataPoint = screenToData(point.x, point.y, zoom);
+            if (dragStartPos) {
+              const dx = point.x - dragStartPos.x;
+              const dy = point.y - dragStartPos.y;
+              const distance = Math.sqrt(dx * dx + dy * dy);
+              if (distance > 10) {
+                setHasDragged(true);
+              }
+            }
+
+            const dataPoint = screenToData(point.x, point.y, zoom, visibleYScale);
             const closestPoint = findClosestPoint(netWorthData, dataPoint.x);
             if (!closestPoint) return;
 
             // Convert data points to screen coordinates
             const screenX = xScale(closestPoint.date);
-            const screenY = yScale(closestPoint.value);
+            const screenY = visibleYScale(closestPoint.value);
             const transformedX = (screenX * zoom.transformMatrix.scaleX) + zoom.transformMatrix.translateX;
             const transformedY = (screenY * zoom.transformMatrix.scaleY) + zoom.transformMatrix.translateY;
 
@@ -454,7 +406,7 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
             if (!draggingAnnotation) return;
 
             const point = getSVGPoint(e);
-            const dataPoint = screenToData(point.x, point.y, zoom);
+            const dataPoint = screenToData(point.x, point.y, zoom, visibleYScale);
             const closestPoint = findClosestPoint(netWorthData, dataPoint.x);
             const closestIndex = netWorthData.findIndex(p => p.date === closestPoint?.date);
 
@@ -470,9 +422,13 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
               ...Object.values(d.parts)
             ]);
             const minY = Math.min(...allYValues);
+            const adjustedMinY = minY > 0 ? 0 : minY;
             const maxY = Math.max(...allYValues);
-            const domainMin = minY === maxY ? minY - 1 : minY;
-            const domainMax = minY === maxY ? maxY + 1 : maxY;
+            // Add 10% padding to top and bottom
+            const yRange = maxY - adjustedMinY || 1;
+            const pad = yRange * 0.1;
+            const domainMin = adjustedMinY - pad;
+            const domainMax = maxY + pad;
             return scaleLinear({
               domain: [domainMin, domainMax],
               range: [height, 0],
@@ -496,7 +452,7 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
                   if (draggingAnnotation) {
                     handleAnnotationDragMove(e);
                   } else {
-                    const dataPoint = screenToData(point.x, point.y, zoom);
+                    const dataPoint = screenToData(point.x, point.y, zoom, visibleYScale);
                     const closest = findClosestPoint(netWorthData, dataPoint.x);
                     setClosestPoint(closest);
 
@@ -628,7 +584,7 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
                 {/* Main content with zoom transform */}
                 <g transform={`translate(${zoom.transformMatrix.translateX},${zoom.transformMatrix.translateY}) scale(${zoom.transformMatrix.scaleX},${zoom.transformMatrix.scaleY})`}>
                   {/* Add stacked areas - only show for yearly view */}
-                  {timeInterval === 'year' && Object.keys(netWorthData[0]?.parts || {}).map((partKey) => (
+                  {Object.keys(netWorthData[0]?.parts || {}).map((partKey) => (
                     <AreaClosed
                       key={`area-${partKey}`}
                       data={stackedData}
@@ -657,16 +613,15 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
                     />
                   ))}
 
-                  {/* Zero line - moved to be on top of areas and lines */}
+                  {/* Zero line (y=0) rendered outside zoom transform, darker and extended */}
                   <line
                     x1={0}
                     x2={width}
                     y1={visibleYScale(0)}
                     y2={visibleYScale(0)}
-                    stroke="#bbd4dd"
-                    strokeWidth={1 / globalZoom}
-                    strokeDasharray="4,4"
-                    opacity={1}
+                    strokeWidth={1}
+                    stroke="#a0aec0" // subtle gray
+                    opacity={0.7}
                   />
 
                   {/* Current day indicator line - more subtle and full height */}
@@ -679,34 +634,32 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
                     strokeWidth={1 / globalZoom}
                     opacity={0.5}
                   />
-
-                  {/* Total line */}
-                  <LinePath
-                    data={netWorthData}
-                    x={(d) => xScale(d.date)}
-                    y={(d) => visibleYScale(d.value)}
-                    stroke="#335966"
-                    strokeWidth={3 / globalZoom}
-                    curve={curveLinear}
-                  />
-
-                  {/* Data Points */}
-                  {visibleData.map((point, index) => {
-                    const canvasX = xScale(point.date);
-                    const canvasY = visibleYScale(point.value);
-                    return (
-                      <circle
-                        key={`point-${index}`}
-                        cx={canvasX}
-                        cy={canvasY}
-                        r={adjustedPointRadius}
-                        fill="#335966"
-                        stroke="#fff"
-                        strokeWidth={adjustedLineWidth}
-                      />
-                    );
-                  })}
                 </g>
+
+                {/* Net Worth Line and Data Circles rendered outside the zoom <g> so their thickness and size are fixed */}
+                <LinePath
+                  data={netWorthData}
+                  x={d => xScale(d.date) * zoom.transformMatrix.scaleX + zoom.transformMatrix.translateX}
+                  y={d => visibleYScale(d.value) * zoom.transformMatrix.scaleY + zoom.transformMatrix.translateY}
+                  stroke="#335966"
+                  strokeWidth={baseLineWidth}
+                  curve={curveLinear}
+                />
+                {visibleData.map((point, index) => {
+                  const canvasX = xScale(point.date) * zoom.transformMatrix.scaleX + zoom.transformMatrix.translateX;
+                  const canvasY = visibleYScale(point.value) * zoom.transformMatrix.scaleY + zoom.transformMatrix.translateY;
+                  return (
+                    <circle
+                      key={`point-${index}`}
+                      cx={canvasX}
+                      cy={canvasY}
+                      r={basePointRadius}
+                      fill="#335966"
+                      stroke="#fff"
+                      strokeWidth={baseLineWidth}
+                    />
+                  );
+                })}
 
                 {/* Timeline Annotations (outside zoom transform) */}
                 {Object.entries(allEventsByDate).map(([dateStr, eventsAtDate]) => {
@@ -720,20 +673,20 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
                   const closestDataPoint = [...visibleDataPoints]
                     .sort((a, b) => Math.abs(a.date - date) - Math.abs(b.date - date))[0];
 
-                  const canvasX = xScale(closestDataPoint.date);
-                  const canvasY = visibleYScale(closestDataPoint.value);
-                  const transformedX = (canvasX * zoom.transformMatrix.scaleX) + zoom.transformMatrix.translateX;
-                  const transformedY = (canvasY * zoom.transformMatrix.scaleY) + zoom.transformMatrix.translateY;
+                  // Use the same transform as net worth line/circles
+                  const canvasX = xScale(closestDataPoint.date) * zoom.transformMatrix.scaleX + zoom.transformMatrix.translateX;
+                  const canvasY = visibleYScale(closestDataPoint.value) * zoom.transformMatrix.scaleY + zoom.transformMatrix.translateY;
 
                   return eventsAtDate.map((event, i) => {
                     const isDraggingMain = draggingAnnotation?.eventId === event.event.id;
                     const yOffset = i * 50;
+                    const DRAG_Y_OFFSET = 80; // adjust this value for better alignment
                     const x = isDraggingMain
                       ? cursorPos!.x - draggingAnnotation!.offsetX - 20
-                      : transformedX - 20;
+                      : canvasX - 20;
                     const y = isDraggingMain
-                      ? cursorPos!.y - draggingAnnotation!.offsetY - 80
-                      : transformedY - 80 - yOffset;
+                      ? cursorPos!.y - draggingAnnotation!.offsetY - DRAG_Y_OFFSET
+                      : canvasY - DRAG_Y_OFFSET - yOffset;
                     const isHighlighted = hoveredEventId === event.event.id;
                     return (
                       <foreignObject
@@ -747,7 +700,7 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
                           cursor: isDraggingMain ? 'grabbing' : 'move'
                         }}
                         onMouseDown={(e) => {
-                          handleAnnotationDragStart(e, event.event.id, closestDataPoint.date);
+                          handleAnnotationDragStart(e, event.event.id, closestDataPoint.date, yOffset, DRAG_Y_OFFSET);
                         }}
                         onMouseEnter={() => setHoveredEventId(event.event.id)}
                         onMouseLeave={() => setHoveredEventId(null)}
