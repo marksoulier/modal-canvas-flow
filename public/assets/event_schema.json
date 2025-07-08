@@ -26,6 +26,7 @@
             "weight": 5,
             "description": "Basic purchase or spending of money",
             "icon": "shopping-cart",
+            "disclaimer": "This event records a one-time purchase or expense from a selected envelope. It does not account for recurring costs, taxes, or the impact on other envelopes.",
             "parameters": [
                 {
                     "type": "start_time",
@@ -57,6 +58,7 @@
             "category": "Living Expenses",
             "description": " gift of money from something",
             "icon": "gift",
+            "disclaimer": "This event adds a one-time monetary gift to a chosen envelope. It does not simulate taxes, recurring gifts, or non-cash gifts.",
             "parameters": [
                 {
                     "type": "start_time",
@@ -88,6 +90,7 @@
             "category": "Income & Employment",
             "description": "Start earning a salary from employment.",
             "icon": "briefcase",
+            "disclaimer": "This event simulates salaried employment, calculating net pay after taxes and 401k contributions. It does not model job loss, promotions, or non-salary compensation.",
             "parameters": [
                 {
                     "type": "start_time",
@@ -250,6 +253,7 @@
             "category": "Income & Employment",
             "description": "Start earning an hourly wage from employment.",
             "icon": "clock",
+            "disclaimer": "This event simulates hourly wage employment, including taxes and 401k contributions. It does not account for overtime, tips, or job loss.",
             "parameters": [
                 {
                     "type": "start_time",
@@ -434,6 +438,7 @@
             "category": "Income & Employment",
             "description": "Start your own business by investing capital.",
             "icon": "factory",
+            "disclaimer": "This event models starting a business with an initial investment. It does not simulate business growth, profits, or operational expenses beyond initial setup.",
             "parameters": [
                 {
                     "type": "start_time",
@@ -539,6 +544,7 @@
             "category": "Income & Employment",
             "description": "Transition from employment to retirement with withdrawals.",
             "icon": "moon",
+            "disclaimer": "This event simulates regular withdrawals from a retirement envelope. It does not account for taxes, investment growth, or required minimum distributions.",
             "parameters": [
                 {
                     "type": "start_time",
@@ -591,6 +597,7 @@
             "category": "Major Purchases",
             "description": "Purchase a home with mortgage terms.",
             "icon": "home",
+            "disclaimer": "This event estimates the financial impact of purchasing a home based on key inputs including purchase price, down payment, mortgage term, interest rate, appreciation rate, and property tax rate. It generates a monthly payment and amortization schedule using standard fixed-rate mortgage formulas. The calculation does not account for additional homeownership costs such as HOA fees, maintenance, insurance, closing costs, or utilities.",
             "parameters": [
                 {
                     "type": "start_time",
@@ -942,6 +949,7 @@
             "category": "Major Purchases",
             "description": "Purchase a car with or without a loan.",
             "icon": "car",
+            "disclaimer": "This event models the purchase of a car, including loan terms and down payment. It does not include insurance, registration, maintenance, or resale value.",
             "parameters": [
                 {
                     "type": "start_time",
@@ -1061,6 +1069,7 @@
             "category": "Life Events",
             "description": "Have a child and incur related early-life costs.",
             "icon": "baby",
+            "disclaimer": "This event records the birth of a child and initial costs. It does not simulate ongoing expenses, tax credits, or changes in household income.",
             "parameters": [
                 {
                     "type": "start_time",
@@ -1180,6 +1189,7 @@
             "category": "Life Events",
             "description": "Get married and incur event-related expenses.",
             "icon": "ring",
+            "disclaimer": "This event logs a one-time marriage cost. It does not affect taxes, household size, or simulate ongoing marital expenses.",
             "parameters": [
                 {
                     "type": "start_time",
@@ -1211,6 +1221,7 @@
             "category": "Life Events",
             "description": "Divorce settlement and legal costs.",
             "icon": "split",
+            "disclaimer": "This event records a one-time divorce settlement and legal fees. It does not simulate asset division, custody, or ongoing support payments.",
             "parameters": [
                 {
                     "type": "start_time",
@@ -1249,6 +1260,7 @@
             "category": "Life Events",
             "description": "Death of the individual and end-of-life costs.",
             "icon": "skull",
+            "disclaimer": "This event marks the end of the simulation for the individual. It does not model estate distribution, survivor benefits, or funeral costs.",
             "parameters": [
                 {
                     "type": "start_time",
@@ -1266,6 +1278,7 @@
             "category": "Health & Insurance",
             "description": "Purchase a health insurance plan with monthly payments.",
             "icon": "stethoscope",
+            "disclaimer": "This event simulates purchasing health insurance with monthly premiums and deductible. It does not model provider networks, claim denials, or out-of-network costs.",
             "parameters": [
                 {
                     "type": "start_time",
@@ -1356,6 +1369,7 @@
             "category": "Health & Insurance",
             "description": "Buy term life insurance to protect dependents.",
             "icon": "heart-pulse",
+            "disclaimer": "This event models purchasing term life insurance with a fixed premium and payout. It does not simulate underwriting, policy lapses, or variable coverage.",
             "parameters": [
                 {
                     "type": "start_time",
@@ -1432,6 +1446,7 @@
             "category": "Taxes & Government",
             "description": "Regular cash benefits from government programs.",
             "icon": "hand-coins",
+            "disclaimer": "This event simulates receiving regular government aid payments. It does not account for eligibility changes, taxes, or benefit reductions.",
             "parameters": [
                 {
                     "type": "start_time",
@@ -1477,6 +1492,7 @@
             "category": "Investments & Assets",
             "description": "Invest a lump sum into the stock market or similar vehicle.",
             "icon": "trending-up",
+            "disclaimer": "This event models a lump-sum investment with an expected return. It does not simulate market volatility, taxes, or investment fees.",
             "parameters": [
                 {
                     "type": "start_time",
@@ -1589,6 +1605,7 @@
             "category": "Investments & Assets",
             "description": "Open a high-yield savings account that earns daily interest.",
             "icon": "banknote",
+            "disclaimer": "This event simulates opening a high-yield savings account with a fixed interest rate. It does not account for rate changes, fees, or withdrawal limits.",
             "parameters": [
                 {
                     "type": "start_time",
@@ -1634,6 +1651,7 @@
             "category": "Taxes & Government",
             "description": "Annual payment of federal and state taxes.",
             "icon": "file-text",
+            "disclaimer": "This event models a one-time tax payment. It does not simulate audits, penalties, or tax deductions/credits.",
             "parameters": [
                 {
                     "type": "start_time",
@@ -1696,6 +1714,7 @@
             "category": "Living Expenses",
             "description": "Spend a recurring amount on monthly groceries.",
             "icon": "shopping-cart",
+            "disclaimer": "This event simulates recurring grocery expenses. It does not account for price changes, dietary needs, or non-food purchases.",
             "parameters": [
                 {
                     "type": "start_time",
@@ -1735,6 +1754,7 @@
             "category": "System",
             "description": "Manually adjust the value of an envelope for tracking accuracy.",
             "icon": "edit",
+            "disclaimer": "This event allows manual adjustment of an envelope's value. It does not validate the reason for adjustment or track adjustment history.",
             "parameters": [
                 {
                     "type": "start_time",
@@ -1766,6 +1786,7 @@
             "category": "System",
             "description": "Transfer money between envelopes with optional growth rate for destination.",
             "icon": "arrow-right-arrow-left",
+            "disclaimer": "This event transfers a specified amount between envelopes. It does not simulate transfer fees, delays, or currency conversion.",
             "parameters": [
                 {
                     "type": "start_time",
@@ -1804,6 +1825,7 @@
             "category": "Income & Employment",
             "description": "Receive a recurring income at a specified interval.",
             "icon": "repeat",
+            "disclaimer": "This event simulates recurring income deposits at set intervals. It does not account for missed payments, taxes, or income changes.",
             "parameters": [
                 {
                     "type": "start_time",
@@ -1849,6 +1871,7 @@
             "category": "Living Expenses",
             "description": "Spend a recurring amount at a specified interval.",
             "icon": "repeat-2",
+            "disclaimer": "This event simulates recurring spending at set intervals. It does not account for price changes, missed payments, or spending categories.",
             "parameters": [
                 {
                     "type": "start_time",
@@ -1894,6 +1917,7 @@
             "category": "System",
             "description": "Transfer a recurring amount between envelopes at a specified interval.",
             "icon": "repeat-3",
+            "disclaimer": "This event simulates recurring transfers between envelopes. It does not include transfer fees, missed transfers, or currency conversion.",
             "parameters": [
                 {
                     "type": "start_time",
@@ -1936,6 +1960,94 @@
                     "parameter_units": "date",
                     "description": "When the recurring transfer ends.",
                     "default": 3650
+                }
+            ]
+        },
+        {
+            "type": "declare_accounts",
+            "display_type": "Declare Accounts",
+            "weight": 100,
+            "category": "System",
+            "description": "Declare the initial balances of up to five financial accounts (envelopes) at a specific time.",
+            "icon": "list",
+            "disclaimer": "This event is used to set the starting balances for up to five envelopes. It does not simulate transactions or transfers, only the initial state.",
+            "parameters": [
+                {
+                    "type": "start_time",
+                    "display_name": "Declaration Date",
+                    "parameter_units": "date",
+                    "description": "When the account balances are declared",
+                    "default": 0
+                },
+                {
+                    "type": "amount1",
+                    "display_name": "Amount 1",
+                    "parameter_units": "usd",
+                    "description": "Initial balance for Envelope 1.",
+                    "default": 0
+                },
+                {
+                    "type": "envelope1",
+                    "display_name": "Envelope 1",
+                    "parameter_units": "envelope",
+                    "description": "First envelope/account name.",
+                    "default": "Cash"
+                },
+                {
+                    "type": "amount2",
+                    "display_name": "Amount 2",
+                    "parameter_units": "usd",
+                    "description": "Initial balance for Envelope 2.",
+                    "default": 0
+                },
+                {
+                    "type": "envelope2",
+                    "display_name": "Envelope 2",
+                    "parameter_units": "envelope",
+                    "description": "Second envelope/account name.",
+                    "default": "Savings"
+                },
+                {
+                    "type": "amount3",
+                    "display_name": "Amount 3",
+                    "parameter_units": "usd",
+                    "description": "Initial balance for Envelope 3.",
+                    "default": 0
+                },
+                {
+                    "type": "envelope3",
+                    "display_name": "Envelope 3",
+                    "parameter_units": "envelope",
+                    "description": "Third envelope/account name.",
+                    "default": "Investments"
+                },
+                {
+                    "type": "amount4",
+                    "display_name": "Amount 4",
+                    "parameter_units": "usd",
+                    "description": "Initial balance for Envelope 4.",
+                    "default": 0
+                },
+                {
+                    "type": "envelope4",
+                    "display_name": "Envelope 4",
+                    "parameter_units": "envelope",
+                    "description": "Fourth envelope/account name.",
+                    "default": "Retirement"
+                },
+                {
+                    "type": "amount5",
+                    "display_name": "Amount 5",
+                    "parameter_units": "usd",
+                    "description": "Initial balance for Envelope 5.",
+                    "default": 0
+                },
+                {
+                    "type": "envelope5",
+                    "display_name": "Envelope 5",
+                    "parameter_units": "envelope",
+                    "description": "Fifth envelope/account name.",
+                    "default": "Debt"
                 }
             ]
         }

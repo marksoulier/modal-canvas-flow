@@ -17,6 +17,12 @@
             "rate": 0.03
         },
         {
+            "name": "Debt",
+            "category": "Debt",
+            "growth": "None",
+            "rate": 0.0
+        },
+        {
             "name": "Savings",
             "category": "Investment",
             "growth": "Daily Compound",

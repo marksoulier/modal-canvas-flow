@@ -101,6 +101,12 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
   const [hoveredEventId, setHoveredEventId] = useState<number | null>(null);
   const [lastMouse, setLastMouse] = useState<{ x: number, y: number } | null>(null);
   const [dragStartPos, setDragStartPos] = useState<{ x: number; y: number } | null>(null);
+  const [eventDescriptionTooltip, setEventDescriptionTooltip] = useState<{
+    left: number;
+    top: number;
+    displayType: string;
+    description: string;
+  } | null>(null);
 
   const width = window.innerWidth;
   const height = window.innerHeight;
@@ -121,7 +127,7 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
     }
   }, [wheelHandler]);
 
-  const { plan, loadDefaultPlan, getEventIcon, updateParameter, schema, deleteEvent } = usePlan();
+  const { plan, loadDefaultPlan, getEventIcon, updateParameter, schema, deleteEvent, getEventDisplayType } = usePlan();
 
   // Base sizes that will be adjusted by zoom
   const baseLineWidth = 2;
@@ -133,9 +139,12 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
 
   // Function to determine time interval based on zoom level
   const getTimeIntervalFromZoom = (zoom: number): TimeInterval => {
-    if (zoom >= 50) return 'day';
-    if (zoom >= 20) return 'week';
-    if (zoom >= 5) return 'month';
+
+    if (zoom >= 250) return 'day';
+    if (zoom >= 60) return 'week';
+    if (zoom >= 10) return 'month';
+    if (zoom >= 5) return 'quarter';
+    if (zoom >= 3) return 'half_year';
     return 'year';
   };
 
@@ -242,9 +251,9 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
         width={width}
         height={height}
         scaleXMin={1.0}
-        scaleXMax={100}
+        scaleXMax={400}
         scaleYMin={1.0}
-        scaleYMax={100}
+        scaleYMax={400}
         initialTransformMatrix={{
           scaleX: 1.0,
           scaleY: 1.0,
@@ -265,6 +274,7 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
           // Calculate global zoom level (now only depends on scaleX)
           const globalZoom = zoom.transformMatrix.scaleX;
 
+          console.log('globalZoom: ', globalZoom);
           // Calculate visible date range based on current viewport with padding
           const viewportPadding = width * 0.2; // 20% padding on each side
           const visibleXDomain = [
@@ -522,7 +532,7 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
                   zoom.dragEnd();
                 }}
                 onWheel={(e) => {
-                  const scaleFactor = e.deltaY > 0 ? 0.99 : 1.01;
+                  const scaleFactor = e.deltaY > 0 ? 0.98 : 1.02;
 
                   // Get the center X position in screen coordinates
                   const centerX = width / 2;
@@ -680,86 +690,113 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
                 })}
 
                 {/* Timeline Annotations (outside zoom transform) */}
-                {Object.entries(allEventsByDate).map(([dateStr, eventsAtDate]) => {
-                  const date = Number(dateStr);
-                  // Find the closest visible data point
-                  const visibleDataPoints = netWorthData.filter(p =>
-                    p.date >= xScale.domain()[0] && p.date <= xScale.domain()[1]
-                  );
-                  if (visibleDataPoints.length === 0) return null;
-                  // Find the closest data point to this date
-                  const closestDataPoint = [...visibleDataPoints]
-                    .sort((a, b) => Math.abs(a.date - date) - Math.abs(b.date - date))[0];
-
-                  // Use the same transform as net worth line/circles
-                  const canvasX = xScale(closestDataPoint.date) * zoom.transformMatrix.scaleX + zoom.transformMatrix.translateX;
-                  const canvasY = visibleYScale(closestDataPoint.value) * zoom.transformMatrix.scaleY + zoom.transformMatrix.translateY;
-
-                  return eventsAtDate.map((event, i) => {
-                    const isDraggingMain = draggingAnnotation?.eventId === event.event.id;
-                    const yOffset = i * 50;
-                    const DRAG_Y_OFFSET = 80; // adjust this value for better alignment
-                    const x = isDraggingMain
-                      ? cursorPos!.x - draggingAnnotation!.offsetX - 20
-                      : canvasX - 20;
-                    const y = isDraggingMain
-                      ? cursorPos!.y - draggingAnnotation!.offsetY - DRAG_Y_OFFSET
-                      : canvasY - DRAG_Y_OFFSET - yOffset;
-                    const isHighlighted = hoveredEventId === event.event.id;
-                    return (
-                      <foreignObject
-                        key={`annotation-${event.event.id}`}
-                        x={x}
-                        y={y}
-                        width={40}
-                        height={40}
-                        style={{
-                          overflow: 'visible',
-                          cursor: isDraggingMain ? 'grabbing' : 'move'
-                        }}
-                        onMouseDown={(e) => {
-                          handleAnnotationDragStart(e, event.event.id, closestDataPoint.date, yOffset, DRAG_Y_OFFSET);
-                        }}
-                        onMouseEnter={() => setHoveredEventId(event.event.id)}
-                        onMouseLeave={() => setHoveredEventId(null)}
-                      >
-                        <ContextMenu>
-                          <ContextMenuTrigger asChild>
-                            <div>
-                              <TimelineAnnotation
-                                icon={getEventIcon(event.event.type)}
-                                label={event.event.description}
-                                highlighted={isHighlighted}
-                                onClick={() => {
-                                  if (!hasDragged) {
-                                    onAnnotationClick?.(event.event.id);
-                                  }
-                                  setHasDragged(false);
-                                }}
-                              />
-                            </div>
-                          </ContextMenuTrigger>
-                          <ContextMenuContent>
-                            <ContextMenuItem asChild>
-                              <Button
-                                variant="destructive"
-                                size="sm"
-                                className="w-full h-7 text-xs justify-start bg-red-50 text-red-600 border-red-200 hover:bg-red-100 hover:text-red-700"
-                                onClick={() => {
-                                  deleteEvent(event.event.id);
-                                  onAnnotationDelete?.(event.event.id);
-                                }}
-                              >
-                                <Trash2 className="mr-2 h-4 w-4" />
-                                Delete Event
-                              </Button>
-                            </ContextMenuItem>
-                          </ContextMenuContent>
-                        </ContextMenu>
-                      </foreignObject>
+                {(() => {
+                  // 1. Build a map: snappedDataPointDate -> [events]
+                  const snappedEventsMap: { [snappedDate: number]: Array<{ event: any, originalDate: number }> } = {};
+                  for (const [dateStr, eventsAtDate] of Object.entries(allEventsByDate)) {
+                    const date = Number(dateStr);
+                    // Find the closest visible data point
+                    const visibleDataPoints = netWorthData.filter(p =>
+                      p.date >= xScale.domain()[0] && p.date <= xScale.domain()[1]
                     );
+                    if (visibleDataPoints.length === 0) continue;
+                    // Find the closest data point to this date
+                    const closestDataPoint = [...visibleDataPoints]
+                      .sort((a, b) => Math.abs(a.date - date) - Math.abs(b.date - date))[0];
+                    if (!closestDataPoint) continue;
+                    // For each event at this date, add to the snapped map
+                    for (const event of eventsAtDate) {
+                      if (!snappedEventsMap[closestDataPoint.date]) {
+                        snappedEventsMap[closestDataPoint.date] = [];
+                      }
+                      snappedEventsMap[closestDataPoint.date].push({ event: event.event, originalDate: date });
+                    }
+                  }
+                  // 2. Render each group stacked
+                  return Object.entries(snappedEventsMap).flatMap(([snappedDateStr, events]) => {
+                    const snappedDate = Number(snappedDateStr);
+                    // Find the closest data point (should exist)
+                    const closestDataPoint = netWorthData.find(p => p.date === snappedDate);
+                    if (!closestDataPoint) return null;
+                    const canvasX = xScale(closestDataPoint.date) * zoom.transformMatrix.scaleX + zoom.transformMatrix.translateX;
+                    const canvasY = visibleYScale(closestDataPoint.value) * zoom.transformMatrix.scaleY + zoom.transformMatrix.translateY;
+                    return events.map(({ event }, i) => {
+                      const isDraggingMain = draggingAnnotation?.eventId === event.id;
+                      const yOffset = i * 50;
+                      const DRAG_Y_OFFSET = 80; // adjust this value for better alignment
+                      const x = isDraggingMain
+                        ? cursorPos!.x - draggingAnnotation!.offsetX - 20
+                        : canvasX - 20;
+                      const y = isDraggingMain
+                        ? cursorPos!.y - draggingAnnotation!.offsetY - DRAG_Y_OFFSET
+                        : canvasY - DRAG_Y_OFFSET - yOffset;
+                      const isHighlighted = hoveredEventId === event.id;
+                      return (
+                        <foreignObject
+                          key={`annotation-${event.id}`}
+                          x={x}
+                          y={y}
+                          width={40}
+                          height={40}
+                          style={{
+                            overflow: 'visible',
+                            cursor: isDraggingMain ? 'grabbing' : 'move'
+                          }}
+                          onMouseDown={(e) => {
+                            handleAnnotationDragStart(e, event.id, closestDataPoint.date, yOffset, DRAG_Y_OFFSET);
+                          }}
+                          onMouseEnter={() => {
+                            setHoveredEventId(event.id);
+                            setEventDescriptionTooltip({
+                              left: x + 50, // adjust as needed for best placement
+                              top: y,
+                              displayType: getEventDisplayType(event.type),
+                              description: event.description || '',
+                            });
+                          }}
+                          onMouseLeave={() => {
+                            setHoveredEventId(null);
+                            setEventDescriptionTooltip(null);
+                          }}
+                        >
+                          <ContextMenu>
+                            <ContextMenuTrigger asChild>
+                              <div>
+                                <TimelineAnnotation
+                                  icon={getEventIcon(event.type)}
+                                  label={event.description}
+                                  highlighted={isHighlighted}
+                                  onClick={() => {
+                                    if (!hasDragged) {
+                                      onAnnotationClick?.(event.id);
+                                    }
+                                    setHasDragged(false);
+                                  }}
+                                />
+                              </div>
+                            </ContextMenuTrigger>
+                            <ContextMenuContent>
+                              <ContextMenuItem asChild>
+                                <Button
+                                  variant="destructive"
+                                  size="sm"
+                                  className="w-full h-7 text-xs justify-start bg-red-50 text-red-600 border-red-200 hover:bg-red-100 hover:text-red-700"
+                                  onClick={() => {
+                                    deleteEvent(event.id);
+                                    onAnnotationDelete?.(event.id);
+                                  }}
+                                >
+                                  <Trash2 className="mr-2 h-4 w-4" />
+                                  Delete Event
+                                </Button>
+                              </ContextMenuItem>
+                            </ContextMenuContent>
+                          </ContextMenu>
+                        </foreignObject>
+                      );
+                    });
                   });
-                })}
+                })()}
 
                 {/* Axes with visible domain */}
                 {
@@ -898,6 +935,30 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
                   }}
                 >
                   {formatDate(currentDaysSinceBirth, birthDate, 'full', true, true)}
+                </div>
+              )}
+
+              {/* Event Description Tooltip (on-canvas) */}
+              {eventDescriptionTooltip && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    left: eventDescriptionTooltip.left,
+                    top: eventDescriptionTooltip.top,
+                    background: 'white',
+                    color: '#335966',
+                    padding: '10px 16px',
+                    borderRadius: '8px',
+                    fontSize: '13px',
+                    pointerEvents: 'none',
+                    zIndex: 100,
+                    maxWidth: 240,
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.10)',
+                    border: '2px solid #d1d5db', // gray-300
+                  }}
+                >
+                  <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 4 }}>{eventDescriptionTooltip.displayType}</div>
+                  <div style={{ fontSize: 13 }}>{eventDescriptionTooltip.description}</div>
                 </div>
               )}
             </>

@@ -18,7 +18,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from './ui/select';
-import { usePlan } from '../contexts/PlanContext';
+import { usePlan, findEventOrUpdatingEventById, getEventDefinition } from '../contexts/PlanContext';
 import type { Plan, Event, Parameter, Schema, SchemaEvent, UpdatingEvent } from '../contexts/PlanContext';
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from './ui/accordion';
 import DatePicker from './DatePicker';
@@ -48,55 +48,26 @@ const EventParametersForm: React.FC<EventParametersFormProps> = ({
     const [updatingDescExpanded, setUpdatingDescExpanded] = useState<Record<number, boolean>>({});
     // State for updating event descriptions
     const [updatingDescriptions, setUpdatingDescriptions] = useState<Record<number, string>>({});
-
-    // Helper to find event or updating event by id
-    function findEventOrUpdatingEventById(
-        plan: Plan | null,
-        id: number
-    ): { event: Event | null; updatingEvent: UpdatingEvent | null; parentEvent: Event | null } {
-        if (!plan) return { event: null, updatingEvent: null, parentEvent: null };
-        for (const event of plan.events) {
-            if (event.id === id) return { event, updatingEvent: null, parentEvent: null };
-            if (event.updating_events) {
-                for (const updatingEvent of event.updating_events) {
-                    if (updatingEvent.id === id) return { event: null, updatingEvent, parentEvent: event };
-                }
-            }
-        }
-        return { event: null, updatingEvent: null, parentEvent: null };
-    }
+    const [usdInputFocus, setUsdInputFocus] = useState<Record<number, boolean>>({});
 
     // Helper to get eventType and paramType for any eventId and paramId (main or updating)
     function getEventTypeAndParamType(eventId: number, paramId: number): { eventType: string, paramType: string } | null {
         if (!plan) return null;
-        for (const event of plan.events) {
-            if (event.id === eventId) {
-                const param = event.parameters.find(p => p.id === paramId);
-                if (param) return { eventType: event.type, paramType: param.type };
-            }
-            if (event.updating_events) {
-                for (const updatingEvent of event.updating_events) {
-                    if (updatingEvent.id === eventId) {
-                        const param = updatingEvent.parameters.find(p => p.id === paramId);
-                        if (param) return { eventType: updatingEvent.type, paramType: param.type };
-                    }
-                }
-            }
-        }
+        const { event } = findEventOrUpdatingEventById(plan, eventId);
+        if (!event) return null;
+        const param = (event as any).parameters?.find((p: Parameter) => p.id === paramId);
+        if (param) return { eventType: (event as any).type, paramType: param.type };
         return null;
     }
 
     useEffect(() => {
         if (schema && plan) {
-            const { event, updatingEvent, parentEvent } = findEventOrUpdatingEventById(plan, eventId);
+            const { event, parentEvent } = findEventOrUpdatingEventById(plan, eventId);
             let eventType = '';
             let params: Parameter[] = [];
             if (event) {
-                eventType = event.type;
-                params = event.parameters;
-            } else if (updatingEvent && parentEvent) {
-                eventType = updatingEvent.type;
-                params = updatingEvent.parameters;
+                eventType = (event as any).type;
+                params = (event as any).parameters;
             }
             const newParams: Record<number, { type: string; value: string | number }> = {};
             params.forEach(param => {
@@ -119,22 +90,18 @@ const EventParametersForm: React.FC<EventParametersFormProps> = ({
         let desc = "";
         let updatingDescs: Record<number, string> = {};
         if (plan) {
-            const mainEvent = plan.events.find(e => e.id === eventId);
-            if (mainEvent) {
-                desc = mainEvent.description;
-                if (mainEvent.updating_events) {
-                    for (const ue of mainEvent.updating_events) {
+            const { event, parentEvent } = findEventOrUpdatingEventById(plan, eventId);
+            if (event && !parentEvent) {
+                // Main event
+                desc = (event as any).description;
+                if ((event as any).updating_events) {
+                    for (const ue of (event as any).updating_events) {
                         updatingDescs[ue.id] = ue.description;
                     }
                 }
-            } else {
-                for (const event of plan.events) {
-                    const updating = event.updating_events?.find(ue => ue.id === eventId);
-                    if (updating) {
-                        desc = updating.description;
-                        break;
-                    }
-                }
+            } else if (event && parentEvent) {
+                // Updating event
+                desc = (event as any).description;
             }
         }
         setDescription(desc);
@@ -194,15 +161,6 @@ const EventParametersForm: React.FC<EventParametersFormProps> = ({
         updateParameter(eventId, info.paramType, saveValue);
     };
 
-    const getEventDefinition = (): SchemaEvent | undefined => {
-        if (!schema || !plan) return undefined;
-        const event = plan.events.find(e => e.id === eventId);
-        if (!event) return undefined;
-        return schema.events.find(e => e.type === event.type);
-    };
-
-
-
     const renderDatePicker = (param: Parameter) => {
         if (!plan?.birth_date) return null;
 
@@ -261,29 +219,35 @@ const EventParametersForm: React.FC<EventParametersFormProps> = ({
         }
 
         if (paramUnits === 'usd') {
-            // Show formatted value with commas, but store as number
-            let displayValue = value === 0 ? '' : value;
-            if (value && !isNaN(Number(value))) {
+            // Show formatted value with commas when not focused, raw when focused
+            const isFocused = usdInputFocus[param.id] || false;
+            let displayValue = String(value);
+            if (!isFocused && value !== '' && value !== '-' && !isNaN(Number(value))) {
                 displayValue = Number(value).toLocaleString('en-US');
             }
-            displayValue = String(displayValue);
             const placeholder = defaultValue ? String(defaultValue) : '';
             return (
                 <div className="relative">
                     <Input
                         type="text"
-                        value={String(displayValue)}
+                        value={displayValue}
                         placeholder={String(placeholder)}
-                        onChange={(e) => {
-                            // Remove commas for storage
-                            let newValue = e.target.value.replace(/,/g, '');
-                            newValue = newValue === '' ? '' : String(parseFloat(newValue) || 0);
-                            handleInputChange(param.id, newValue);
-                        }}
+                        onFocus={() => setUsdInputFocus(prev => ({ ...prev, [param.id]: true }))}
                         onBlur={(e) => {
+                            setUsdInputFocus(prev => ({ ...prev, [param.id]: false }));
                             let newValue = e.target.value.replace(/,/g, '');
-                            newValue = newValue === '' ? '' : String(parseFloat(newValue) || 0);
-                            handleInputBlur(param.id, newValue);
+                            // Only parse if not empty or just '-'
+                            if (newValue === '' || newValue === '-') {
+                                handleInputBlur(param.id, '');
+                            } else {
+                                const parsed = parseFloat(newValue);
+                                handleInputBlur(param.id, isNaN(parsed) ? '' : parsed);
+                            }
+                        }}
+                        onChange={(e) => {
+                            // Allow raw input (including minus, decimal, etc.)
+                            let raw = e.target.value.replace(/,/g, '');
+                            handleInputChange(param.id, raw);
                         }}
                         className="w-full pr-12 placeholder:text-muted-foreground"
                     />
@@ -295,24 +259,27 @@ const EventParametersForm: React.FC<EventParametersFormProps> = ({
         }
 
         if (paramUnits === 'apy' || paramUnits === 'percentage') {
-            const displayValue = value === 0 ? '' : String(value);
             const placeholder = defaultValue ?
                 (paramUnits === 'percentage' ? ((defaultValue as number) * 100).toFixed(2) : String(defaultValue)) :
                 '';
             return (
                 <div className="relative">
                     <Input
-                        type="number"
+                        type="text"
                         value={String(value)}
                         placeholder={placeholder}
                         onChange={(e) => {
-                            // Store as string to allow decimal typing
+                            // Allow raw input (including minus, decimal, etc.)
                             handleInputChange(param.id, e.target.value);
                         }}
                         onBlur={(e) => {
-                            // Only parse to number on blur
-                            const parsed = parseFloat(e.target.value);
-                            handleInputBlur(param.id, isNaN(parsed) ? '' : parsed);
+                            const val = e.target.value;
+                            if (val === '' || val === '-') {
+                                handleInputBlur(param.id, '');
+                            } else {
+                                const parsed = parseFloat(val);
+                                handleInputBlur(param.id, isNaN(parsed) ? '' : parsed);
+                            }
                         }}
                         step={paramUnits === 'percentage' ? '0.01' : 'any'}
                         className="w-full pr-12 placeholder:text-muted-foreground"
@@ -325,22 +292,26 @@ const EventParametersForm: React.FC<EventParametersFormProps> = ({
         }
 
         if (paramUnits === 'days') {
-            const displayValue = value === 0 ? '' : String(value);
             const placeholder = defaultValue ? String(defaultValue) : '';
 
             return (
                 <div className="relative">
                     <Input
-                        type="number"
-                        value={displayValue}
+                        type="text"
+                        value={String(value)}
                         placeholder={placeholder}
                         onChange={(e) => {
-                            const newValue = parseInt(e.target.value) || 0;
-                            handleInputChange(param.id, newValue);
+                            // Allow raw input (including minus, etc.)
+                            handleInputChange(param.id, e.target.value);
                         }}
                         onBlur={(e) => {
-                            const newValue = parseInt(e.target.value) || 0;
-                            handleInputBlur(param.id, newValue);
+                            const val = e.target.value;
+                            if (val === '' || val === '-') {
+                                handleInputBlur(param.id, '');
+                            } else {
+                                const parsed = parseInt(val, 10);
+                                handleInputBlur(param.id, isNaN(parsed) ? '' : parsed);
+                            }
                         }}
                         step="1"
                         className="w-full pr-12 placeholder:text-muted-foreground"
@@ -365,9 +336,9 @@ const EventParametersForm: React.FC<EventParametersFormProps> = ({
     };
 
     // For rendering parameters, use the helper to get the right event/updating event
-    const { event: foundEvent, updatingEvent: foundUpdatingEvent, parentEvent: foundParentEvent } = findEventOrUpdatingEventById(plan, eventId);
-    const currentEvent = foundEvent;
-    const currentUpdatingEvent = foundUpdatingEvent;
+    const { event: foundEvent, parentEvent: foundParentEvent } = findEventOrUpdatingEventById(plan, eventId);
+    const currentEvent = foundEvent && !foundParentEvent ? foundEvent : null;
+    const currentUpdatingEvent = foundEvent && foundParentEvent ? foundEvent : null;
 
     // --- Updating Events Section ---
     // Helper to get main event and its updating events
@@ -393,8 +364,15 @@ const EventParametersForm: React.FC<EventParametersFormProps> = ({
             <DialogContent className="sm:max-w-md max-h-[80vh] overflow-y-auto p-6">
                 <DialogHeader className="mb-6">
                     <div className="flex items-center gap-3 mb-4">
-                        {currentEvent && getEventIcon(currentEvent.type)}
-                        <DialogTitle>{currentEvent ? getEventDisplayType(currentEvent.type) : 'Event'}</DialogTitle>
+                        {currentEvent && getEventIcon((currentEvent as any).type)}
+                        {currentUpdatingEvent && getEventIcon((currentUpdatingEvent as any).type)}
+                        <DialogTitle>
+                            {currentEvent
+                                ? getEventDisplayType((currentEvent as any).type)
+                                : currentUpdatingEvent
+                                    ? getEventDisplayType((currentUpdatingEvent as any).type)
+                                    : 'Event'}
+                        </DialogTitle>
                     </div>
                     <DialogDescription>
                         Configure the parameters for this event. Changes will be saved automatically.
@@ -407,13 +385,13 @@ const EventParametersForm: React.FC<EventParametersFormProps> = ({
                         <div key={param.id} className="space-y-2">
                             <div className="space-y-1">
                                 <Label htmlFor={param.id.toString()} className="text-sm font-medium">
-                                    {getParameterDisplayName((currentEvent ? currentEvent.type : currentUpdatingEvent?.type) || '', param.type)}
+                                    {getParameterDisplayName((currentEvent ? (currentEvent as any).type : (currentUpdatingEvent as any)?.type) || '', param.type)}
                                 </Label>
                                 <p className="text-xs text-muted-foreground">
-                                    {getEventDefinition()?.parameters.find(p => p.type === param.type)?.description}
+                                    {getEventDefinition(plan, schema, eventId)?.parameters.find((p: any) => p.type === param.type)?.description}
                                 </p>
                             </div>
-                            {renderInput(param, (currentEvent ? currentEvent.type : currentUpdatingEvent?.type) || undefined)}
+                            {renderInput(param, (currentEvent ? (currentEvent as any).type : (currentUpdatingEvent as any)?.type) || undefined)}
                         </div>
                     ))}
 

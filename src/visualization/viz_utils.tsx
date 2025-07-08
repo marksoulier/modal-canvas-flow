@@ -24,6 +24,11 @@ export const getAgeFromDays = (daysSinceBirth: number): number => {
     return Math.floor(daysSinceBirth / 365.25);
 };
 
+// Helper to calculate days since birth from age in years
+export const getDaysFromAge = (age: number): number => {
+    return Math.round(age * 365.25);
+};
+
 // Convert days since birth to actual date
 export const daysToDate = (daysSinceBirth: number, birthDate: Date): Date => {
     const result = new Date(birthDate);
@@ -32,7 +37,7 @@ export const daysToDate = (daysSinceBirth: number, birthDate: Date): Date => {
 };
 
 // Get interval in days based on selected time interval
-export type TimeInterval = 'day' | 'week' | 'month' | 'year';
+export type TimeInterval = 'day' | 'week' | 'month' | 'quarter' | 'half_year' | 'year';
 export type ExtendedTimeInterval = TimeInterval | 'full';
 
 export const getIntervalInDays = (interval: TimeInterval): number => {
@@ -43,6 +48,10 @@ export const getIntervalInDays = (interval: TimeInterval): number => {
             return 7;
         case 'month':
             return 365 / 12;
+        case 'quarter':
+            return 91.25;
+        case 'half_year':
+            return 182.5;
         case 'year':
             return 365;
         default:

@@ -305,6 +305,35 @@ export const manual_correction = (event: any, envelopes: Record<string, any>) =>
     env.functions.push(correction_func);
 };
 
+// Declare initial balances for up to five envelopes at a specific time
+export const declare_accounts = (event: any, envelopes: Record<string, any>) => {
+    const params = event.parameters;
+    for (let i = 1; i <= 5; i++) {
+        const amountKey = `amount${i}`;
+        const envelopeKey = `envelope${i}`;
+        if (params[envelopeKey] && envelopes[params[envelopeKey]]) {
+            const to_key = params[envelopeKey];
+            const env = envelopes[to_key];
+            let simulated_value = 0.0;
+            for (const func of env.functions) {
+                simulated_value += func(params.start_time);
+            }
+            const difference = params[amountKey] - simulated_value;
+            console.log(`Difference applied to ${to_key}:`, difference);
+            // Get growth parameters from envelope
+            const [_, theta_growth_dest] = get_growth_parameters(envelopes, undefined, to_key);
+            // Create the correction function and append it to the envelope
+            const correction_func = T(
+                { t_k: params.start_time },
+                difference > 0 ? f_in : f_out,
+                P(difference > 0 ? { a: Math.abs(difference) } : { b: Math.abs(difference) }),
+                theta_growth_dest
+            );
+            env.functions.push(correction_func);
+        }
+    }
+};
+
 export const transfer_money = (event: any, envelopes: Record<string, any>) => {
     const params = event.parameters;
 

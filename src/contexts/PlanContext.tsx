@@ -103,6 +103,7 @@ export interface SchemaEvent {
     icon: string;
     parameters: SchemaParameter[];
     updating_events?: SchemaUpdatingEvent[];
+    disclaimer?: string;
 }
 
 export interface Schema {
@@ -134,6 +135,7 @@ interface PlanContextType {
     updateEventDescription: (eventId: number, newDescription: string) => void;
     updatePlanTitle: (newTitle: string) => void;
     updateBirthDate: (daysFromCurrent: number) => void;
+    getEventDisclaimer: (eventType: string) => string;
 }
 
 const SCHEMA_PATH = '/assets/event_schema.json';
@@ -453,7 +455,15 @@ export function PlanProvider({ children }: PlanProviderProps) {
     const getEventDisplayType = useCallback((eventType: string) => {
         if (!schema) return eventType;
         const eventSchema = schema.events.find(e => e.type === eventType);
-        return eventSchema?.display_type || eventType;
+        if (eventSchema?.display_type) return eventSchema.display_type;
+        // Look for updating_events
+        for (const evt of schema.events) {
+            const updating = evt.updating_events?.find(ue => ue.type === eventType);
+            if (updating && updating.display_type) {
+                return updating.display_type;
+            }
+        }
+        return eventType;
     }, [schema]);
 
     const getParameterDisplayName = useCallback((eventType: string, parameterType: string) => {
@@ -569,6 +579,12 @@ export function PlanProvider({ children }: PlanProviderProps) {
         });
     }, [plan]);
 
+    const getEventDisclaimer = useCallback((eventType: string) => {
+        if (!schema) return '';
+        const eventSchema = schema.events.find(e => e.type === eventType);
+        return eventSchema?.disclaimer || '';
+    }, [schema]);
+
     const value = {
         plan,
         schema,
@@ -589,6 +605,7 @@ export function PlanProvider({ children }: PlanProviderProps) {
         updateEventDescription,
         updatePlanTitle,
         updateBirthDate,
+        getEventDisclaimer,
     };
 
     // Don't render children until we've attempted to load the default plan and schema
@@ -601,4 +618,40 @@ export function PlanProvider({ children }: PlanProviderProps) {
             {children}
         </PlanContext.Provider>
     );
+}
+
+// Helper to find event or updating event by id
+export function findEventOrUpdatingEventById(
+    plan: Plan | null,
+    id: number
+): { event: Event | UpdatingEvent | null; parentEvent: Event | null } {
+    if (!plan) return { event: null, parentEvent: null };
+    for (const event of plan.events) {
+        if (event.id === id) return { event, parentEvent: null };
+        if (event.updating_events) {
+            for (const updatingEvent of event.updating_events) {
+                if (updatingEvent.id === id) return { event: updatingEvent, parentEvent: event };
+            }
+        }
+    }
+    return { event: null, parentEvent: null };
+}
+
+// Helper to get the schema definition for an event or updating event by id
+export function getEventDefinition(
+    plan: Plan | null,
+    schema: Schema | null,
+    eventId: number
+): SchemaEvent | SchemaUpdatingEvent | undefined {
+    if (!plan || !schema) return undefined;
+    const { event, parentEvent } = findEventOrUpdatingEventById(plan, eventId);
+    if (!event) return undefined;
+    if (!parentEvent) {
+        // Main event
+        return schema.events.find(e => e.type === (event as any).type);
+    } else {
+        // Updating event
+        const parentSchema = schema.events.find(e => e.type === parentEvent.type);
+        return parentSchema?.updating_events?.find(ue => ue.type === (event as any).type);
+    }
 } 

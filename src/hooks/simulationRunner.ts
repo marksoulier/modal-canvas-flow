@@ -6,7 +6,8 @@ import {
     buy_health_insurance, buy_life_insurance,
     receive_government_aid, invest_money,
     high_yield_savings_account, pay_taxes, buy_groceries, manual_correction,
-    get_wage_job, transfer_money, reoccuring_income, reoccuring_spending, reoccuring_transfer
+    get_wage_job, transfer_money, reoccuring_income, reoccuring_spending, reoccuring_transfer,
+    declare_accounts
 } from './baseFunctions';
 import { evaluateResults } from './resultsEvaluation';
 import type { Plan, Schema } from '../contexts/PlanContext';
@@ -54,6 +55,8 @@ export async function runSimulation(
 
         // Collect manual_correction events to process at the end
         const manualCorrectionEvents: any[] = [];
+        // Collect declare_accounts events to process at the end
+        const declareAccountsEvents: any[] = [];
 
         for (const event of parsedEvents) {
             console.log("Event: ", event.type)
@@ -61,6 +64,12 @@ export async function runSimulation(
             // Skip manual_correction events during the first pass
             if (event.type === 'manual_correction') {
                 manualCorrectionEvents.push(event);
+                continue;
+            }
+
+            // Skip declare_accounts events during the first pass
+            if (event.type === 'declare_accounts') {
+                declareAccountsEvents.push(event);
                 continue;
             }
 
@@ -99,6 +108,13 @@ export async function runSimulation(
         for (const event of manualCorrectionEvents) {
             console.log("Manual correction event: ", event.parameters);
             manual_correction(event, envelopes);
+        }
+
+        // Process all declare_accounts events at the end
+        console.log(`Processing ${declareAccountsEvents.length} declare_accounts events at the end`);
+        for (const event of declareAccountsEvents) {
+            console.log("Declare accounts event: ", event.parameters);
+            declare_accounts(event, envelopes);
         }
 
         console.log(envelopes)
