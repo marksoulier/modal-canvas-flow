@@ -12,7 +12,7 @@ import { cn } from '../lib/utils';
 
 interface DatePickerProps {
     value: string | number;
-    onChange: (value: string) => void;
+    onChange: (value: number) => void;
     birthDate?: string;
     placeholder?: string;
     className?: string;
@@ -56,7 +56,7 @@ const DatePicker: React.FC<DatePickerProps> = ({
         if (!birthDate) return;
         const birth = new Date(birthDate);
         const daysDiff = Math.floor((newDate.getTime() - birth.getTime()) / (1000 * 60 * 60 * 24));
-        onChange(daysDiff.toString());
+        onChange(Number(daysDiff));
         setViewMonth(newDate);
     };
 
