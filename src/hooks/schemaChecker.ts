@@ -72,9 +72,33 @@ export function validateEventIds(events: any[], isUpdating = false, parentEventI
     return errors;
 }
 
-export function validateProblem(problem: any, schemaMap: any): string[] {
+
+// Exported helper: Get all valid event categories from the schema
+export function getValidCategories(schema: any): Set<string> {
+    // Use the top-level categories array
+    return new Set(schema.categories);
+}
+
+export function validateProblem(problem: any, schemaMap: any, schema?: any, plan?: any): string[] {
     const errors: string[] = [];
     const seenIds = new Set<string>();
+
+    // --- Envelope category check ---
+    if (problem.envelopes && schema) {
+        const validCategories = getValidCategories(schema);
+        for (const envelope of problem.envelopes) {
+            if (envelope.category && !validCategories.has(envelope.category)) {
+                errors.push(`❌ Envelope "${envelope.name}" has unknown category "${envelope.category}"`);
+            }
+        }
+    }
+
+    // --- Envelope parameter value check ---
+    // Only run if plan is provided and has envelopes
+    let validEnvelopeNames: Set<string> = new Set();
+    if (plan && plan.envelopes) {
+        validEnvelopeNames = new Set(plan.envelopes.map((e: any) => e.name));
+    }
 
     for (const event of problem.events) {
         const type = event.type;
@@ -86,6 +110,15 @@ export function validateProblem(problem: any, schemaMap: any): string[] {
         }
 
         errors.push(...validateParameters(type, id, schemaMap[type].params, event.parameters || []));
+
+        // Envelope parameter check for main event
+        if (event.parameters && validEnvelopeNames.size > 0) {
+            for (const param of event.parameters) {
+                if (param.type === 'envelope' && !validEnvelopeNames.has(param.value)) {
+                    errors.push(`❌ Invalid envelope name "${param.value}" in event ${id} (${type})`);
+                }
+            }
+        }
 
         if (seenIds.has(id)) {
             errors.push(`❌ Duplicate event id: ${id}`);
@@ -104,6 +137,15 @@ export function validateProblem(problem: any, schemaMap: any): string[] {
                 }
 
                 errors.push(...validateParameters(updType, updId, schemaMap[type].updating_events[updType], upd.parameters || [], true, id));
+
+                // Envelope parameter check for updating event
+                if (upd.parameters && validEnvelopeNames.size > 0) {
+                    for (const param of upd.parameters) {
+                        if (param.type === 'envelope' && !validEnvelopeNames.has(param.value)) {
+                            errors.push(`❌ Invalid envelope name "${param.value}" in updating event ${updId} (${updType}), parent event ${id}`);
+                        }
+                    }
+                }
             }
 
             errors.push(...validateEventIds(event.updating_events, true, id));

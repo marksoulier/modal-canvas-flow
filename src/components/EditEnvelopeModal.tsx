@@ -7,48 +7,46 @@ import { Label } from './ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { usePlan } from '../contexts/PlanContext';
 
-interface AddEnvelopeModalProps {
+interface EditEnvelopeModalProps {
   isOpen: boolean;
   onClose: () => void;
+  envelope?: {
+    name: string;
+    category: string;
+    growth: string;
+    rate: number;
+  } | null;
+  onSave: (envelope: { name: string; category: string; growth: string; rate: number }) => void;
 }
 
-const AddEnvelopeModal: React.FC<AddEnvelopeModalProps> = ({ isOpen, onClose }) => {
-  const [name, setName] = useState('');
-  const [category, setCategory] = useState('');
-  const [growth, setGrowth] = useState('None');
-  const [rate, setRate] = useState(0);
-  
-  const { schema, plan, loadPlan } = usePlan();
+const EditEnvelopeModal: React.FC<EditEnvelopeModalProps> = ({ isOpen, onClose, envelope = null, onSave }) => {
+  const [name, setName] = useState(envelope?.name || '');
+  const [category, setCategory] = useState(envelope?.category || '');
+  const [growth, setGrowth] = useState(envelope?.growth || 'None');
+  const [rate, setRate] = useState(envelope ? envelope.rate * 100 : 0);
+
+  const { schema } = usePlan();
+
+  React.useEffect(() => {
+    setName(envelope?.name || '');
+    setCategory(envelope?.category || '');
+    setGrowth(envelope?.growth || 'None');
+    setRate(envelope ? envelope.rate * 100 : 0);
+  }, [envelope, isOpen]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-
-    if (!name.trim() || !category) {
-      return;
-    }
-
-    if (!plan) return;
-
-    const newEnvelope = {
+    if (!name.trim() || !category) return;
+    onSave({
       name: name.trim(),
       category,
       growth,
-      rate: rate / 100 // Convert percentage to decimal
-    };
-
-    const updatedPlan = {
-      ...plan,
-      envelopes: [...plan.envelopes, newEnvelope]
-    };
-
-    loadPlan(updatedPlan);
-    
-    // Reset form
+      rate: rate / 100
+    });
     setName('');
     setCategory('');
     setGrowth('None');
     setRate(0);
-    
     onClose();
   };
 
@@ -63,7 +61,7 @@ const AddEnvelopeModal: React.FC<AddEnvelopeModalProps> = ({ isOpen, onClose }) 
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Add New Envelope</DialogTitle>
+          <DialogTitle>Envelope Details</DialogTitle>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -85,7 +83,7 @@ const AddEnvelopeModal: React.FC<AddEnvelopeModalProps> = ({ isOpen, onClose }) 
                 <SelectValue placeholder="Select category" />
               </SelectTrigger>
               <SelectContent>
-                {schema?.envelopes.map((cat) => (
+                {schema?.categories.map((cat: string) => (
                   <SelectItem key={cat} value={cat}>
                     {cat}
                   </SelectItem>
@@ -125,7 +123,7 @@ const AddEnvelopeModal: React.FC<AddEnvelopeModalProps> = ({ isOpen, onClose }) 
 
           <div className="flex flex-col space-y-3 pt-4">
             <Button type="submit" className="w-full">
-              Add Envelope
+              Save Envelope
             </Button>
             <Button type="button" variant="outline" onClick={onClose} className="w-full">
               Cancel
@@ -137,4 +135,4 @@ const AddEnvelopeModal: React.FC<AddEnvelopeModalProps> = ({ isOpen, onClose }) 
   );
 };
 
-export default AddEnvelopeModal;
+export default EditEnvelopeModal;

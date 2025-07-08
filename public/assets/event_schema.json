@@ -2,10 +2,10 @@
     "inflation_rate": 0.03,
     "adjust_for_inflation": true,
     "birth_date": "2001-09-11",
-    "envelopes": [
+    "categories": [
         "Cash",
-        "House",
         "Debt",
+        "Assets",
         "Savings",
         "Investments",
         "Retirement"
@@ -47,7 +47,7 @@
                     "display_name": "From Envelope",
                     "parameter_units": "envelope",
                     "description": "Which envelope the money comes from",
-                    "default": "Cash"
+                    "default": "Other (Cash)"
                 }
             ]
         },
@@ -79,7 +79,7 @@
                     "display_name": "To Envelope",
                     "parameter_units": "envelope",
                     "description": "Which envelope the money goes to",
-                    "default": "Cash"
+                    "default": "Other (Cash)"
                 }
             ]
         },
@@ -167,14 +167,14 @@
                     "display_name": "Deposit Envelope",
                     "parameter_units": "envelope",
                     "description": "Envelope where salary is deposited",
-                    "default": "Cash"
+                    "default": "Other (Cash)"
                 },
                 {
                     "type": "p_401k_key",
                     "display_name": "401k Envelope",
                     "parameter_units": "envelope",
                     "description": "Envelope where 401k contributions are tracked",
-                    "default": "Retirement"
+                    "default": "Other (Retirement)"
                 }
             ],
             "updating_events": [
@@ -330,14 +330,14 @@
                     "display_name": "Deposit Envelope",
                     "parameter_units": "envelope",
                     "description": "Envelope where wages are deposited",
-                    "default": "Cash"
+                    "default": "Other (Cash)"
                 },
                 {
                     "type": "p_401k_key",
                     "display_name": "401k Envelope",
                     "parameter_units": "envelope",
                     "description": "Envelope where 401k contributions are tracked",
-                    "default": "Retirement"
+                    "default": "Other (Retirement)"
                 }
             ],
             "updating_events": [
@@ -459,14 +459,14 @@
                     "display_name": "From Envelope",
                     "parameter_units": "envelope",
                     "description": "Which envelope the money comes from.",
-                    "default": "Cash"
+                    "default": "Other (Cash)"
                 },
                 {
                     "type": "to_key",
                     "display_name": "To Envelope",
                     "parameter_units": "envelope",
                     "description": "Envelope where business assets are tracked",
-                    "default": "Investments"
+                    "default": "Other (Investments)"
                 }
             ],
             "updating_events": [
@@ -502,7 +502,7 @@
                             "display_name": "Deposit Envelope",
                             "parameter_units": "envelope",
                             "description": "Envelope where business income is deposited",
-                            "default": "Cash"
+                            "default": "Other (Cash)"
                         }
                     ]
                 },
@@ -531,7 +531,7 @@
                             "display_name": "From Envelope",
                             "parameter_units": "envelope",
                             "description": "Envelope where loss is deducted from",
-                            "default": "Cash"
+                            "default": "Other (Cash)"
                         }
                     ]
                 }
@@ -579,14 +579,14 @@
                     "display_name": "From Envelope",
                     "parameter_units": "envelope",
                     "description": "Envelope to withdraw from (e.g., Retirement).",
-                    "default": "Retirement"
+                    "default": "Other (Retirement)"
                 },
                 {
                     "type": "to_key",
                     "display_name": "To Envelope",
                     "parameter_units": "envelope",
                     "description": "Envelope where withdrawals are deposited",
-                    "default": "Cash"
+                    "default": "Other (Cash)"
                 }
             ]
         },
@@ -653,14 +653,14 @@
                     "display_name": "From Envelope",
                     "parameter_units": "envelope",
                     "description": "Envelope where downpayment comes from",
-                    "default": "Cash"
+                    "default": "Other (Cash)"
                 },
                 {
                     "type": "to_key",
                     "display_name": "To Envelope",
                     "parameter_units": "envelope",
                     "description": "Envelope where house value is tracked",
-                    "default": "House"
+                    "default": "Other (House)"
                 },
                 {
                     "type": "property_tax_rate",
@@ -718,7 +718,7 @@
                             "display_name": "From Envelope",
                             "parameter_units": "envelope",
                             "description": "Envelope where payment comes from",
-                            "default": "Cash"
+                            "default": "Other (Cash)"
                         },
                         {
                             "type": "month_index",
@@ -754,7 +754,7 @@
                             "display_name": "From Envelope",
                             "parameter_units": "envelope",
                             "description": "Envelope where payment comes from",
-                            "default": "Cash"
+                            "default": "Other (Cash)"
                         },
                         {
                             "type": "month_index",
@@ -790,14 +790,14 @@
                             "display_name": "From Envelope",
                             "parameter_units": "envelope",
                             "description": "Envelope where house value is tracked",
-                            "default": "House"
+                            "default": "Other (House)"
                         },
                         {
                             "type": "to_key",
                             "display_name": "To Envelope",
                             "parameter_units": "envelope",
                             "description": "Envelope where sale proceeds are deposited",
-                            "default": "Cash"
+                            "default": "Other (Cash)"
                         }
                     ]
                 },
@@ -840,7 +840,7 @@
                             "display_name": "From Envelope",
                             "parameter_units": "envelope",
                             "description": "Envelope where premiums are paid from",
-                            "default": "Cash"
+                            "default": "Other (Cash)"
                         }
                     ],
                     "updating_events": [
@@ -876,7 +876,7 @@
                                     "display_name": "To Envelope",
                                     "parameter_units": "envelope",
                                     "description": "Envelope where insurance payout is received",
-                                    "default": "Cash"
+                                    "default": "Other (Cash)"
                                 }
                             ]
                         },
@@ -912,7 +912,7 @@
                                     "display_name": "To Envelope",
                                     "parameter_units": "envelope",
                                     "description": "Envelope where insurance payout is received",
-                                    "default": "Cash"
+                                    "default": "Other (Cash)"
                                 }
                             ]
                         },
@@ -991,14 +991,14 @@
                     "display_name": "From Envelope",
                     "parameter_units": "envelope",
                     "description": "Which envelope the money comes from.",
-                    "default": "Cash"
+                    "default": "Other (Cash)"
                 },
                 {
                     "type": "to_key",
                     "display_name": "To Envelope",
                     "parameter_units": "envelope",
                     "description": "Envelope where car value is tracked",
-                    "default": "Investments"
+                    "default": "Other (Investments)"
                 }
             ],
             "updating_events": [
@@ -1027,7 +1027,7 @@
                             "display_name": "From Envelope",
                             "parameter_units": "envelope",
                             "description": "Envelope where payment comes from",
-                            "default": "Cash"
+                            "default": "Other (Cash)"
                         }
                     ]
                 },
@@ -1056,7 +1056,7 @@
                             "display_name": "From Envelope",
                             "parameter_units": "envelope",
                             "description": "Envelope where repair cost is paid from",
-                            "default": "Cash"
+                            "default": "Other (Cash)"
                         }
                     ]
                 }
@@ -1090,7 +1090,7 @@
                     "display_name": "From Envelope",
                     "parameter_units": "envelope",
                     "description": "Which envelope the cost is paid from.",
-                    "default": "Cash"
+                    "default": "Other (Cash)"
                 }
             ],
             "updating_events": [
@@ -1119,7 +1119,7 @@
                             "display_name": "From Envelope",
                             "parameter_units": "envelope",
                             "description": "Envelope where childcare costs are paid from",
-                            "default": "Cash"
+                            "default": "Other (Cash)"
                         },
                         {
                             "type": "end_days",
@@ -1162,14 +1162,14 @@
                             "display_name": "From Envelope",
                             "parameter_units": "envelope",
                             "description": "Envelope where contributions come from",
-                            "default": "Cash"
+                            "default": "Other (Cash)"
                         },
                         {
                             "type": "to_key",
                             "display_name": "To Envelope",
                             "parameter_units": "envelope",
                             "description": "Envelope where college fund is tracked",
-                            "default": "Savings"
+                            "default": "Other (Savings)"
                         },
                         {
                             "type": "end_days",
@@ -1210,7 +1210,7 @@
                     "display_name": "From Envelope",
                     "parameter_units": "envelope",
                     "description": "Envelope where wedding costs are paid from",
-                    "default": "Cash"
+                    "default": "Other (Cash)"
                 }
             ]
         },
@@ -1249,7 +1249,7 @@
                     "display_name": "From Envelope",
                     "parameter_units": "envelope",
                     "description": "Envelope where divorce costs are paid from",
-                    "default": "Cash"
+                    "default": "Other (Cash)"
                 }
             ]
         },
@@ -1313,7 +1313,7 @@
                     "display_name": "From Envelope",
                     "parameter_units": "envelope",
                     "description": "Envelope where premiums are paid from",
-                    "default": "Cash"
+                    "default": "Other (Cash)"
                 }
             ],
             "updating_events": [
@@ -1342,7 +1342,7 @@
                             "display_name": "From Envelope",
                             "parameter_units": "envelope",
                             "description": "Envelope to cover the out-of-pocket portion.",
-                            "default": "Cash"
+                            "default": "Other (Cash)"
                         },
                         {
                             "type": "insurance_coverage",
@@ -1404,7 +1404,7 @@
                     "display_name": "From Envelope",
                     "parameter_units": "envelope",
                     "description": "Funding envelope for premium payments.",
-                    "default": "Cash"
+                    "default": "Other (Cash)"
                 }
             ],
             "updating_events": [
@@ -1474,7 +1474,7 @@
                     "display_name": "To Envelope",
                     "parameter_units": "envelope",
                     "description": "Envelope where aid payments are received",
-                    "default": "Cash"
+                    "default": "Other (Cash)"
                 },
                 {
                     "type": "end_days",
@@ -1513,14 +1513,14 @@
                     "display_name": "From Envelope",
                     "parameter_units": "envelope",
                     "description": "Envelope where funds come from.",
-                    "default": "Cash"
+                    "default": "Other (Cash)"
                 },
                 {
                     "type": "to_key",
                     "display_name": "To Envelope",
                     "parameter_units": "envelope",
                     "description": "Envelope to which the investment is applied.",
-                    "default": "Investments"
+                    "default": "Other (Investments)"
                 },
                 {
                     "type": "expected_return",
@@ -1556,7 +1556,7 @@
                             "display_name": "To Envelope",
                             "parameter_units": "envelope",
                             "description": "Envelope where dividends are received",
-                            "default": "Cash"
+                            "default": "Other (Cash)"
                         }
                     ]
                 },
@@ -1592,7 +1592,7 @@
                             "display_name": "From Envelope",
                             "parameter_units": "envelope",
                             "description": "Envelope where contributions are from",
-                            "default": "Cash"
+                            "default": "Other (Cash)"
                         }
                     ]
                 }
@@ -1633,14 +1633,14 @@
                     "display_name": "From Envelope",
                     "parameter_units": "envelope",
                     "description": "Envelope where funds originate.",
-                    "default": "Cash"
+                    "default": "Other (Cash)"
                 },
                 {
                     "type": "to_key",
                     "display_name": "To Envelope",
                     "parameter_units": "envelope",
                     "description": "Envelope for savings balance.",
-                    "default": "Savings"
+                    "default": "Other (Savings)"
                 }
             ]
         },
@@ -1672,7 +1672,7 @@
                     "display_name": "From Envelope",
                     "parameter_units": "envelope",
                     "description": "Envelope where taxes are paid from",
-                    "default": "Cash"
+                    "default": "Other (Cash)"
                 }
             ],
             "updating_events": [
@@ -1701,7 +1701,7 @@
                             "display_name": "To Envelope",
                             "parameter_units": "envelope",
                             "description": "Envelope where refund is received",
-                            "default": "Cash"
+                            "default": "Other (Cash)"
                         }
                     ]
                 }
@@ -1735,7 +1735,7 @@
                     "display_name": "From Envelope",
                     "parameter_units": "envelope",
                     "description": "Envelope where grocery costs are paid from",
-                    "default": "Cash"
+                    "default": "Other (Cash)"
                 },
                 {
                     "type": "end_days",
@@ -1775,7 +1775,7 @@
                     "display_name": "Target Envelope",
                     "parameter_units": "envelope",
                     "description": "Envelope to be adjusted.",
-                    "default": "Cash"
+                    "default": "Other (Cash)"
                 }
             ]
         },
@@ -1807,14 +1807,14 @@
                     "display_name": "From Envelope",
                     "parameter_units": "envelope",
                     "description": "Source envelope for the transfer",
-                    "default": "Cash"
+                    "default": "Other (Cash)"
                 },
                 {
                     "type": "to_key",
                     "display_name": "To Envelope",
                     "parameter_units": "envelope",
                     "description": "Destination envelope for the transfer",
-                    "default": "Investments"
+                    "default": "Other (Investments)"
                 }
             ]
         },
@@ -1853,7 +1853,7 @@
                     "display_name": "To Envelope",
                     "parameter_units": "envelope",
                     "description": "Envelope where income is deposited.",
-                    "default": "Cash"
+                    "default": "Other (Cash)"
                 },
                 {
                     "type": "end_days",
@@ -1899,7 +1899,7 @@
                     "display_name": "From Envelope",
                     "parameter_units": "envelope",
                     "description": "Envelope where spending is deducted from.",
-                    "default": "Cash"
+                    "default": "Other (Cash)"
                 },
                 {
                     "type": "end_days",
@@ -1945,14 +1945,14 @@
                     "display_name": "From Envelope",
                     "parameter_units": "envelope",
                     "description": "Envelope where money is transferred from.",
-                    "default": "Cash"
+                    "default": "Other (Cash)"
                 },
                 {
                     "type": "to_key",
                     "display_name": "To Envelope",
                     "parameter_units": "envelope",
                     "description": "Envelope where money is transferred to.",
-                    "default": "Investments"
+                    "default": "Other (Investments)"
                 },
                 {
                     "type": "end_days",
@@ -1991,7 +1991,7 @@
                     "display_name": "Envelope 1",
                     "parameter_units": "envelope",
                     "description": "First envelope/account name.",
-                    "default": "Cash"
+                    "default": "Other (Cash)"
                 },
                 {
                     "type": "amount2",
@@ -2005,7 +2005,7 @@
                     "display_name": "Envelope 2",
                     "parameter_units": "envelope",
                     "description": "Second envelope/account name.",
-                    "default": "Savings"
+                    "default": "Other (Savings)"
                 },
                 {
                     "type": "amount3",
@@ -2019,7 +2019,7 @@
                     "display_name": "Envelope 3",
                     "parameter_units": "envelope",
                     "description": "Third envelope/account name.",
-                    "default": "Investments"
+                    "default": "Other (Investments)"
                 },
                 {
                     "type": "amount4",
@@ -2033,7 +2033,7 @@
                     "display_name": "Envelope 4",
                     "parameter_units": "envelope",
                     "description": "Fourth envelope/account name.",
-                    "default": "Retirement"
+                    "default": "Other (Retirement)"
                 },
                 {
                     "type": "amount5",
@@ -2047,7 +2047,7 @@
                     "display_name": "Envelope 5",
                     "parameter_units": "envelope",
                     "description": "Fifth envelope/account name.",
-                    "default": "Debt"
+                    "default": "Other (Debt)"
                 }
             ]
         }

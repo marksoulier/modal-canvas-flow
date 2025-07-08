@@ -110,7 +110,7 @@ export interface Schema {
     inflation_rate: number;
     adjust_for_inflation: boolean;
     birth_date: string;
-    envelopes: string[];
+    categories: string[];
     parameter_units_list: string[];
     events: SchemaEvent[];
 }
@@ -122,7 +122,6 @@ interface PlanContextType {
     savePlan: () => string;
     loadPlanFromFile: (file: File) => Promise<void>;
     savePlanToFile: () => void;
-    loadDefaultPlan: () => Promise<void>;
     updateParameter: (eventId: number, parameterType: string, newValue: number | string) => void;
     deleteEvent: (eventId: number) => void;
     addEvent: (eventType: string) => number;
@@ -139,6 +138,11 @@ interface PlanContextType {
 }
 
 const SCHEMA_PATH = '/assets/event_schema.json';
+
+// --- AUTO-PERSISTENCE FLAG ---
+// Set this to true to enable automatic saving/loading of the plan to/from localStorage
+const ENABLE_AUTO_PERSIST_PLAN = true;
+const LOCALSTORAGE_PLAN_KEY = 'user_plan_v1';
 
 const PlanContext = createContext<PlanContextType | null>(null);
 
@@ -174,38 +178,54 @@ export function PlanProvider({ children }: PlanProviderProps) {
                 throw error;
             }
         };
-
         loadSchema();
     }, []);
 
-    const loadDefaultPlan = useCallback(async () => {
-        try {
-            const response = await fetch('/assets/plan.json');
-            if (!response.ok) {
-                throw new Error('Failed to load default plan');
-            }
-            const defaultPlan = await response.json();
-            setPlan(defaultPlan);
-        } catch (error) {
-            console.error('Error loading default plan:', error);
-            throw error;
-        }
-    }, []);
-
-    // Load default plan on mount
+    // --- Clean startup: load from localStorage if available, else load default plan ---
     useEffect(() => {
-        const initializePlan = async () => {
-            try {
-                await loadDefaultPlan();
-            } catch (error) {
-                console.error('Error during initialization:', error);
-            } finally {
-                setIsInitialized(true);
+        if (isInitialized) return; // Prevent double init
+        const tryLoadPlan = async () => {
+            let loaded = false;
+            if (ENABLE_AUTO_PERSIST_PLAN) {
+                const stored = localStorage.getItem(LOCALSTORAGE_PLAN_KEY);
+                if (stored) {
+                    try {
+                        const parsed = JSON.parse(stored);
+                        setPlan(parsed);
+                        loaded = true;
+                    } catch (e) {
+                        console.warn('Failed to parse plan from localStorage:', e);
+                    }
+                }
             }
+            if (!loaded) {
+                // Fallback to default plan
+                try {
+                    const response = await fetch('/assets/plan.json');
+                    if (!response.ok) {
+                        throw new Error('Failed to load default plan');
+                    }
+                    const defaultPlan = await response.json();
+                    setPlan(defaultPlan);
+                } catch (error) {
+                    console.error('Error loading default plan:', error);
+                }
+            }
+            setIsInitialized(true);
         };
+        tryLoadPlan();
+    }, [isInitialized]);
 
-        initializePlan();
-    }, [loadDefaultPlan]);
+    // --- Auto-save plan to localStorage on every change ---
+    useEffect(() => {
+        if (!ENABLE_AUTO_PERSIST_PLAN) return;
+        if (!plan) return;
+        try {
+            localStorage.setItem(LOCALSTORAGE_PLAN_KEY, JSON.stringify(plan));
+        } catch (e) {
+            console.warn('Failed to save plan to localStorage:', e);
+        }
+    }, [plan]);
 
     const loadPlan = useCallback((planData: Plan) => {
         setPlan(planData);
@@ -592,7 +612,6 @@ export function PlanProvider({ children }: PlanProviderProps) {
         savePlan,
         loadPlanFromFile,
         savePlanToFile,
-        loadDefaultPlan,
         updateParameter,
         deleteEvent,
         addEvent,
@@ -654,4 +673,11 @@ export function getEventDefinition(
         const parentSchema = schema.events.find(e => e.type === parentEvent.type);
         return parentSchema?.updating_events?.find(ue => ue.type === (event as any).type);
     }
+}
+
+// Helper to get the category of an envelope by name
+export function getEnvelopeCategory(plan: Plan | null, envelopeName: string): string | undefined {
+    if (!plan) return undefined;
+    const env = plan.envelopes.find(e => e.name === envelopeName);
+    return env?.category;
 } 

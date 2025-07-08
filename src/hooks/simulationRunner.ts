@@ -42,24 +42,24 @@ export async function runSimulation(
 ): Promise<Datum[]> {
     try {
         const schemaMap = extractSchema(schema);
-        const issues = validateProblem(plan, schemaMap);
-
+        const issues = validateProblem(plan, schemaMap, schema, plan);
         if (issues.length > 0) {
             console.error("❌ Validation issues found:");
             for (const issue of issues) console.error(issue);
+            console.log('[runSimulation] Issues:', issues);
             return [];
         }
 
         const parsedEvents = parseEvents(plan);
         const envelopes = initializeEnvelopes(plan);
-
+        //console.log('Initialized envelopes:', envelopes);
         // Collect manual_correction events to process at the end
         const manualCorrectionEvents: any[] = [];
         // Collect declare_accounts events to process at the end
         const declareAccountsEvents: any[] = [];
 
         for (const event of parsedEvents) {
-            console.log("Event: ", event.type)
+            //console.log("Event: ", event.type)
 
             // Skip manual_correction events during the first pass
             if (event.type === 'manual_correction') {
@@ -104,20 +104,20 @@ export async function runSimulation(
         }
 
         // Process all manual_correction events at the end
-        console.log(`Processing ${manualCorrectionEvents.length} manual correction events at the end`);
+        //console.log(`Processing ${manualCorrectionEvents.length} manual correction events at the end`);
         for (const event of manualCorrectionEvents) {
-            console.log("Manual correction event: ", event.parameters);
+            //console.log("Manual correction event: ", event.parameters);
             manual_correction(event, envelopes);
         }
 
         // Process all declare_accounts events at the end
-        console.log(`Processing ${declareAccountsEvents.length} declare_accounts events at the end`);
+        //console.log(`Processing ${declareAccountsEvents.length} declare_accounts events at the end`);
         for (const event of declareAccountsEvents) {
-            console.log("Declare accounts event: ", event.parameters);
+            //console.log("Declare accounts event: ", event.parameters);
             declare_accounts(event, envelopes);
         }
 
-        console.log(envelopes)
+        //console.log(envelopes)
 
         const results = evaluateResults(envelopes, startDate, endDate, interval);
         const timePoints = Array.from({ length: Math.ceil(endDate / interval) }, (_, i) => i * interval);

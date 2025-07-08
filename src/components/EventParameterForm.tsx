@@ -22,6 +22,7 @@ import { usePlan, findEventOrUpdatingEventById, getEventDefinition } from '../co
 import type { Plan, Event, Parameter, Schema, SchemaEvent, UpdatingEvent } from '../contexts/PlanContext';
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from './ui/accordion';
 import DatePicker from './DatePicker';
+import { Pencil } from 'lucide-react';
 
 
 interface EventParametersFormProps {
@@ -29,13 +30,15 @@ interface EventParametersFormProps {
     onClose: () => void;
     eventId: number;
     onSelectEvent: (eventId: number) => void;
+    onOpenEnvelopeModal?: (envelopeName: string) => void;
 }
 
 const EventParametersForm: React.FC<EventParametersFormProps> = ({
     isOpen,
     onClose,
     eventId,
-    onSelectEvent
+    onSelectEvent,
+    onOpenEnvelopeModal
 }) => {
     const { plan, schema, getEventIcon, updateParameter, deleteEvent, getParameterDisplayName, getParameterUnits, getEventDisplayType, addUpdatingEvent, getParameterDescription, updateEventDescription } = usePlan();
     const [parameters, setParameters] = useState<Record<number, { type: string; value: string | number }>>({});
@@ -78,7 +81,7 @@ const EventParametersForm: React.FC<EventParametersFormProps> = ({
                 };
             });
             setParameters(newParams);
-            console.log("Event ID:", eventId, "Starting parameters:", newParams);
+            //console.log("Event ID:", eventId, "Starting parameters:", newParams);
         } else {
             // Reset parameters if event not found
             setParameters({});
@@ -196,25 +199,58 @@ const EventParametersForm: React.FC<EventParametersFormProps> = ({
         }
 
         if (paramUnits === 'envelope') {
+            // Build display map
+            const displayEnvelopeMap: Record<string, string> = {};
+            plan?.envelopes.forEach((envelopeObj) => {
+                const envelope = envelopeObj.name;
+                const otherMatch = envelope.match(/^Other \((.+)\)$/);
+                if (otherMatch) {
+                    displayEnvelopeMap[otherMatch[1]] = envelope;
+                } else {
+                    displayEnvelopeMap[envelope] = envelope;
+                }
+            });
+
+            console.log("Parameters: ", parameters);
+            // Debug: Log available envelopes and display map
+            //console.log('Available envelopes in plan:', plan?.envelopes?.map(e => e.name));
+            //console.log('DisplayEnvelopeMap:', displayEnvelopeMap);
+
             return (
-                <Select
-                    value={value as string}
-                    onValueChange={(newValue) => {
-                        handleInputChange(param.id, newValue);
-                        handleInputBlur(param.id, newValue);
-                    }}
-                >
-                    <SelectTrigger className="w-full">
-                        <SelectValue placeholder={defaultValue || "Select an envelope"} />
-                    </SelectTrigger>
-                    <SelectContent>
-                        {schema?.envelopes.map((envelope) => (
-                            <SelectItem key={envelope} value={envelope}>
-                                {envelope}
-                            </SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
+                <div className="flex items-center gap-1">
+                    <Select
+                        value={value as string}
+                        onValueChange={(newValue) => {
+                            //console.log('Envelope selected:', newValue);
+                            handleInputChange(param.id, newValue);
+                            handleInputBlur(param.id, newValue);
+                        }}
+                    >
+                        <SelectTrigger className="w-full">
+                            <SelectValue placeholder={defaultValue || "Select an envelope"} />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {Object.entries(displayEnvelopeMap).map(([displayName, envelopeKey]) => (
+                                <SelectItem key={envelopeKey} value={envelopeKey}>
+                                    {displayName} <span style={{ color: '#888', fontSize: '0.8em' }}>({envelopeKey})</span>
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                    {typeof onOpenEnvelopeModal === 'function' && (
+                        <Button
+                            type="button"
+                            size="icon"
+                            variant="ghost"
+                            className="ml-1 p-1 h-8 w-8 text-gray-400 hover:text-blue-500"
+                            tabIndex={-1}
+                            onClick={() => onOpenEnvelopeModal(String(value))}
+                            aria-label="Manage envelopes"
+                        >
+                            <Pencil className="w-4 h-4" />
+                        </Button>
+                    )}
+                </div>
             );
         }
 

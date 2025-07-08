@@ -5,38 +5,38 @@
     "adjust_for_inflation": true,
     "envelopes": [
         {
-            "name": "Cash",
+            "name": "Other (Cash)",
             "category": "Cash",
             "growth": "None",
             "rate": 0.0
         },
         {
-            "name": "House",
-            "category": "Asset",
+            "name": "Other (Assets)",
+            "category": "Assets",
             "growth": "Appreciation",
             "rate": 0.03
         },
         {
-            "name": "Debt",
+            "name": "Other (Debt)",
             "category": "Debt",
             "growth": "None",
             "rate": 0.0
         },
         {
-            "name": "Savings",
-            "category": "Investment",
+            "name": "Other (Savings)",
+            "category": "Savings",
             "growth": "Daily Compound",
             "rate": 0.04
         },
         {
-            "name": "Investments",
-            "category": "Investment",
+            "name": "Other (Investments)",
+            "category": "Investments",
             "growth": "Yearly Compound",
             "rate": 0.07
         },
         {
-            "name": "Retirement",
-            "category": "Investment",
+            "name": "Other (Retirement)",
+            "category": "Retirement",
             "growth": "Yearly Compound",
             "rate": 0.06
         }
@@ -100,12 +100,12 @@
                 {
                     "id": 10,
                     "type": "to_key",
-                    "value": "Cash"
+                    "value": "Other (Cash)"
                 },
                 {
                     "id": 11,
                     "type": "p_401k_key",
-                    "value": "Retirement"
+                    "value": "Other (Retirement)"
                 }
             ],
             "updating_events": [

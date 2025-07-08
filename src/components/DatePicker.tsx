@@ -46,11 +46,6 @@ const DatePicker: React.FC<DatePickerProps> = ({
     };
 
     const displayDate = getDisplayDate();
-
-    useEffect(() => {
-        console.log('[DatePicker] viewMonth:', viewMonth, 'displayDate:', displayDate);
-    }, [viewMonth, displayDate]);
-
     const handleDateSelect = (newDate: Date | undefined) => {
         if (!newDate) return;
 

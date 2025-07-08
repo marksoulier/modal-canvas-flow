@@ -107,8 +107,8 @@ export const formatDate = (
     return dateStr;
 };
 
-// Generate subtle colors for envelopes
-export const generateEnvelopeColors = (envelopes: string[]): Record<string, { area: string; line: string }> => {
+// Generate subtle colors for categories
+export const generateEnvelopeColors = (categories: string[]): Record<string, { area: string; line: string }> => {
     const baseColors = [
         { area: '#E3F2FD', line: '#2196F3' }, // Blue
         { area: '#E8F5E9', line: '#4CAF50' }, // Green
@@ -120,35 +120,67 @@ export const generateEnvelopeColors = (envelopes: string[]): Record<string, { ar
         { area: '#FCE4EC', line: '#E91E63' }, // Pink
     ];
 
-    return envelopes.reduce((acc, envelope, index) => {
-        acc[envelope] = baseColors[index % baseColors.length];
+    return categories.reduce((acc, category, index) => {
+        acc[category] = baseColors[index % baseColors.length];
         return acc;
     }, {} as Record<string, { area: string; line: string }>);
 };
 
 // Legend component
-export const Legend = ({ envelopes, colors, currentValues }: {
+export const Legend = ({ envelopes, colors, currentValues, getCategory, categoryColors }: {
     envelopes: string[];
     colors: Record<string, { area: string; line: string }>;
     currentValues: { [key: string]: number };
-}) => (
-    <div className="absolute right-4 bottom-4 bg-white p-4 rounded-lg shadow-lg">
-        <h3 className="text-sm font-semibold mb-2">Envelopes</h3>
-        <div className="space-y-2">
-            {envelopes.map((envelope) => (
-                <div key={envelope} className="flex items-center justify-between space-x-4">
-                    <div className="flex items-center space-x-2">
-                        <div className="w-4 h-4 rounded" style={{ backgroundColor: colors[envelope].area, border: `2px solid ${colors[envelope].line}` }} />
-                        <span className="text-sm">{envelope}</span>
-                    </div>
-                    <span className="text-xs text-gray-500">
-                        {formatNumber({ valueOf: () => currentValues[envelope] || 0 })}
-                    </span>
-                </div>
-            ))}
+    getCategory: (envelope: string) => string | undefined;
+    categoryColors: Record<string, { area: string; line: string }>;
+}) => {
+    // Group envelopes by category
+    const categoryMap: Record<string, string[]> = {};
+    envelopes.forEach((envelope) => {
+        const category = getCategory(envelope) || 'Uncategorized';
+        if (!categoryMap[category]) categoryMap[category] = [];
+        categoryMap[category].push(envelope);
+    });
+
+    return (
+        <div className="absolute right-4 bottom-12 bg-white p-4 rounded-lg shadow-lg">
+            <h3 className="text-sm font-semibold mb-2">Envelopes</h3>
+            <div className="space-y-3">
+                {Object.entries(categoryMap).map(([category, envs]) => {
+                    const color = categoryColors[category] || { area: '#ccc', line: '#888' };
+                    const categorySum = envs.reduce((sum, env) => sum + (currentValues[env] || 0), 0);
+                    const showEnvelopes = envs.length > 1;
+                    return (
+                        <div key={category} style={{ marginBottom: 12 }}>
+                            <div className="flex items-center justify-between space-x-4" style={{ fontWeight: 600, color: '#222', fontSize: '1rem' }}>
+                                <div className="flex items-center space-x-2">
+                                    <div className="w-4 h-4 rounded" style={{ backgroundColor: color.area, border: `2px solid ${color.line}` }} />
+                                    <span className="text-sm" style={{ fontWeight: 500 }}>{category}</span>
+                                </div>
+                                <span className="text-xs text-gray-500" style={{ fontWeight: 500 }}>{formatNumber({ valueOf: () => categorySum })}</span>
+                            </div>
+                            {showEnvelopes && (
+                                <div style={{ marginLeft: 20, marginTop: 2 }} className="space-y-1">
+                                    {envs.map((envelope) => (
+                                        <div key={envelope} className="flex items-center justify-between space-x-4">
+                                            <div className="flex items-center space-x-2">
+                                                <div className="w-3 h-3 rounded" style={{ backgroundColor: color.area, border: `2px solid ${color.line}` }} />
+                                                <span className="text-xs" style={{ fontWeight: 500, color: '#444' }}>{envelope}</span>
+                                            </div>
+                                            <span className="text-xs text-gray-400">
+                                                {formatNumber({ valueOf: () => currentValues[envelope] || 0 })}
+                                            </span>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    );
+                })}
+            </div>
         </div>
-    </div>
-);
+    );
+};
 
 // Find the closest point in data to a given x value
 export interface Datum {

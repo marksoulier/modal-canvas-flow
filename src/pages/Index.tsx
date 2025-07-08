@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+import type { Plan } from '../contexts/PlanContext';
 import { Menu, HelpCircle, Plus, Save, FileText, FolderOpen, User, List, Edit3 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -14,12 +15,13 @@ import AuthModal from '../components/AuthModal';
 
 import SubscriptionModal from '../components/SubscriptionModal';
 import EventParameterForm from '../components/EventParameterForm';
-import AddEnvelopeModal from '../components/AddEnvelopeModal';
+import EditEnvelopeModal from '../components/EditEnvelopeModal';
 import EnvelopeManagerModal from '../components/EnvelopeManagerModal';
 import { Visualization } from '../visualization/Visualization';
 import { usePlan } from '../contexts/PlanContext';
 import ErrorToast from '../components/ErrorToast';
 import PlanPreferencesModal from '../components/PlanPreferencesModal';
+import { extractSchema, validateProblem } from '../hooks/schemaChecker';
 
 const Index = () => {
   const [helpModalOpen, setHelpModalOpen] = useState(false);
@@ -36,11 +38,13 @@ const Index = () => {
   const [tempTitle, setTempTitle] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const titleInputRef = useRef<HTMLInputElement>(null);
+  const [editingEnvelope, setEditingEnvelope] = useState<{ name: string; category: string; growth: string; rate: number } | null>(null);
+  const [isAddingEnvelope, setIsAddingEnvelope] = useState(false);
 
   // Mock authentication state - replace with real auth logic
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
-  const { plan, loadPlanFromFile, savePlanToFile, updatePlanTitle } = usePlan();
+  const { plan, schema, loadPlanFromFile, savePlanToFile, updatePlanTitle, loadPlan } = usePlan();
 
   const [errorOpen, setErrorOpen] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
@@ -64,10 +68,28 @@ const Index = () => {
     const file = event.target.files?.[0];
     if (file) {
       try {
-        await loadPlanFromFile(file);
+        const text = await file.text();
+        const planData = JSON.parse(text);
+
+        // Validate before loading
+        if (schema) {
+          const schemaMap = extractSchema(schema);
+          const issues = validateProblem(planData, schemaMap, schema, planData);
+          if (issues.length > 0) {
+            setErrorMessage(
+              `File validation failed:\n${issues.join('\n')}`
+            );
+            setErrorOpen(true);
+            console.error('File validation failed:', issues, planData);
+            return; // Do not load invalid plan
+          }
+        }
+
+        await loadPlanFromFile(file); // Only load if valid
       } catch (error) {
+        setErrorMessage('Error loading file: ' + (error as Error).message);
+        setErrorOpen(true);
         console.error('Error loading file:', error);
-        // TODO: Show error toast
       }
     }
   };
@@ -111,6 +133,41 @@ const Index = () => {
     } else {
       setAuthModalOpen(true);
     }
+  };
+
+  // Handler to open EditEnvelopeModal for a specific envelope
+  const handleOpenEnvelopeEditModal = (envelopeName: string) => {
+    if (!plan) return;
+    const envelope = plan.envelopes.find(e => e.name === envelopeName) || null;
+    setEditingEnvelope(envelope);
+    setAddEnvelopeModalOpen(true);
+    setIsAddingEnvelope(false);
+  };
+
+  // Handler to open EditEnvelopeModal for adding a new envelope
+  const handleAddEnvelope = () => {
+    setEditingEnvelope(null);
+    setAddEnvelopeModalOpen(true);
+    setIsAddingEnvelope(true);
+  };
+
+  // Handler to save envelope (add or edit)
+  const handleSaveEnvelope = (envelope: { name: string; category: string; growth: string; rate: number }) => {
+    if (!plan) return;
+    let updatedEnvelopes;
+    if (isAddingEnvelope) {
+      updatedEnvelopes = [...plan.envelopes, envelope];
+    } else if (editingEnvelope) {
+      updatedEnvelopes = plan.envelopes.map(e => e === editingEnvelope ? envelope : e);
+    } else {
+      updatedEnvelopes = plan.envelopes;
+    }
+    // Save to plan
+    const updatedPlan = { ...plan, envelopes: updatedEnvelopes };
+    loadPlan(updatedPlan);
+    setAddEnvelopeModalOpen(false);
+    setEditingEnvelope(null);
+    setIsAddingEnvelope(false);
   };
 
   return (
@@ -266,14 +323,27 @@ const Index = () => {
           setEditingEventId(parentId);
           setEventParametersOpen(true);
         }}
+        onOpenEnvelopeModal={handleOpenEnvelopeEditModal}
       />
-      <AddEnvelopeModal
+      <EditEnvelopeModal
         isOpen={addEnvelopeModalOpen}
-        onClose={() => setAddEnvelopeModalOpen(false)}
+        onClose={() => {
+          setAddEnvelopeModalOpen(false);
+          setEditingEnvelope(null);
+          setIsAddingEnvelope(false);
+        }}
+        envelope={editingEnvelope}
+        onSave={handleSaveEnvelope}
       />
       <EnvelopeManagerModal
         isOpen={envelopeManagerModalOpen}
         onClose={() => setEnvelopeManagerModalOpen(false)}
+        onEditEnvelope={(envelope) => {
+          setEditingEnvelope(envelope);
+          setAddEnvelopeModalOpen(true);
+          setIsAddingEnvelope(false);
+        }}
+        onAddEnvelope={handleAddEnvelope}
       />
       <PlanPreferencesModal
         isOpen={planPreferencesModalOpen}
@@ -284,7 +354,7 @@ const Index = () => {
         }}
         onAddEnvelope={() => {
           setPlanPreferencesModalOpen(false);
-          setAddEnvelopeModalOpen(true);
+          handleAddEnvelope();
         }}
         onManageEnvelopes={() => {
           setPlanPreferencesModalOpen(false);

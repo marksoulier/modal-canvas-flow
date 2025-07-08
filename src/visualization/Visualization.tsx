@@ -10,7 +10,7 @@ import { curveLinear } from '@visx/curve';
 import { LinearGradient } from '@visx/gradient';
 import { TooltipWithBounds, defaultStyles } from '@visx/tooltip';
 import { runSimulation } from '../hooks/simulationRunner';
-import { usePlan } from '../contexts/PlanContext';
+import { usePlan, getEnvelopeCategory } from '../contexts/PlanContext';
 import {
   ContextMenu,
   ContextMenuTrigger,
@@ -35,6 +35,7 @@ import type {
   Datum
 } from './viz_utils';
 import { getAllEventsByDate } from './Events';
+import type { Plan } from '../contexts/PlanContext';
 
 interface DraggingAnnotation {
   index: number; // the day/data point
@@ -83,6 +84,20 @@ const AxisBottomTick = ({
   );
 };
 
+// --- Helper: Group envelopes by category and sum values ---
+function groupEnvelopesByCategory(plan: Plan | null, envelopeKeys: string[]): Record<string, string[]> {
+  const categoryMap: Record<string, string[]> = {};
+  envelopeKeys.forEach((env: string) => {
+    const cat = getEnvelopeCategory(plan, env) || 'Uncategorized';
+    if (!categoryMap[cat]) categoryMap[cat] = [];
+    categoryMap[cat].push(env);
+  });
+  return categoryMap;
+}
+
+// --- Type for enhanced data points with category sums ---
+type CategoryDatum = Datum & { categorySums: Record<string, number> };
+
 export function Visualization({ onAnnotationClick, onAnnotationDelete }: VisualizationProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const [cursorPos, setCursorPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
@@ -127,7 +142,7 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
     }
   }, [wheelHandler]);
 
-  const { plan, loadDefaultPlan, getEventIcon, updateParameter, schema, deleteEvent, getEventDisplayType } = usePlan();
+  const { plan, getEventIcon, updateParameter, schema, deleteEvent, getEventDisplayType } = usePlan();
 
   // Base sizes that will be adjusted by zoom
   const baseLineWidth = 2;
@@ -151,11 +166,13 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
   // Load schema and run simulation when component mounts or time interval changes
   useEffect(() => {
     const loadSchemaAndRunSim = async () => {
+      // Only run if plan and schema are available (plan is now always loaded by context)
+      if (!plan || !schema) return;
       try {
         setIsLoading(true);
 
         // Set birth date from plan
-        if (plan?.birth_date) {
+        if (plan.birth_date) {
           const birthDateObj = new Date(plan.birth_date);
           setBirthDate(birthDateObj);
 
@@ -165,23 +182,18 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
             (currentDate.getTime() - birthDateObj.getTime()) / (1000 * 60 * 60 * 24)
           );
           setCurrentDaysSinceBirth(daysSinceBirth);
-          console.log('Current days since birth:', daysSinceBirth);
-        }
-
-        // If no plan in context, load default plan
-        if (!plan) {
-          await loadDefaultPlan();
+          //console.log('Current days since birth:', daysSinceBirth);
         }
 
         // Run simulation with plan and schema from context
         const result = await runSimulation(
-          plan!,
-          schema!,
+          plan,
+          schema,
           startDate,
           endDate,
           getIntervalInDays(timeInterval)
         );
-        console.log('Loaded Financial Results:', result);
+        //console.log('Loaded Financial Results:', result);
         setNetWorthData(result);
       } catch (err) {
         console.error('Simulation failed:', err);
@@ -191,7 +203,7 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
     };
 
     loadSchemaAndRunSim();
-  }, [timeInterval, plan, loadDefaultPlan, schema]); // Re-run when time interval or plan changes
+  }, [timeInterval, plan, schema]); // Re-run when time interval, plan, or schema changes
 
   // Calculate stacked data from simulation results
   const stackedData = useMemo(() => {
@@ -245,6 +257,11 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
     });
   }, [netWorthData, width]);
 
+  // Make sure categoryColors is defined before render logic
+  const envelopeKeys = useMemo(() => Object.keys(netWorthData[0]?.parts || {}), [netWorthData]);
+  const categoryMap = useMemo(() => groupEnvelopesByCategory(plan, envelopeKeys), [plan, envelopeKeys]);
+  const categoryColors = useMemo(() => generateEnvelopeColors(Object.keys(categoryMap)), [categoryMap]);
+
   return (
     <div className="relative w-full h-full">
       <Zoom
@@ -274,7 +291,7 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
           // Calculate global zoom level (now only depends on scaleX)
           const globalZoom = zoom.transformMatrix.scaleX;
 
-          console.log('globalZoom: ', globalZoom);
+          //console.log('globalZoom: ', globalZoom);
           // Calculate visible date range based on current viewport with padding
           const viewportPadding = width * 0.2; // 20% padding on each side
           const visibleXDomain = [
@@ -297,8 +314,9 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
 
           // Get envelope colors from schema
           const envelopeColors = useMemo(() => {
-            if (!schema?.envelopes) return {};
-            return generateEnvelopeColors(schema.envelopes);
+            if (!schema?.categories) return {};
+            //console.log('schema.categories: ', schema.categories);
+            return generateEnvelopeColors(schema.categories);
           }, [schema]);
 
           const allEventsByDate = getAllEventsByDate(plan!);
@@ -321,10 +339,10 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
             (window as any).debugMax = max;
 
             if (max.x < width - xPad) {
-              console.log('Constraint: max out of bounds', max);
+              //console.log('Constraint: max out of bounds', max);
               return prevTransformMatrix;
             } else if (min.x > 0 + xPad) {
-              console.log('Constraint: min out of bounds', min);
+              //console.log('Constraint: min out of bounds', min);
               return prevTransformMatrix;
             }
             return transformMatrix;
@@ -352,11 +370,6 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
                 event = parentEvent.updating_events?.find(ue => ue.id === eventId);
                 if (event) break;
               }
-            }
-            if (event) {
-              console.log('[Drag Start] Dragging event:', event.id, event.description || event.type);
-            } else {
-              console.log('[Drag Start] Dragging event id:', eventId, '(event not found)');
             }
 
             setDraggingAnnotation({
@@ -394,7 +407,7 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
               Math.pow(point.x - transformedX, 2) +
               Math.pow(point.y - transformedY, 2)
             );
-            console.log("distance: ", distance)
+            //console.log("distance: ", distance)
 
             // Only update if within threshold (adjust 0.5 as needed)
             if (distance < 150) {
@@ -409,7 +422,7 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
                     updateParameter(event.id, startTimeParam.type, closestPoint.date);
                   }
                   // Log event info during drag
-                  console.log('[Drag Move] Dragging event:', event.id, event.description || event.type);
+                  //console.log('[Drag Move] Dragging event:', event.id, event.description || event.type);
                 } else {
                   // Try updating event
                   for (const parentEvent of plan.events) {
@@ -420,7 +433,7 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
                         updateParameter(updatingEvent.id, startTimeParam.type, closestPoint.date);
                       }
                       // Log event info during drag
-                      console.log('[Drag Move] Dragging updating event:', updatingEvent.id, updatingEvent.description || updatingEvent.type);
+                      //console.log('[Drag Move] Dragging updating event:', updatingEvent.id, updatingEvent.description || updatingEvent.type);
                       break;
                     }
                   }
@@ -463,8 +476,92 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
             });
           }, [visibleData, height]);
 
+          // Move handleZoomToYears here so it's in scope for the buttons
+          const handleZoomToYears = (years: number) => {
+            const daysPerYear = 365;
+            const xmin = currentDaysSinceBirth - 20 * years - 20; // aproximate padding on side
+            const xmax = currentDaysSinceBirth + years * daysPerYear;
+            const maxDate = Math.max(...netWorthData.map(d => d.date));
+            const clampedXmax = Math.min(xmax, maxDate);
+            const regionWidth = clampedXmax - xmin;
+            if (regionWidth <= 0) return;
+            const scaleX = width / (xScale(clampedXmax) - xScale(xmin));
+            const translateX = -xScale(xmin) * scaleX;
+            zoom.setTransformMatrix({
+              ...zoom.transformMatrix,
+              scaleX,
+              translateX,
+            });
+          };
+
           return (
             <>
+              {/* Zoom Buttons - Top Right, down by 20% */}
+              <div
+                style={{
+                  position: 'absolute',
+                  top: height * 0.09,
+                  right: 32,
+                  zIndex: 20,
+                  display: 'flex',
+                  gap: 8,
+                }}
+              >
+                <button
+                  style={{
+                    background: 'rgba(51, 89, 102, 0.06)',
+                    color: '#335966',
+                    border: '1px solid #e5e7eb',
+                    borderRadius: 6,
+                    padding: '4px 12px',
+                    fontSize: 13,
+                    fontWeight: 500,
+                    opacity: 0.85,
+                    transition: 'background 0.2s',
+                    cursor: 'pointer',
+                    boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
+                  }}
+                  onClick={() => handleZoomToYears(1)}
+                >
+                  1yr
+                </button>
+                <button
+                  style={{
+                    background: 'rgba(51, 89, 102, 0.06)',
+                    color: '#335966',
+                    border: '1px solid #e5e7eb',
+                    borderRadius: 6,
+                    padding: '4px 12px',
+                    fontSize: 13,
+                    fontWeight: 500,
+                    opacity: 0.85,
+                    transition: 'background 0.2s',
+                    cursor: 'pointer',
+                    boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
+                  }}
+                  onClick={() => handleZoomToYears(5)}
+                >
+                  5yr
+                </button>
+                <button
+                  style={{
+                    background: 'rgba(51, 89, 102, 0.06)',
+                    color: '#335966',
+                    border: '1px solid #e5e7eb',
+                    borderRadius: 6,
+                    padding: '4px 12px',
+                    fontSize: 13,
+                    fontWeight: 500,
+                    opacity: 0.85,
+                    transition: 'background 0.2s',
+                    cursor: 'pointer',
+                    boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
+                  }}
+                  onClick={() => handleZoomToYears(10)}
+                >
+                  10yr
+                </button>
+              </div>
               <svg
                 ref={svgRef}
                 width={width}
@@ -612,39 +709,47 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
                 {/* Main content with zoom transform */}
                 <g transform={`translate(${zoom.transformMatrix.translateX},${zoom.transformMatrix.translateY}) scale(${zoom.transformMatrix.scaleX},${zoom.transformMatrix.scaleY})`}>
                   {/* Add stacked areas - only show for yearly view */}
-                  {Object.keys(netWorthData[0]?.parts || {}).map((partKey) => (
-                    <AreaClosed
-                      key={`area-${partKey}`}
-                      data={stackedData}
-                      x={(d) => xScale(d.date)}
-                      y0={(d) => visibleYScale(d.stackedParts[partKey].y0)}
-                      y1={(d) => visibleYScale(d.stackedParts[partKey].y1)}
-                      yScale={visibleYScale}
-                      stroke="none"
-                      fill={envelopeColors[partKey]?.area || '#999'}
-                      fillOpacity={0.2}
-                      curve={curveLinear}
-                    />
-                  ))}
+                  {Object.keys(netWorthData[0]?.parts || {}).map((partKey) => {
+                    const category = getEnvelopeCategory(plan, partKey) || 'Uncategorized';
+                    const color = categoryColors[category] || { area: '#ccc', line: '#888' };
+                    return (
+                      <AreaClosed
+                        key={`area-${partKey}`}
+                        data={stackedData}
+                        x={(d) => xScale(d.date)}
+                        y0={(d) => visibleYScale(d.stackedParts[partKey].y0)}
+                        y1={(d) => visibleYScale(d.stackedParts[partKey].y1)}
+                        yScale={visibleYScale}
+                        stroke="none"
+                        fill={color.area}
+                        fillOpacity={0.2}
+                        curve={curveLinear}
+                      />
+                    );
+                  })}
 
                   {/* Add top/bottom lines for each part - only at y1 */}
-                  {Object.keys(netWorthData[0]?.parts || {}).map((partKey) => (
-                    <LinePath
-                      key={`line-${partKey}-edge`}
-                      data={stackedData}
-                      x={(d) => xScale(d.date)}
-                      y={(d) => visibleYScale(d.stackedParts[partKey].y1)}
-                      stroke={envelopeColors[partKey]?.line || '#999'}
-                      strokeWidth={1 / globalZoom}
-                      strokeOpacity={0.5}
-                      curve={curveLinear}
-                    />
-                  ))}
+                  {Object.keys(netWorthData[0]?.parts || {}).map((partKey) => {
+                    const category = getEnvelopeCategory(plan, partKey) || 'Uncategorized';
+                    const color = categoryColors[category] || { area: '#ccc', line: '#888' };
+                    return (
+                      <LinePath
+                        key={`line-${partKey}-edge`}
+                        data={stackedData}
+                        x={(d) => xScale(d.date)}
+                        y={(d) => visibleYScale(d.stackedParts[partKey].y1)}
+                        stroke={color.line}
+                        strokeWidth={1 / globalZoom}
+                        strokeOpacity={0.5}
+                        curve={curveLinear}
+                      />
+                    );
+                  })}
 
-                  {/* Zero line (y=0) rendered outside zoom transform, darker and extended */}
+                  {/* Extended zero line: always from left to right edge of canvas */}
                   <line
-                    x1={0}
-                    x2={width}
+                    x1={-width}
+                    x2={width * 2}
                     y1={visibleYScale(0)}
                     y2={visibleYScale(0)}
                     strokeWidth={1}
@@ -863,6 +968,8 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
                   envelopes={Object.keys(netWorthData[0].parts)}
                   colors={envelopeColors}
                   currentValues={closestPoint ? closestPoint.parts : netWorthData[netWorthData.length - 1].parts}
+                  getCategory={(envelope) => getEnvelopeCategory(plan, envelope)}
+                  categoryColors={envelopeColors}
                 />
               )}
 
