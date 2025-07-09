@@ -7,7 +7,8 @@ import {
     receive_government_aid, invest_money,
     high_yield_savings_account, pay_taxes, buy_groceries, manual_correction,
     get_wage_job, transfer_money, reoccuring_income, reoccuring_spending, reoccuring_transfer,
-    declare_accounts
+    declare_accounts,
+    monthly_budgeting, roth_ira_contribution, tax_payment_estimated
 } from './baseFunctions';
 import { evaluateResults } from './resultsEvaluation';
 import type { Plan, Schema } from '../contexts/PlanContext';
@@ -20,14 +21,15 @@ interface Datum {
     };
 }
 
-export function initializeEnvelopes(plan: Plan): Record<string, { functions: ((t: number) => number)[], growth_type: string, growth_rate: number }> {
-    const envelopes: Record<string, { functions: ((t: number) => number)[], growth_type: string, growth_rate: number }> = {};
+export function initializeEnvelopes(plan: Plan): Record<string, { functions: ((t: number) => number)[], growth_type: string, growth_rate: number, days_of_usefulness?: number }> {
+    const envelopes: Record<string, { functions: ((t: number) => number)[], growth_type: string, growth_rate: number, days_of_usefulness?: number }> = {};
 
     for (const env of plan.envelopes) {
         const name = env.name;
         const growth_type = env.growth || "None";
         const rate = env.rate || 0.0;
-        envelopes[name] = { functions: [], growth_type, growth_rate: rate };
+        const days_of_usefulness = env.days_of_usefulness;
+        envelopes[name] = { functions: [], growth_type, growth_rate: rate, days_of_usefulness };
     }
 
     return envelopes;
@@ -38,7 +40,8 @@ export async function runSimulation(
     schema: Schema,
     startDate: number = 0,
     endDate: number = 30 * 365,
-    interval: number = 365
+    interval: number = 365,
+    currentDay?: number
 ): Promise<Datum[]> {
     try {
         const schemaMap = extractSchema(schema);
@@ -97,7 +100,9 @@ export async function runSimulation(
                 case 'reoccuring_spending': reoccuring_spending(event, envelopes); break;
                 case 'reoccuring_transfer': reoccuring_transfer(event, envelopes); break;
                 case 'pass_away': pass_away(event, envelopes); break;
-
+                case 'monthly_budgeting': monthly_budgeting(event, envelopes); break;
+                case 'roth_ira_contribution': roth_ira_contribution(event, envelopes); break;
+                case 'tax_payment_estimated': tax_payment_estimated(event, envelopes); break;
                 default:
                     console.warn(`⚠️ Unhandled event type: ${event.type}`);
             }
@@ -119,7 +124,15 @@ export async function runSimulation(
 
         //console.log(envelopes)
 
-        const results = evaluateResults(envelopes, startDate, endDate, interval);
+        // Determine if we should adjust for inflation
+        let results;
+        if (plan.adjust_for_inflation) {
+            // Use inflation rate from schema
+            const inflationRate = schema.inflation_rate;
+            results = evaluateResults(envelopes, startDate, endDate, interval, currentDay, inflationRate);
+        } else {
+            results = evaluateResults(envelopes, startDate, endDate, interval);
+        }
         const timePoints = Array.from({ length: Math.ceil(endDate / interval) }, (_, i) => i * interval);
 
         // Get all envelope keys from the results

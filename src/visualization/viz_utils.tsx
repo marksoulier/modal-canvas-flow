@@ -1,5 +1,6 @@
 import React from 'react';
 import { TooltipWithBounds, defaultStyles } from '@visx/tooltip';
+import chroma from 'chroma-js';
 
 // Format number as currency with suffixes
 export const formatNumber = (value: { valueOf(): number }): string => {
@@ -126,10 +127,92 @@ export const generateEnvelopeColors = (categories: string[]): Record<string, { a
     }, {} as Record<string, { area: string; line: string }>);
 };
 
+// --- New: Generate category and envelope colors ---
+
+// Assign a base color to each category (can be customized as needed)
+const CATEGORY_BASE_COLORS: Record<string, string> = {
+    'Savings': '#2196F3', // Blue
+    'Investments': '#4CAF50', // Green
+    'Income': '#FF9800', // Orange
+    'Retirement': '#9C27B0', // Purple
+    'Debt': '#F44336', // Red
+    'Cash': '#00BCD4', // Cyan
+    'Assets': '#888888', // Grey
+};
+
+// Fallback palette for categories not in the above
+const BASE_COLOR_PALETTE = [
+    '#2196F3', // Blue
+    '#4CAF50', // Green
+    '#FF9800', // Orange
+    '#9C27B0', // Purple
+    '#F44336', // Red
+    '#00BCD4', // Cyan
+    '#8BC34A', // Light Green
+    '#E91E63', // Pink
+    '#888888', // Gray
+];
+
+// Returns { envelopeColors, categoryColors }
+export function getEnvelopeAndCategoryColors(
+    envelopes: { name: string; category: string }[],
+    categories: string[]
+): {
+    envelopeColors: Record<string, { area: string; line: string }>,
+    categoryColors: Record<string, { area: string; line: string }>
+} {
+    // Assign base color to each category
+    const categoryBaseColors: Record<string, string> = {};
+    let paletteIdx = 0;
+    categories.forEach((cat) => {
+        if (CATEGORY_BASE_COLORS[cat]) {
+            categoryBaseColors[cat] = CATEGORY_BASE_COLORS[cat];
+        } else {
+            categoryBaseColors[cat] = BASE_COLOR_PALETTE[paletteIdx % BASE_COLOR_PALETTE.length];
+            paletteIdx++;
+        }
+    });
+    // For each category, get all envelopes in that category
+    const categoryToEnvelopes: Record<string, string[]> = {};
+    envelopes.forEach(env => {
+        if (!env.category) return; // skip undefined categories
+        const cat = env.category;
+        if (!categoryToEnvelopes[cat]) categoryToEnvelopes[cat] = [];
+        categoryToEnvelopes[cat].push(env.name);
+    });
+    // Generate envelope colors (shades/tints of category base)
+    const envelopeColors: Record<string, { area: string; line: string }> = {};
+    Object.entries(categoryToEnvelopes).forEach(([cat, envNames]) => {
+        const base = categoryBaseColors[cat] || '#888888';
+        // Use chroma-js to generate a scale for this category
+        const scale = chroma.scale([
+            chroma(base).brighten(1.2).saturate(0.5).hex(),
+            base,
+            chroma(base).darken(1.2).saturate(1.2).hex()
+        ]).mode('lab').colors(envNames.length);
+        envNames.forEach((env, i) => {
+            // Area: lighter, Line: base or darker
+            envelopeColors[env] = {
+                area: chroma(scale[i]).brighten(1.2).alpha(0.18).hex(),
+                line: scale[i]
+            };
+        });
+    });
+    // Category colors (for legend): area is light, line is base
+    const categoryColors: Record<string, { area: string; line: string }> = {};
+    Object.entries(categoryBaseColors).forEach(([cat, base]) => {
+        categoryColors[cat] = {
+            area: chroma(base).brighten(2).alpha(0.18).hex(),
+            line: base
+        };
+    });
+    return { envelopeColors, categoryColors };
+}
+
 // Legend component
-export const Legend = ({ envelopes, colors, currentValues, getCategory, categoryColors }: {
+export const Legend = ({ envelopes, envelopeColors, currentValues, getCategory, categoryColors }: {
     envelopes: string[];
-    colors: Record<string, { area: string; line: string }>;
+    envelopeColors: Record<string, { area: string; line: string }>;
     currentValues: { [key: string]: number };
     getCategory: (envelope: string) => string | undefined;
     categoryColors: Record<string, { area: string; line: string }>;
@@ -137,7 +220,8 @@ export const Legend = ({ envelopes, colors, currentValues, getCategory, category
     // Group envelopes by category
     const categoryMap: Record<string, string[]> = {};
     envelopes.forEach((envelope) => {
-        const category = getCategory(envelope) || 'Uncategorized';
+        const category = getCategory(envelope);
+        if (!category) return; // skip undefined categories
         if (!categoryMap[category]) categoryMap[category] = [];
         categoryMap[category].push(envelope);
     });
@@ -147,31 +231,37 @@ export const Legend = ({ envelopes, colors, currentValues, getCategory, category
             <h3 className="text-sm font-semibold mb-2">Envelopes</h3>
             <div className="space-y-3">
                 {Object.entries(categoryMap).map(([category, envs]) => {
-                    const color = categoryColors[category] || { area: '#ccc', line: '#888' };
+                    const catColor = categoryColors[category] || { area: '#ccc', line: '#888' };
                     const categorySum = envs.reduce((sum, env) => sum + (currentValues[env] || 0), 0);
-                    const showEnvelopes = envs.length > 1;
+                    // Only show envelope list if:
+                    // - more than one envelope in category, or
+                    // - the only envelope does NOT start with 'Other'
+                    const showEnvelopes = envs.length > 1 || (envs.length === 1 && !/^other/i.test(envs[0]));
                     return (
                         <div key={category} style={{ marginBottom: 12 }}>
                             <div className="flex items-center justify-between space-x-4" style={{ fontWeight: 600, color: '#222', fontSize: '1rem' }}>
                                 <div className="flex items-center space-x-2">
-                                    <div className="w-4 h-4 rounded" style={{ backgroundColor: color.area, border: `2px solid ${color.line}` }} />
+                                    <div className="w-4 h-4 rounded" style={{ backgroundColor: catColor.area, border: `2px solid ${catColor.line}` }} />
                                     <span className="text-sm" style={{ fontWeight: 500 }}>{category}</span>
                                 </div>
                                 <span className="text-xs text-gray-500" style={{ fontWeight: 500 }}>{formatNumber({ valueOf: () => categorySum })}</span>
                             </div>
                             {showEnvelopes && (
                                 <div style={{ marginLeft: 20, marginTop: 2 }} className="space-y-1">
-                                    {envs.map((envelope) => (
-                                        <div key={envelope} className="flex items-center justify-between space-x-4">
-                                            <div className="flex items-center space-x-2">
-                                                <div className="w-3 h-3 rounded" style={{ backgroundColor: color.area, border: `2px solid ${color.line}` }} />
-                                                <span className="text-xs" style={{ fontWeight: 500, color: '#444' }}>{envelope}</span>
+                                    {envs.map((envelope) => {
+                                        const envColor = envelopeColors[envelope] || catColor;
+                                        return (
+                                            <div key={envelope} className="flex items-center justify-between space-x-4">
+                                                <div className="flex items-center space-x-2">
+                                                    <div className="w-3 h-3 rounded" style={{ backgroundColor: envColor.area, border: `2px solid ${envColor.line}` }} />
+                                                    <span className="text-xs" style={{ fontWeight: 500, color: '#444' }}>{envelope}</span>
+                                                </div>
+                                                <span className="text-xs text-gray-400">
+                                                    {formatNumber({ valueOf: () => currentValues[envelope] || 0 })}
+                                                </span>
                                             </div>
-                                            <span className="text-xs text-gray-400">
-                                                {formatNumber({ valueOf: () => currentValues[envelope] || 0 })}
-                                            </span>
-                                        </div>
-                                    ))}
+                                        );
+                                    })}
                                 </div>
                             )}
                         </div>

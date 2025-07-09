@@ -1,6 +1,80 @@
 {
     "inflation_rate": 0.03,
     "adjust_for_inflation": true,
+    "default_envelopes": [
+        {
+            "name": "Other (Cash)",
+            "category": "Cash",
+            "growth": "None",
+            "rate": 0.0
+        },
+        {
+            "name": "Other (Assets)",
+            "category": "Assets",
+            "growth": "Appreciation",
+            "rate": 0.03
+        },
+        {
+            "name": "Other (Debt)",
+            "category": "Debt",
+            "growth": "None",
+            "rate": 0.0
+        },
+        {
+            "name": "Other (Savings)",
+            "category": "Savings",
+            "growth": "Daily Compound",
+            "rate": 0.04
+        },
+        {
+            "name": "Other (Investments)",
+            "category": "Investments",
+            "growth": "Yearly Compound",
+            "rate": 0.07
+        },
+        {
+            "name": "Other (Retirement)",
+            "category": "Retirement",
+            "growth": "Yearly Compound",
+            "rate": 0.06
+        },
+        {
+            "name": "House",
+            "category": "Assets",
+            "growth": "Appreciation",
+            "rate": 0.03
+        },
+        {
+            "name": "RothIRA",
+            "category": "Retirement",
+            "growth": "Yearly Compound",
+            "rate": 0.07
+        },
+        {
+            "name": "Car",
+            "category": "Assets",
+            "growth": "Depreciation",
+            "rate": -0.15
+        },
+        {
+            "name": "Laptop",
+            "category": "Assets",
+            "growth": "Depreciation (Days)",
+            "days_of_usefulness": 1460
+        },
+        {
+            "name": "Car Loan",
+            "category": "Debt",
+            "growth": "None",
+            "rate": 0.0
+        },
+        {
+            "name": "Home Mortgage",
+            "category": "Debt",
+            "growth": "None",
+            "rate": 0.0
+        }
+    ],
     "birth_date": "2001-09-11",
     "categories": [
         "Cash",
@@ -16,7 +90,8 @@
         "date",
         "envelope",
         "days",
-        "percentage"
+        "percentage",
+        "enum"
     ],
     "events": [
         {
@@ -660,7 +735,14 @@
                     "display_name": "To Envelope",
                     "parameter_units": "envelope",
                     "description": "Envelope where house value is tracked",
-                    "default": "Other (House)"
+                    "default": "House"
+                },
+                {
+                    "type": "mortgage_envelope",
+                    "display_name": "Mortgage Envelope",
+                    "parameter_units": "envelope",
+                    "description": "Envelope where the home mortgage debt is tracked.",
+                    "default": "Home Mortgage"
                 },
                 {
                     "type": "property_tax_rate",
@@ -998,7 +1080,14 @@
                     "display_name": "To Envelope",
                     "parameter_units": "envelope",
                     "description": "Envelope where car value is tracked",
-                    "default": "Other (Investments)"
+                    "default": "Car"
+                },
+                {
+                    "type": "car_loan_envelope",
+                    "display_name": "Car Loan Envelope",
+                    "parameter_units": "envelope",
+                    "description": "Envelope where the car loan debt is tracked.",
+                    "default": "Car Loan"
                 }
             ],
             "updating_events": [
@@ -1651,7 +1740,7 @@
             "category": "Taxes & Government",
             "description": "Annual payment of federal and state taxes.",
             "icon": "file-text",
-            "disclaimer": "This event models a one-time tax payment. It does not simulate audits, penalties, or tax deductions/credits.",
+            "disclaimer": "This event models a one-time tax payment. It does not estimate the taxed amount.",
             "parameters": [
                 {
                     "type": "start_time",
@@ -1746,6 +1835,101 @@
                 }
             ],
             "updating_events": []
+        },
+        {
+            "type": "monthly_budgeting",
+            "display_type": "Monthly Budgeting",
+            "category": "Living Expenses",
+            "weight": 20,
+            "description": "Set your typical monthly budget for common expense categories.",
+            "icon": "list",
+            "disclaimer": "This event allows you to set up recurring monthly expenses for common budget categories.",
+            "parameters": [
+                {
+                    "type": "start_time",
+                    "display_name": "Start Date",
+                    "parameter_units": "date",
+                    "description": "When the monthly budgeting starts.",
+                    "default": 0
+                },
+                {
+                    "type": "end_time",
+                    "display_name": "End Date",
+                    "parameter_units": "date",
+                    "description": "When the monthly budgeting ends.",
+                    "default": 99999
+                },
+                {
+                    "type": "from_key",
+                    "display_name": "From Envelope",
+                    "parameter_units": "envelope",
+                    "description": "Envelope from which funds are spent.",
+                    "default": "Other (Cash)"
+                },
+                {
+                    "type": "groceries",
+                    "display_name": "Groceries",
+                    "parameter_units": "usd",
+                    "description": "Monthly spending on groceries and food at home.",
+                    "default": 600
+                },
+                {
+                    "type": "utilities",
+                    "display_name": "Utilities",
+                    "parameter_units": "usd",
+                    "description": "Monthly cost for electricity, water, gas, etc.",
+                    "default": 200
+                },
+                {
+                    "type": "transportation",
+                    "display_name": "Transportation",
+                    "parameter_units": "usd",
+                    "description": "Monthly spending on public transit, gas, car payment, etc.",
+                    "default": 300
+                },
+                {
+                    "type": "insurance",
+                    "display_name": "Insurance",
+                    "parameter_units": "usd",
+                    "description": "Monthly insurance premiums (health, auto, etc.).",
+                    "default": 250
+                },
+                {
+                    "type": "healthcare",
+                    "display_name": "Healthcare",
+                    "parameter_units": "usd",
+                    "description": "Monthly out-of-pocket healthcare costs.",
+                    "default": 100
+                },
+                {
+                    "type": "dining_out",
+                    "display_name": "Dining Out",
+                    "parameter_units": "usd",
+                    "description": "Monthly spending on restaurants, takeout, and coffee shops.",
+                    "default": 200
+                },
+                {
+                    "type": "entertainment",
+                    "display_name": "Entertainment",
+                    "parameter_units": "usd",
+                    "description": "Monthly spending on movies, streaming, events, etc.",
+                    "default": 100
+                },
+                {
+                    "type": "personal_care",
+                    "display_name": "Personal Care",
+                    "parameter_units": "usd",
+                    "description": "Monthly spending on haircuts, toiletries, gym, etc.",
+                    "default": 75
+                },
+                {
+                    "type": "miscellaneous",
+                    "display_name": "Miscellaneous",
+                    "parameter_units": "usd",
+                    "description": "Other monthly expenses not listed above.",
+                    "default": 100
+                }
+            ]
         },
         {
             "type": "manual_correction",
@@ -1964,6 +2148,52 @@
             ]
         },
         {
+            "type": "roth_ira_contribution",
+            "display_type": "Roth IRA Contribution",
+            "category": "Retirement",
+            "weight": 60,
+            "description": "Contribute to a Roth IRA account.",
+            "icon": "banknote",
+            "disclaimer": "This event simulates a Roth IRA contribution. Contribution limits and eligibility are not enforced.",
+            "parameters": [
+                {
+                    "type": "start_time",
+                    "display_name": "Start Date",
+                    "parameter_units": "date",
+                    "description": "When the contribution starts.",
+                    "default": 0
+                },
+                {
+                    "type": "end_time",
+                    "display_name": "End Date",
+                    "parameter_units": "date",
+                    "description": "When the contribution ends.",
+                    "default": 99999
+                },
+                {
+                    "type": "amount",
+                    "display_name": "Contribution Amount",
+                    "parameter_units": "usd",
+                    "description": "Amount to contribute.",
+                    "default": 6000
+                },
+                {
+                    "type": "from_key",
+                    "display_name": "From Envelope",
+                    "parameter_units": "envelope",
+                    "description": "Envelope from which funds are contributed.",
+                    "default": "Other (Cash)"
+                },
+                {
+                    "type": "to_key",
+                    "display_name": "To Envelope",
+                    "parameter_units": "envelope",
+                    "description": "Envelope where Roth IRA is tracked.",
+                    "default": "RothIRA"
+                }
+            ]
+        },
+        {
             "type": "declare_accounts",
             "display_type": "Declare Accounts",
             "weight": 100,
@@ -2048,6 +2278,101 @@
                     "parameter_units": "envelope",
                     "description": "Fifth envelope/account name.",
                     "default": "Other (Debt)"
+                }
+            ]
+        },
+        {
+            "type": "tax_payment_estimated",
+            "display_type": "Tax Payment (Estimated)",
+            "category": "Taxes & Government",
+            "weight": 35,
+            "description": "Estimate your annual tax payment based on salary and filing status.",
+            "icon": "file-text",
+            "disclaimer": "This event provides a simplified estimate of your annual tax payment based on a few key parameters. It does not account for deductions, credits, investment income, self-employment, or other tax situations. This estimate cannot be used for tax filing or official purposes.",
+            "parameters": [
+                {
+                    "type": "start_time",
+                    "display_name": "Tax Year Start",
+                    "parameter_units": "date",
+                    "description": "Start of the tax year.",
+                    "default": 0
+                },
+                {
+                    "type": "end_time",
+                    "display_name": "Tax Year End",
+                    "parameter_units": "date",
+                    "description": "End of the tax year.",
+                    "default": 99999
+                },
+                {
+                    "type": "salary",
+                    "display_name": "Annual Salary",
+                    "parameter_units": "usd",
+                    "description": "Total annual salary income.",
+                    "default": 60000
+                },
+                {
+                    "type": "filing_status",
+                    "display_name": "Filing Status",
+                    "parameter_units": "enum",
+                    "description": "Tax filing status.",
+                    "default": "Single",
+                    "options": [
+                        "Single",
+                        "Married Filing Jointly",
+                        "Married Filing Separately",
+                        "Head of Household",
+                        "Qualifying Widow(er)"
+                    ]
+                },
+                {
+                    "type": "number_of_dependents",
+                    "display_name": "Number of Dependents",
+                    "parameter_units": "number",
+                    "description": "Number of dependents claimed.",
+                    "default": 0
+                },
+                {
+                    "type": "retirement_contributions",
+                    "display_name": "Retirement Contributions",
+                    "parameter_units": "usd",
+                    "description": "Total tax-deductible retirement contributions.",
+                    "default": 0
+                },
+                {
+                    "type": "itemized_deductions",
+                    "display_name": "Itemized Deductions",
+                    "parameter_units": "usd",
+                    "description": "Total itemized deductions claimed.",
+                    "default": 0
+                },
+                {
+                    "type": "capital_gains",
+                    "display_name": "Capital Gains",
+                    "parameter_units": "usd",
+                    "description": "Total taxable capital gains.",
+                    "default": 0
+                },
+                {
+                    "type": "federal_tax_rate",
+                    "display_name": "Federal Tax Rate",
+                    "parameter_units": "percentage",
+                    "description": "Estimated federal tax rate.",
+                    "default": 0.12
+                },
+                {
+                    "type": "state_tax_rate",
+                    "display_name": "State Tax Rate",
+                    "parameter_units": "percentage",
+                    "description": "Estimated state tax rate.",
+                    "default": 0.05
+                },
+                {
+                    "type": "from_key",
+                    "display_name": "From Envelope",
+                    "parameter_units": "envelope",
+                    "description": "Envelope where estimated taxes are paid from.",
+                    "default": "Other (Cash)"
                 }
             ]
         }

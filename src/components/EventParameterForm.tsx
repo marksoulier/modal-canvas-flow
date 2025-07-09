@@ -40,7 +40,7 @@ const EventParametersForm: React.FC<EventParametersFormProps> = ({
     onSelectEvent,
     onOpenEnvelopeModal
 }) => {
-    const { plan, schema, getEventIcon, updateParameter, deleteEvent, getParameterDisplayName, getParameterUnits, getEventDisplayType, addUpdatingEvent, getParameterDescription, updateEventDescription } = usePlan();
+    const { plan, schema, getEventIcon, updateParameter, deleteEvent, getParameterDisplayName, getParameterUnits, getEventDisplayType, addUpdatingEvent, getParameterDescription, updateEventDescription, getParameterOptions } = usePlan();
     const [parameters, setParameters] = useState<Record<number, { type: string; value: string | number }>>({});
     const [loading, setLoading] = useState(false);
     const [newUpdatingEventType, setNewUpdatingEventType] = useState<string>("");
@@ -356,6 +356,28 @@ const EventParametersForm: React.FC<EventParametersFormProps> = ({
                         days
                     </div>
                 </div>
+            );
+        }
+
+        if (paramUnits === 'enum') {
+            const options = getParameterOptions(typeToUse, param.type);
+            return (
+                <Select
+                    value={value as string}
+                    onValueChange={(newValue) => {
+                        handleInputChange(param.id, newValue);
+                        handleInputBlur(param.id, newValue);
+                    }}
+                >
+                    <SelectTrigger className="w-full">
+                        <SelectValue placeholder={defaultValue || "Select an option"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                        {options.map((option: string) => (
+                            <SelectItem key={option} value={option}>{option}</SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
             );
         }
 

@@ -15,8 +15,9 @@ interface EditEnvelopeModalProps {
     category: string;
     growth: string;
     rate: number;
+    days_of_usefulness?: number;
   } | null;
-  onSave: (envelope: { name: string; category: string; growth: string; rate: number }) => void;
+  onSave: (envelope: { name: string; category: string; growth: string; rate: number; days_of_usefulness?: number }) => void;
 }
 
 const EditEnvelopeModal: React.FC<EditEnvelopeModalProps> = ({ isOpen, onClose, envelope = null, onSave }) => {
@@ -24,6 +25,7 @@ const EditEnvelopeModal: React.FC<EditEnvelopeModalProps> = ({ isOpen, onClose, 
   const [category, setCategory] = useState(envelope?.category || '');
   const [growth, setGrowth] = useState(envelope?.growth || 'None');
   const [rate, setRate] = useState(envelope ? envelope.rate * 100 : 0);
+  const [daysOfUsefulness, setDaysOfUsefulness] = useState(envelope?.days_of_usefulness || 0);
 
   const { schema } = usePlan();
 
@@ -32,21 +34,27 @@ const EditEnvelopeModal: React.FC<EditEnvelopeModalProps> = ({ isOpen, onClose, 
     setCategory(envelope?.category || '');
     setGrowth(envelope?.growth || 'None');
     setRate(envelope ? envelope.rate * 100 : 0);
+    setDaysOfUsefulness(envelope?.days_of_usefulness || 0);
   }, [envelope, isOpen]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || !category) return;
-    onSave({
+    const payload: { name: string; category: string; growth: string; rate: number; days_of_usefulness?: number } = {
       name: name.trim(),
       category,
       growth,
       rate: rate / 100
-    });
+    };
+    if (growth === 'Depreciation (Days)') {
+      payload.days_of_usefulness = daysOfUsefulness;
+    }
+    onSave(payload);
     setName('');
     setCategory('');
     setGrowth('None');
     setRate(0);
+    setDaysOfUsefulness(0);
     onClose();
   };
 
@@ -54,7 +62,9 @@ const EditEnvelopeModal: React.FC<EditEnvelopeModalProps> = ({ isOpen, onClose, 
     { value: 'None', label: 'None' },
     { value: 'Appreciation', label: 'Appreciation' },
     { value: 'Daily Compound', label: 'Daily Compound' },
-    { value: 'Yearly Compound', label: 'Yearly Compound' }
+    { value: 'Yearly Compound', label: 'Yearly Compound' },
+    { value: 'Depreciation', label: 'Depreciation (Rate)' },
+    { value: 'Depreciation (Days)', label: 'Depreciation (Days)' }
   ];
 
   return (
@@ -108,18 +118,35 @@ const EditEnvelopeModal: React.FC<EditEnvelopeModalProps> = ({ isOpen, onClose, 
             </Select>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="rate">Growth Rate (%)</Label>
-            <Input
-              id="rate"
-              type="number"
-              step="0.01"
-              value={rate}
-              onChange={(e) => setRate(Number(e.target.value))}
-              placeholder="0.00"
-              disabled={growth === 'None'}
-            />
-          </div>
+          {growth !== 'Depreciation (Days)' && (
+            <div className="space-y-2">
+              <Label htmlFor="rate">Growth Rate (%)</Label>
+              <Input
+                id="rate"
+                type="number"
+                step="0.01"
+                value={rate}
+                onChange={(e) => setRate(Number(e.target.value))}
+                placeholder="0.00"
+                disabled={growth === 'None'}
+              />
+            </div>
+          )}
+
+          {growth === 'Depreciation (Days)' && (
+            <div className="space-y-2">
+              <Label htmlFor="daysOfUsefulness">Days of Usefulness</Label>
+              <Input
+                id="daysOfUsefulness"
+                type="number"
+                min={1}
+                value={daysOfUsefulness}
+                onChange={(e) => setDaysOfUsefulness(Number(e.target.value))}
+                placeholder="Enter number of days"
+                required
+              />
+            </div>
+          )}
 
           <div className="flex flex-col space-y-3 pt-4">
             <Button type="submit" className="w-full">

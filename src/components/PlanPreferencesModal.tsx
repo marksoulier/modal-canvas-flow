@@ -24,7 +24,7 @@ const PlanPreferencesModal: React.FC<PlanPreferencesModalProps> = ({
     onAddEnvelope,
     onManageEnvelopes,
 }) => {
-    const { plan, updatePlanTitle, updateBirthDate } = usePlan();
+    const { plan, updatePlanTitle, updateBirthDate, setAdjustForInflation } = usePlan();
     const [isEditingTitle, setIsEditingTitle] = useState(false);
     const [tempTitle, setTempTitle] = useState('');
     const titleInputRef = useRef<HTMLInputElement>(null);
@@ -110,6 +110,20 @@ const PlanPreferencesModal: React.FC<PlanPreferencesModalProps> = ({
                             birthDate={plan?.birth_date || ''}
                             placeholder="Select birth date"
                         />
+                    </div>
+
+                    {/* Inflation Adjustment Section */}
+                    <div className="space-y-3">
+                        <h3 className="text-lg font-medium text-gray-900">Inflation Adjustment</h3>
+                        <label className="flex items-center gap-2 cursor-pointer select-none">
+                            <input
+                                type="checkbox"
+                                checked={!!plan?.adjust_for_inflation}
+                                onChange={e => setAdjustForInflation(e.target.checked)}
+                                className="form-checkbox h-5 w-5 text-blue-600"
+                            />
+                            <span className="text-gray-700">Adjust for inflation</span>
+                        </label>
                     </div>
 
                     {/* Main Events Section */}

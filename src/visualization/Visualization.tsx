@@ -28,6 +28,7 @@ import {
   generateEnvelopeColors,
   Legend,
   findClosestPoint,
+  getEnvelopeAndCategoryColors,
 } from './viz_utils';
 import type {
   TimeInterval,
@@ -191,7 +192,8 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
           schema,
           startDate,
           endDate,
-          getIntervalInDays(timeInterval)
+          getIntervalInDays(timeInterval),
+          currentDaysSinceBirth // pass current day
         );
         //console.log('Loaded Financial Results:', result);
         setNetWorthData(result);
@@ -260,7 +262,14 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
   // Make sure categoryColors is defined before render logic
   const envelopeKeys = useMemo(() => Object.keys(netWorthData[0]?.parts || {}), [netWorthData]);
   const categoryMap = useMemo(() => groupEnvelopesByCategory(plan, envelopeKeys), [plan, envelopeKeys]);
-  const categoryColors = useMemo(() => generateEnvelopeColors(Object.keys(categoryMap)), [categoryMap]);
+  // Use new color generator
+  const { envelopeColors, categoryColors } = useMemo(() => {
+    if (!plan || !schema) return { envelopeColors: {}, categoryColors: {} };
+    return getEnvelopeAndCategoryColors(
+      envelopeKeys.map(name => ({ name, category: getEnvelopeCategory(plan, name) || 'Uncategorized' })),
+      Object.keys(categoryMap)
+    );
+  }, [plan, schema, envelopeKeys, categoryMap]);
 
   return (
     <div className="relative w-full h-full">
@@ -728,8 +737,8 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
                     );
                   })}
 
-                  {/* Add top/bottom lines for each part - only at y1 */}
-                  {Object.keys(netWorthData[0]?.parts || {}).map((partKey) => {
+                  {/* Add top/bottom lines for each part - only at y1, render in reverse order so lower stack is on top */}
+                  {[...Object.keys(netWorthData[0]?.parts || {})].reverse().map((partKey) => {
                     const category = getEnvelopeCategory(plan, partKey) || 'Uncategorized';
                     const color = categoryColors[category] || { area: '#ccc', line: '#888' };
                     return (
@@ -740,7 +749,7 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
                         y={(d) => visibleYScale(d.stackedParts[partKey].y1)}
                         stroke={color.line}
                         strokeWidth={1 / globalZoom}
-                        strokeOpacity={0.5}
+                        strokeOpacity={1}
                         curve={curveLinear}
                       />
                     );
@@ -966,10 +975,10 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
               {netWorthData.length > 0 && (
                 <Legend
                   envelopes={Object.keys(netWorthData[0].parts)}
-                  colors={envelopeColors}
+                  envelopeColors={envelopeColors}
                   currentValues={closestPoint ? closestPoint.parts : netWorthData[netWorthData.length - 1].parts}
                   getCategory={(envelope) => getEnvelopeCategory(plan, envelope)}
-                  categoryColors={envelopeColors}
+                  categoryColors={categoryColors}
                 />
               )}
 

@@ -64,18 +64,21 @@ export interface Event {
     updating_events?: UpdatingEvent[];
 }
 
+export interface Envelope {
+    name: string;
+    category: string;
+    growth: string;
+    rate?: number;
+    days_of_usefulness?: number;
+}
+
 export interface Plan {
     title: string;
     birth_date: string;
     inflation_rate: number;
     adjust_for_inflation: boolean;
     events: Event[];
-    envelopes: {
-        name: string;
-        category: string;
-        growth: string;
-        rate: number;
-    }[];
+    envelopes: Envelope[];
 }
 
 export interface SchemaParameter {
@@ -84,6 +87,7 @@ export interface SchemaParameter {
     parameter_units: string;
     description: string;
     default: number | string;
+    options?: string[];
 }
 
 export interface SchemaUpdatingEvent {
@@ -113,6 +117,7 @@ export interface Schema {
     categories: string[];
     parameter_units_list: string[];
     events: SchemaEvent[];
+    default_envelopes?: Envelope[];
 }
 
 interface PlanContextType {
@@ -135,6 +140,8 @@ interface PlanContextType {
     updatePlanTitle: (newTitle: string) => void;
     updateBirthDate: (daysFromCurrent: number) => void;
     getEventDisclaimer: (eventType: string) => string;
+    getParameterOptions: (eventType: string, parameterType: string) => string[];
+    setAdjustForInflation: (value: boolean) => void; // <-- add this
 }
 
 const SCHEMA_PATH = '/assets/event_schema.json';
@@ -352,6 +359,23 @@ export function PlanProvider({ children }: PlanProviderProps) {
             throw new Error(`Event type ${eventType} not found in schema`);
         }
 
+        // --- NEW: Check for envelope parameters and add missing envelopes ---
+        let newEnvelopes = [...plan.envelopes];
+        const planEnvelopeNames = newEnvelopes.map(e => e.name);
+        eventSchema.parameters.forEach(param => {
+            if (
+                param.parameter_units === 'envelope' &&
+                typeof param.default === 'string' &&
+                !planEnvelopeNames.includes(param.default)
+            ) {
+                const defaultEnvelope = schema.default_envelopes?.find(env => env.name === param.default);
+                if (defaultEnvelope) {
+                    newEnvelopes.push({ ...defaultEnvelope });
+                    planEnvelopeNames.push(defaultEnvelope.name);
+                }
+            }
+        });
+
         // Generate a new unique ID
         const newId = Math.max(
             ...plan.events.map(e => e.id),
@@ -379,7 +403,8 @@ export function PlanProvider({ children }: PlanProviderProps) {
             if (!prevPlan) return null;
             return {
                 ...prevPlan,
-                events: [...prevPlan.events, newEvent]
+                events: [...prevPlan.events, newEvent],
+                envelopes: newEnvelopes
             };
         });
 
@@ -599,10 +624,42 @@ export function PlanProvider({ children }: PlanProviderProps) {
         });
     }, [plan]);
 
+    // Set adjust_for_inflation flag
+    const setAdjustForInflation = useCallback((value: boolean) => {
+        if (!plan) {
+            throw new Error('No plan data available');
+        }
+        setPlan(prevPlan => {
+            if (!prevPlan) return null;
+            return { ...prevPlan, adjust_for_inflation: value };
+        });
+    }, [plan]);
+
     const getEventDisclaimer = useCallback((eventType: string) => {
         if (!schema) return '';
         const eventSchema = schema.events.find(e => e.type === eventType);
         return eventSchema?.disclaimer || '';
+    }, [schema]);
+
+    const getParameterOptions = useCallback((eventType: string, parameterType: string) => {
+        if (!schema) return [];
+        // Try main events first
+        let eventSchema = schema.events.find(e => e.type === eventType);
+        let parameter;
+        if (eventSchema) {
+            parameter = eventSchema.parameters.find(p => p.type === parameterType);
+        }
+        // If not found, try updating events
+        if (!parameter) {
+            for (const evt of schema.events) {
+                const updating = evt.updating_events?.find(ue => ue.type === eventType);
+                if (updating) {
+                    parameter = updating.parameters.find(p => p.type === parameterType);
+                    if (parameter) break;
+                }
+            }
+        }
+        return parameter?.options || [];
     }, [schema]);
 
     const value = {
@@ -625,6 +682,8 @@ export function PlanProvider({ children }: PlanProviderProps) {
         updatePlanTitle,
         updateBirthDate,
         getEventDisclaimer,
+        getParameterOptions,
+        setAdjustForInflation, // <-- add to context
     };
 
     // Don't render children until we've attempted to load the default plan and schema
