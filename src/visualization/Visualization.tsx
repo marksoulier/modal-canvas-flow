@@ -505,12 +505,13 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
 
           return (
             <>
-              {/* Zoom Buttons - Top Right, down by 20% */}
+              {/* Zoom Buttons - Top Center */}
               <div
                 style={{
                   position: 'absolute',
-                  top: height * 0.09,
-                  right: 32,
+                  top: 32,
+                  left: '50%',
+                  transform: 'translateX(-50%)',
                   zIndex: 20,
                   display: 'flex',
                   gap: 8,
@@ -571,6 +572,7 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
                   10yr
                 </button>
               </div>
+
               <svg
                 ref={svgRef}
                 width={width}
@@ -1083,4 +1085,4 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
       </Zoom>
     </div>
   );
-} 
+}

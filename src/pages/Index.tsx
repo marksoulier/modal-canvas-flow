@@ -1,6 +1,7 @@
+
 import React, { useState, useRef } from 'react';
 import type { Plan } from '../contexts/PlanContext';
-import { Menu, HelpCircle, Plus, Save, FileText, FolderOpen, User, List, Edit3 } from 'lucide-react';
+import { Menu, Plus, Save, FileText, FolderOpen, User, Edit3, HelpCircle } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -12,7 +13,6 @@ import HelpModal from '../components/HelpModal';
 import SaveModal from '../components/SaveModal';
 import EventLibraryModal from '../components/EventLibraryModal';
 import AuthModal from '../components/AuthModal';
-
 import SubscriptionModal from '../components/SubscriptionModal';
 import EventParameterForm from '../components/EventParameterForm';
 import EditEnvelopeModal from '../components/EditEnvelopeModal';
@@ -200,7 +200,7 @@ const Index = () => {
           {/* Hamburger Dropdown Menu */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <button className="p-3 bg-white/90 backdrop-blur-sm hover:bg-white/95 rounded-lg shadow-md border border-gray-100 transition-all duration-200">
+              <button className="p-3 bg-white/90 backdrop-blur-sm hover:bg-white/95 rounded-lg shadow-sm border border-gray-100 transition-all duration-200">
                 <Menu size={20} className="text-gray-600" />
               </button>
             </DropdownMenuTrigger>
@@ -256,6 +256,13 @@ const Index = () => {
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem
+                onClick={() => setHelpModalOpen(true)}
+                className="cursor-pointer"
+              >
+                <HelpCircle className="mr-2 h-4 w-4" />
+                Help
+              </DropdownMenuItem>
+              <DropdownMenuItem
                 onClick={handleAccount}
                 className="cursor-pointer"
               >
@@ -266,20 +273,28 @@ const Index = () => {
           </DropdownMenu>
         </div>
 
-        {/* Help Button - Top Right */}
-        <button
-          onClick={() => setHelpModalOpen(true)}
-          className="absolute top-6 right-6 p-3 bg-slate-50/90 backdrop-blur-sm hover:bg-slate-100/90 rounded-lg shadow-sm border border-slate-200 transition-all duration-200"
-        >
-          <HelpCircle size={20} className="text-slate-600" />
-        </button>
-
         {/* Add Event Button - Bottom Center (more subtle and higher up) */}
         <button
           onClick={() => setEventLibraryOpen(true)}
-          className="fixed bottom-16 left-1/2 transform -translate-x-1/2 bg-[#03c6fc]/10 backdrop-blur-sm hover:bg-[#03c6fc]/20 text-slate-700 px-5 py-2.5 rounded-lg shadow-sm border border-[#03c6fc]/20 hover:border-[#03c6fc]/40 transition-all duration-200 flex items-center gap-2 text-sm font-medium"
+          className="fixed bottom-16 left-1/2 transform -translate-x-1/2 bg-slate-50/80 backdrop-blur-sm hover:bg-slate-100/90 text-slate-600 hover:text-slate-700 px-5 py-2.5 rounded-lg shadow-sm border border-slate-200/60 hover:border-slate-300/80 transition-all duration-200 flex items-center gap-2 text-sm font-medium hover:shadow-md"
+          style={{
+            background: 'rgba(248, 250, 252, 0.8)',
+            borderColor: 'rgba(203, 213, 225, 0.6)',
+            color: '#475569',
+            boxShadow: '0 1px 2px rgba(3, 198, 252, 0.05), 0 1px 3px rgba(0, 0, 0, 0.05)',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = 'rgba(248, 250, 252, 0.95)';
+            e.currentTarget.style.borderColor = 'rgba(3, 198, 252, 0.2)';
+            e.currentTarget.style.boxShadow = '0 2px 4px rgba(3, 198, 252, 0.08), 0 2px 6px rgba(0, 0, 0, 0.08)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = 'rgba(248, 250, 252, 0.8)';
+            e.currentTarget.style.borderColor = 'rgba(203, 213, 225, 0.6)';
+            e.currentTarget.style.boxShadow = '0 1px 2px rgba(3, 198, 252, 0.05), 0 1px 3px rgba(0, 0, 0, 0.05)';
+          }}
         >
-          <Plus size={18} className="" />
+          <Plus size={18} />
           Add Event
         </button>
       </div>
