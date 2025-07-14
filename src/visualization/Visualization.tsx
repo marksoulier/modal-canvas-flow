@@ -719,7 +719,7 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
 
                 {/* Main content with zoom transform */}
                 <g transform={`translate(${zoom.transformMatrix.translateX},${zoom.transformMatrix.translateY}) scale(${zoom.transformMatrix.scaleX},${zoom.transformMatrix.scaleY})`}>
-                  {/* Add stacked areas - made darker and less transparent */}
+                  {/* Add stacked areas */}
                   {Object.keys(netWorthData[0]?.parts || {}).map((partKey) => {
                     const category = getEnvelopeCategory(plan, partKey) || 'Uncategorized';
                     const color = categoryColors[category] || { area: '#ccc', line: '#888' };
@@ -733,13 +733,13 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
                         yScale={visibleYScale}
                         stroke="none"
                         fill={color.area}
-                        fillOpacity={0.45}
+                        fillOpacity={0.2}
                         curve={curveLinear}
                       />
                     );
                   })}
 
-                  {/* Add top/bottom lines for each part - made darker and more visible */}
+                  {/* Add top/bottom lines for each part */}
                   {[...Object.keys(netWorthData[0]?.parts || {})].reverse().map((partKey) => {
                     const category = getEnvelopeCategory(plan, partKey) || 'Uncategorized';
                     const color = categoryColors[category] || { area: '#ccc', line: '#888' };
@@ -750,8 +750,8 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
                         x={(d) => xScale(d.date)}
                         y={(d) => visibleYScale(d.stackedParts[partKey].y1)}
                         stroke={color.line}
-                        strokeWidth={1.5 / globalZoom}
-                        strokeOpacity={0.85}
+                        strokeWidth={1 / globalZoom}
+                        strokeOpacity={1}
                         curve={curveLinear}
                       />
                     );
