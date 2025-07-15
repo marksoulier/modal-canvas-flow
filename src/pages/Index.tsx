@@ -1,4 +1,3 @@
-
 import React, { useState, useRef } from 'react';
 import type { Plan, Envelope } from '../contexts/PlanContext';
 import { Menu, Plus, Save, FileText, FolderOpen, User, Edit3, HelpCircle } from 'lucide-react';
@@ -15,6 +14,7 @@ import SaveModal from '../components/SaveModal';
 import EventLibraryModal from '../components/EventLibraryModal';
 import AuthModal from '../components/AuthModal';
 import SubscriptionModal from '../components/SubscriptionModal';
+import UserAccountModal from '../components/UserAccountModal';
 import EventParameterForm from '../components/EventParameterForm';
 import EditEnvelopeModal from '../components/EditEnvelopeModal';
 import EnvelopeManagerModal from '../components/EnvelopeManagerModal';
@@ -31,6 +31,7 @@ const Index = () => {
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [planPreferencesModalOpen, setPlanPreferencesModalOpen] = useState(false);
   const [subscriptionModalOpen, setSubscriptionModalOpen] = useState(false);
+  const [userAccountModalOpen, setUserAccountModalOpen] = useState(false);
   const [eventParametersOpen, setEventParametersOpen] = useState(false);
   const [addEnvelopeModalOpen, setAddEnvelopeModalOpen] = useState(false);
   const [envelopeManagerModalOpen, setEnvelopeManagerModalOpen] = useState(false);
@@ -94,8 +95,6 @@ const Index = () => {
     }
   };
 
-
-
   const handleTitleClick = () => {
     setIsEditingTitle(true);
     setTempTitle(plan?.title || '');
@@ -128,11 +127,15 @@ const Index = () => {
 
   const handleAccount = () => {
     if (isAuthenticated) {
-      // TODO: Show account management or sign out
-      setIsAuthenticated(false);
+      setUserAccountModalOpen(true);
     } else {
       setAuthModalOpen(true);
     }
+  };
+
+  const handleSignOut = () => {
+    setIsAuthenticated(false);
+    setUserAccountModalOpen(false);
   };
 
   // Handler to open EditEnvelopeModal for a specific envelope
@@ -323,6 +326,12 @@ const Index = () => {
           setAuthModalOpen(false);
           setSubscriptionModalOpen(true);
         }}
+      />
+
+      <UserAccountModal
+        isOpen={userAccountModalOpen}
+        onClose={() => setUserAccountModalOpen(false)}
+        onSignOut={handleSignOut}
       />
 
       <SubscriptionModal
