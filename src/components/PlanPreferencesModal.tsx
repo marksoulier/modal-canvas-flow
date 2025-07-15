@@ -24,15 +24,17 @@ const PlanPreferencesModal: React.FC<PlanPreferencesModalProps> = ({
     onAddEnvelope,
     onManageEnvelopes,
 }) => {
-    const { plan, updatePlanTitle, updateBirthDate, setAdjustForInflation, updatePlanInflationRate } = usePlan();
+    const { plan, updatePlanTitle, updateBirthDate, setAdjustForInflation, updatePlanInflationRate, updateRetirementGoal } = usePlan();
     const [isEditingTitle, setIsEditingTitle] = useState(false);
     const [tempTitle, setTempTitle] = useState('');
     const titleInputRef = useRef<HTMLInputElement>(null);
     const [inflationInput, setInflationInput] = useState<string>(plan?.inflation_rate !== undefined ? (plan.inflation_rate * 100).toFixed(2) : '');
+    const [retirementGoalInput, setRetirementGoalInput] = useState<string>(plan?.retirement_goal !== undefined ? plan.retirement_goal.toString() : '');
 
     useEffect(() => {
         setInflationInput(plan?.inflation_rate !== undefined ? (plan.inflation_rate * 100).toFixed(2) : '');
-    }, [plan?.inflation_rate]);
+        setRetirementGoalInput(plan?.retirement_goal !== undefined ? plan.retirement_goal.toString() : '');
+    }, [plan?.inflation_rate, plan?.retirement_goal]);
 
     const handleTitleClick = () => {
         setIsEditingTitle(true);
@@ -85,6 +87,26 @@ const PlanPreferencesModal: React.FC<PlanPreferencesModalProps> = ({
     const handleInflationKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
         if (e.key === 'Enter') {
             handleInflationBlur();
+        }
+    };
+
+    const handleRetirementGoalChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setRetirementGoalInput(e.target.value);
+    };
+
+    const handleRetirementGoalBlur = () => {
+        let val = parseFloat(retirementGoalInput);
+        if (!isNaN(val)) {
+            updateRetirementGoal(val);
+            setRetirementGoalInput(val.toString());
+        } else {
+            setRetirementGoalInput(plan?.retirement_goal !== undefined ? plan.retirement_goal.toString() : '');
+        }
+    };
+
+    const handleRetirementGoalKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === 'Enter') {
+            handleRetirementGoalBlur();
         }
     };
 
@@ -162,6 +184,21 @@ const PlanPreferencesModal: React.FC<PlanPreferencesModalProps> = ({
                                 className="w-20 px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm text-right"
                             />
                             <span className="text-gray-500 text-sm">%</span>
+                        </div>
+                        {/* Retirement Goal Section */}
+                        <div className="flex items-center gap-2 mt-2">
+                            <span className="text-gray-600 text-sm">Retirement Goal:</span>
+                            <input
+                                type="number"
+                                min="0"
+                                step="1000"
+                                value={retirementGoalInput}
+                                onChange={handleRetirementGoalChange}
+                                onBlur={handleRetirementGoalBlur}
+                                onKeyDown={handleRetirementGoalKeyDown}
+                                className="w-28 px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm text-right"
+                            />
+                            <span className="text-gray-500 text-sm">USD</span>
                         </div>
                     </div>
 

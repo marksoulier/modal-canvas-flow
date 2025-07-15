@@ -90,6 +90,7 @@ export interface Plan {
     adjust_for_inflation: boolean;
     events: Event[];
     envelopes: Envelope[];
+    retirement_goal: number; // New field for retirement goal
 }
 
 export interface SchemaParameter {
@@ -157,13 +158,14 @@ interface PlanContextType {
     currentDay: number;
     updatePlanInflationRate: (newRate: number) => void; // <-- add this
     lockPlan: () => void; // <-- add this
+    updateRetirementGoal: (newGoal: number) => void; // <-- add this
 }
 
 const SCHEMA_PATH = '/assets/event_schema.json';
 
 // --- AUTO-PERSISTENCE FLAG ---
 // Set this to true to enable automatic saving/loading of the plan to/from localStorage
-const ENABLE_AUTO_PERSIST_PLAN = true;
+const ENABLE_AUTO_PERSIST_PLAN = false;
 const LOCALSTORAGE_PLAN_KEY = 'user_plan_v1';
 const LOCALSTORAGE_PLAN_LOCKED_KEY = 'user_plan_locked_v1';
 
@@ -725,6 +727,17 @@ export function PlanProvider({ children }: PlanProviderProps) {
         });
     }, [plan]);
 
+    // Add updateRetirementGoal method
+    const updateRetirementGoal = useCallback((newGoal: number) => {
+        if (!plan) {
+            throw new Error('No plan data available');
+        }
+        setPlan(prevPlan => {
+            if (!prevPlan) return null;
+            return { ...prevPlan, retirement_goal: newGoal };
+        });
+    }, [plan]);
+
     // --- Add lockPlan method ---
     const lockPlan = useCallback(() => {
         const temp = plan_locked;
@@ -787,6 +800,7 @@ export function PlanProvider({ children }: PlanProviderProps) {
         currentDay,
         updatePlanInflationRate, // <-- add to context value
         lockPlan, // <-- add to context value
+        updateRetirementGoal, // <-- add to context value
     };
 
     // Don't render children until we've attempted to load the default plan and schema

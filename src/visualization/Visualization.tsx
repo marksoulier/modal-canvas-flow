@@ -326,6 +326,10 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
           const visibleData = netWorthData.filter(d =>
             d.date >= visibleXDomain[0] && d.date <= visibleXDomain[1]
           );
+          // Filter locked plan net worth data to visible x-range
+          const visibleLockedNetWorthData = lockedNetWorthData.filter(d =>
+            d.date >= visibleXDomain[0] && d.date <= visibleXDomain[1]
+          );
 
           // Update time interval based on zoom level
           useEffect(() => {
@@ -480,11 +484,11 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
 
           // Calculate visibleYScale based on visibleData only
           const visibleYScale = useMemo(() => {
-            if (!visibleData.length) return scaleLinear({ domain: [0, 1], range: [height, 0] });
-            const allYValues = visibleData.flatMap((d: any) => [
-              d.value,
-              ...Object.values(d.parts)
-            ]);
+            if (!visibleData.length && !visibleLockedNetWorthData.length) return scaleLinear({ domain: [0, 1], range: [height, 0] });
+            const allYValues = [
+              ...visibleData.flatMap((d: any) => [d.value, ...Object.values(d.parts)]),
+              ...visibleLockedNetWorthData.map(d => d.value)
+            ];
             const minY = Math.min(...allYValues);
             const adjustedMinY = minY > 0 ? 0 : minY;
             const maxY = Math.max(...allYValues);
@@ -497,7 +501,7 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
               domain: [domainMin, domainMax],
               range: [height, 0],
             });
-          }, [visibleData, height]);
+          }, [visibleData, visibleLockedNetWorthData, height]);
 
           // Move handleZoomToYears here so it's in scope for the buttons
           const handleZoomToYears = (years: number) => {
@@ -792,6 +796,19 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
                     strokeWidth={1 / globalZoom}
                     opacity={0.5}
                   />
+
+                  {/* Retirement Goal Line (solid, inside zoom group) */}
+                  {plan?.retirement_goal && plan.retirement_goal > 0 && (
+                    <line
+                      x1={0}
+                      x2={width}
+                      y1={visibleYScale(plan.retirement_goal)}
+                      y2={visibleYScale(plan.retirement_goal)}
+                      stroke="#f59e42"
+                      strokeWidth={1.8}
+                      opacity={0.7}
+                    />
+                  )}
                 </g>
 
                 {/* Net Worth Line and Data Circles rendered outside the zoom <g> so their thickness and size are fixed */}
@@ -939,6 +956,8 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
                     });
                   });
                 })()}
+
+
 
                 {/* Axes with visible domain */}
                 {
