@@ -1,13 +1,13 @@
 // simulationRunner.ts
 import { extractSchema, validateProblem, parseEvents } from './schemaChecker';
 import {
-    get_job, purchase, gift, start_business, retirement,
+    get_job, inflow, outflow, gift, start_business, retirement,
     buy_house, buy_car, have_kid, marriage, divorce, pass_away,
     buy_health_insurance, buy_life_insurance,
     receive_government_aid, invest_money,
     high_yield_savings_account, pay_taxes, buy_groceries, manual_correction,
     get_wage_job, transfer_money, reoccuring_income, reoccuring_spending, reoccuring_transfer,
-    declare_accounts,
+    declare_accounts, purchase,
     monthly_budgeting, roth_ira_contribution, tax_payment_estimated
 } from './baseFunctions';
 import { evaluateResults } from './resultsEvaluation';
@@ -77,6 +77,8 @@ export async function runSimulation(
             }
 
             switch (event.type) {
+                case 'inflow': inflow(event, envelopes); break;
+                case 'outflow': outflow(event, envelopes); break;
                 case 'purchase': purchase(event, envelopes); break;
                 case 'gift': gift(event, envelopes); break;
                 case 'get_job': get_job(event, envelopes); break;
@@ -127,8 +129,8 @@ export async function runSimulation(
         // Determine if we should adjust for inflation
         let results;
         if (plan.adjust_for_inflation) {
-            // Use inflation rate from schema
-            const inflationRate = schema.inflation_rate;
+            // Use inflation rate from plan
+            const inflationRate = plan.inflation_rate;
             results = evaluateResults(envelopes, startDate, endDate, interval, currentDay, inflationRate);
         } else {
             results = evaluateResults(envelopes, startDate, endDate, interval);

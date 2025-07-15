@@ -95,6 +95,442 @@
     ],
     "events": [
         {
+            "type": "inflow",
+            "display_type": "Inflow (Debit)",
+            "weight": 1,
+            "category": "System",
+            "description": "A simple inflow of money into an envelope.",
+            "icon": "arrow-up",
+            "parameters": [
+                {
+                    "type": "start_time",
+                    "display_name": "Date",
+                    "parameter_units": "date",
+                    "description": "When the inflow occurs",
+                    "default": 0
+                },
+                {
+                    "type": "amount",
+                    "display_name": "Amount",
+                    "parameter_units": "usd",
+                    "description": "Amount of money received",
+                    "default": 20
+                },
+                {
+                    "type": "to_key",
+                    "display_name": "To Envelope",
+                    "parameter_units": "envelope",
+                    "description": "Envelope where the money is deposited",
+                    "default": "Other (Cash)"
+                }
+            ]
+        },
+        {
+            "type": "outflow",
+            "display_type": "Outflow (Credit)",
+            "weight": 2,
+            "category": "System",
+            "description": "A simple outflow of money from an envelope.",
+            "icon": "arrow-down",
+            "parameters": [
+                {
+                    "type": "start_time",
+                    "display_name": "Date",
+                    "parameter_units": "date",
+                    "description": "When the outflow occurs",
+                    "default": 0
+                },
+                {
+                    "type": "amount",
+                    "display_name": "Amount",
+                    "parameter_units": "usd",
+                    "description": "Amount of money spent",
+                    "default": 20
+                },
+                {
+                    "type": "from_key",
+                    "display_name": "From Envelope",
+                    "parameter_units": "envelope",
+                    "description": "Envelope from which the money is withdrawn",
+                    "default": "Other (Cash)"
+                }
+            ]
+        },
+        {
+            "type": "transfer_money",
+            "display_type": "Money Transfer",
+            "weight": 80,
+            "category": "System",
+            "description": "Transfer money between envelopes with optional growth rate for destination.",
+            "icon": "arrow-right-arrow-left",
+            "disclaimer": "This event transfers a specified amount between envelopes. It does not simulate transfer fees, delays, or currency conversion.",
+            "parameters": [
+                {
+                    "type": "start_time",
+                    "display_name": "Transfer Date",
+                    "parameter_units": "date",
+                    "description": "When the transfer occurs",
+                    "default": 0
+                },
+                {
+                    "type": "amount",
+                    "display_name": "Transfer Amount",
+                    "parameter_units": "usd",
+                    "description": "Amount of money to transfer",
+                    "default": 10000
+                },
+                {
+                    "type": "from_key",
+                    "display_name": "From Envelope",
+                    "parameter_units": "envelope",
+                    "description": "Source envelope for the transfer",
+                    "default": "Other (Cash)"
+                },
+                {
+                    "type": "to_key",
+                    "display_name": "To Envelope",
+                    "parameter_units": "envelope",
+                    "description": "Destination envelope for the transfer",
+                    "default": "Other (Investments)"
+                }
+            ]
+        },
+        {
+            "type": "reoccuring_income",
+            "display_type": "Reoccuring Income",
+            "weight": 40,
+            "category": "Income & Employment",
+            "description": "Receive a recurring income at a specified interval.",
+            "icon": "repeat",
+            "disclaimer": "This event simulates recurring income deposits at set intervals. It does not account for missed payments, taxes, or income changes.",
+            "parameters": [
+                {
+                    "type": "start_time",
+                    "display_name": "Start Date",
+                    "parameter_units": "date",
+                    "description": "When the recurring income begins",
+                    "default": 0
+                },
+                {
+                    "type": "amount",
+                    "display_name": "Amount",
+                    "parameter_units": "usd",
+                    "description": "Amount received each interval.",
+                    "default": 1000
+                },
+                {
+                    "type": "frequency_days",
+                    "display_name": "Frequency (Days)",
+                    "parameter_units": "days",
+                    "description": "Number of days between each income payment.",
+                    "default": 30
+                },
+                {
+                    "type": "to_key",
+                    "display_name": "To Envelope",
+                    "parameter_units": "envelope",
+                    "description": "Envelope where income is deposited.",
+                    "default": "Other (Cash)"
+                },
+                {
+                    "type": "end_time",
+                    "display_name": "End Date",
+                    "parameter_units": "date",
+                    "description": "When the recurring income ends.",
+                    "default": 3650
+                }
+            ]
+        },
+        {
+            "type": "reoccuring_spending",
+            "display_type": "Reoccuring Spending",
+            "weight": 30,
+            "category": "Living Expenses",
+            "description": "Spend a recurring amount at a specified interval.",
+            "icon": "repeat-2",
+            "disclaimer": "This event simulates recurring spending at set intervals. It does not account for price changes, missed payments, or spending categories.",
+            "parameters": [
+                {
+                    "type": "start_time",
+                    "display_name": "Start Date",
+                    "parameter_units": "date",
+                    "description": "When the recurring spending begins",
+                    "default": 0
+                },
+                {
+                    "type": "amount",
+                    "display_name": "Amount",
+                    "parameter_units": "usd",
+                    "description": "Amount spent each interval.",
+                    "default": 500
+                },
+                {
+                    "type": "frequency_days",
+                    "display_name": "Frequency (Days)",
+                    "parameter_units": "days",
+                    "description": "Number of days between each spending event.",
+                    "default": 30
+                },
+                {
+                    "type": "from_key",
+                    "display_name": "From Envelope",
+                    "parameter_units": "envelope",
+                    "description": "Envelope where spending is deducted from.",
+                    "default": "Other (Cash)"
+                },
+                {
+                    "type": "end_time",
+                    "display_name": "End Date",
+                    "parameter_units": "date",
+                    "description": "When the recurring spending ends.",
+                    "default": 3650
+                }
+            ]
+        },
+        {
+            "type": "reoccuring_income_changing_parameters",
+            "display_type": "Reoccuring Income (Updating Amount)",
+            "weight": 40,
+            "category": "Income & Employment",
+            "description": "Receive a recurring income at a specified interval. The frequency and amount can be updated over time.",
+            "icon": "repeat",
+            "disclaimer": "This event simulates recurring income deposits at set intervals. It does not account for missed payments, taxes, or income changes.",
+            "parameters": [
+                {
+                    "type": "start_time",
+                    "display_name": "Start Date",
+                    "parameter_units": "date",
+                    "description": "When the recurring income begins",
+                    "default": 0
+                },
+                {
+                    "type": "amount",
+                    "display_name": "Amount",
+                    "parameter_units": "usd",
+                    "description": "Amount received each interval.",
+                    "default": 1000
+                },
+                {
+                    "type": "frequency_days",
+                    "display_name": "Frequency (Days)",
+                    "parameter_units": "days",
+                    "description": "Number of days between each income payment.",
+                    "default": 30
+                },
+                {
+                    "type": "to_key",
+                    "display_name": "To Envelope",
+                    "parameter_units": "envelope",
+                    "description": "Envelope where income is deposited.",
+                    "default": "Other (Cash)"
+                },
+                {
+                    "type": "end_time",
+                    "display_name": "End Date",
+                    "parameter_units": "date",
+                    "description": "When the recurring income ends.",
+                    "default": 3650
+                }
+            ],
+            "updating_events": [
+                {
+                    "type": "update_amount",
+                    "display_type": "Update Amount",
+                    "icon": "repeat",
+                    "description": "Update the amount of the recurring income.",
+                    "parameters": [
+                        {
+                            "type": "start_time",
+                            "display_name": "Start Date",
+                            "parameter_units": "date",
+                            "description": "When the recurring income begins",
+                            "default": 0
+                        },
+                        {
+                            "type": "amount",
+                            "display_name": "Amount",
+                            "parameter_units": "usd",
+                            "description": "Amount received each interval.",
+                            "default": 1000
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "type": "manual_correction",
+            "display_type": "Manual Adjustment",
+            "weight": 85,
+            "category": "System",
+            "description": "Manually adjust the value of an envelope for tracking accuracy.",
+            "icon": "edit",
+            "disclaimer": "This event allows manual adjustment of an envelope's value. It does not validate the reason for adjustment or track adjustment history.",
+            "parameters": [
+                {
+                    "type": "start_time",
+                    "display_name": "Adjustment Date",
+                    "parameter_units": "date",
+                    "description": "When the correction is applied",
+                    "default": 0
+                },
+                {
+                    "type": "amount",
+                    "display_name": "Adjustment Amount",
+                    "parameter_units": "usd",
+                    "description": "The value added or subtracted (negative values allowed).",
+                    "default": 1000
+                },
+                {
+                    "type": "to_key",
+                    "display_name": "Target Envelope",
+                    "parameter_units": "envelope",
+                    "description": "Envelope to be adjusted.",
+                    "default": "Other (Cash)"
+                }
+            ]
+        },
+        {
+            "type": "reoccuring_transfer",
+            "display_type": "Reoccuring Transfer",
+            "weight": 35,
+            "category": "System",
+            "description": "Transfer a recurring amount between envelopes at a specified interval.",
+            "icon": "repeat-3",
+            "disclaimer": "This event simulates recurring transfers between envelopes. It does not include transfer fees, missed transfers, or currency conversion.",
+            "parameters": [
+                {
+                    "type": "start_time",
+                    "display_name": "Start Date",
+                    "parameter_units": "date",
+                    "description": "When the recurring transfer begins",
+                    "default": 0
+                },
+                {
+                    "type": "amount",
+                    "display_name": "Amount",
+                    "parameter_units": "usd",
+                    "description": "Amount transferred each interval.",
+                    "default": 200
+                },
+                {
+                    "type": "frequency_days",
+                    "display_name": "Frequency (Days)",
+                    "parameter_units": "days",
+                    "description": "Number of days between each transfer.",
+                    "default": 30
+                },
+                {
+                    "type": "from_key",
+                    "display_name": "From Envelope",
+                    "parameter_units": "envelope",
+                    "description": "Envelope where money is transferred from.",
+                    "default": "Other (Cash)"
+                },
+                {
+                    "type": "to_key",
+                    "display_name": "To Envelope",
+                    "parameter_units": "envelope",
+                    "description": "Envelope where money is transferred to.",
+                    "default": "Other (Investments)"
+                },
+                {
+                    "type": "end_time",
+                    "display_name": "End Date",
+                    "parameter_units": "date",
+                    "description": "When the recurring transfer ends.",
+                    "default": 3650
+                }
+            ]
+        },
+        {
+            "type": "declare_accounts",
+            "display_type": "Declare Accounts",
+            "weight": 100,
+            "category": "System",
+            "description": "Declare the initial balances of up to five financial accounts (envelopes) at a specific time.",
+            "icon": "list",
+            "disclaimer": "This event is used to set the starting balances for up to five envelopes. It does not simulate transactions or transfers, only the initial state.",
+            "parameters": [
+                {
+                    "type": "start_time",
+                    "display_name": "Declaration Date",
+                    "parameter_units": "date",
+                    "description": "When the account balances are declared",
+                    "default": 0
+                },
+                {
+                    "type": "amount1",
+                    "display_name": "Amount 1",
+                    "parameter_units": "usd",
+                    "description": "Initial balance for Envelope 1.",
+                    "default": 0
+                },
+                {
+                    "type": "envelope1",
+                    "display_name": "Envelope 1",
+                    "parameter_units": "envelope",
+                    "description": "First envelope/account name.",
+                    "default": "Other (Cash)"
+                },
+                {
+                    "type": "amount2",
+                    "display_name": "Amount 2",
+                    "parameter_units": "usd",
+                    "description": "Initial balance for Envelope 2.",
+                    "default": 0
+                },
+                {
+                    "type": "envelope2",
+                    "display_name": "Envelope 2",
+                    "parameter_units": "envelope",
+                    "description": "Second envelope/account name.",
+                    "default": "Other (Savings)"
+                },
+                {
+                    "type": "amount3",
+                    "display_name": "Amount 3",
+                    "parameter_units": "usd",
+                    "description": "Initial balance for Envelope 3.",
+                    "default": 0
+                },
+                {
+                    "type": "envelope3",
+                    "display_name": "Envelope 3",
+                    "parameter_units": "envelope",
+                    "description": "Third envelope/account name.",
+                    "default": "Other (Investments)"
+                },
+                {
+                    "type": "amount4",
+                    "display_name": "Amount 4",
+                    "parameter_units": "usd",
+                    "description": "Initial balance for Envelope 4.",
+                    "default": 0
+                },
+                {
+                    "type": "envelope4",
+                    "display_name": "Envelope 4",
+                    "parameter_units": "envelope",
+                    "description": "Fourth envelope/account name.",
+                    "default": "Other (Retirement)"
+                },
+                {
+                    "type": "amount5",
+                    "display_name": "Amount 5",
+                    "parameter_units": "usd",
+                    "description": "Initial balance for Envelope 5.",
+                    "default": 0
+                },
+                {
+                    "type": "envelope5",
+                    "display_name": "Envelope 5",
+                    "parameter_units": "envelope",
+                    "description": "Fifth envelope/account name.",
+                    "default": "Other (Debt)"
+                }
+            ]
+        },
+        {
             "type": "purchase",
             "display_type": "Purchase",
             "category": "Living Expenses",
@@ -1211,7 +1647,7 @@
                             "default": "Other (Cash)"
                         },
                         {
-                            "type": "end_days",
+                            "type": "end_time",
                             "display_name": "End Date",
                             "parameter_units": "date",
                             "description": "When childcare costs end.",
@@ -1261,7 +1697,7 @@
                             "default": "Other (Savings)"
                         },
                         {
-                            "type": "end_days",
+                            "type": "end_time",
                             "display_name": "End Date",
                             "parameter_units": "date",
                             "description": "End of contribution period.",
@@ -1566,7 +2002,7 @@
                     "default": "Other (Cash)"
                 },
                 {
-                    "type": "end_days",
+                    "type": "end_time",
                     "display_name": "End Date",
                     "parameter_units": "date",
                     "description": "When the payments end.",
@@ -1827,7 +2263,7 @@
                     "default": "Other (Cash)"
                 },
                 {
-                    "type": "end_days",
+                    "type": "end_time",
                     "display_name": "End Date",
                     "parameter_units": "date",
                     "description": "When the expense stops recurring.",
@@ -1932,222 +2368,6 @@
             ]
         },
         {
-            "type": "manual_correction",
-            "display_type": "Manual Adjustment",
-            "weight": 85,
-            "category": "System",
-            "description": "Manually adjust the value of an envelope for tracking accuracy.",
-            "icon": "edit",
-            "disclaimer": "This event allows manual adjustment of an envelope's value. It does not validate the reason for adjustment or track adjustment history.",
-            "parameters": [
-                {
-                    "type": "start_time",
-                    "display_name": "Adjustment Date",
-                    "parameter_units": "date",
-                    "description": "When the correction is applied",
-                    "default": 0
-                },
-                {
-                    "type": "amount",
-                    "display_name": "Adjustment Amount",
-                    "parameter_units": "usd",
-                    "description": "The value added or subtracted (negative values allowed).",
-                    "default": 1000
-                },
-                {
-                    "type": "to_key",
-                    "display_name": "Target Envelope",
-                    "parameter_units": "envelope",
-                    "description": "Envelope to be adjusted.",
-                    "default": "Other (Cash)"
-                }
-            ]
-        },
-        {
-            "type": "transfer_money",
-            "display_type": "Money Transfer",
-            "weight": 80,
-            "category": "System",
-            "description": "Transfer money between envelopes with optional growth rate for destination.",
-            "icon": "arrow-right-arrow-left",
-            "disclaimer": "This event transfers a specified amount between envelopes. It does not simulate transfer fees, delays, or currency conversion.",
-            "parameters": [
-                {
-                    "type": "start_time",
-                    "display_name": "Transfer Date",
-                    "parameter_units": "date",
-                    "description": "When the transfer occurs",
-                    "default": 0
-                },
-                {
-                    "type": "amount",
-                    "display_name": "Transfer Amount",
-                    "parameter_units": "usd",
-                    "description": "Amount of money to transfer",
-                    "default": 10000
-                },
-                {
-                    "type": "from_key",
-                    "display_name": "From Envelope",
-                    "parameter_units": "envelope",
-                    "description": "Source envelope for the transfer",
-                    "default": "Other (Cash)"
-                },
-                {
-                    "type": "to_key",
-                    "display_name": "To Envelope",
-                    "parameter_units": "envelope",
-                    "description": "Destination envelope for the transfer",
-                    "default": "Other (Investments)"
-                }
-            ]
-        },
-        {
-            "type": "reoccuring_income",
-            "display_type": "Reoccuring Income",
-            "weight": 40,
-            "category": "Income & Employment",
-            "description": "Receive a recurring income at a specified interval.",
-            "icon": "repeat",
-            "disclaimer": "This event simulates recurring income deposits at set intervals. It does not account for missed payments, taxes, or income changes.",
-            "parameters": [
-                {
-                    "type": "start_time",
-                    "display_name": "Start Date",
-                    "parameter_units": "date",
-                    "description": "When the recurring income begins",
-                    "default": 0
-                },
-                {
-                    "type": "amount",
-                    "display_name": "Amount",
-                    "parameter_units": "usd",
-                    "description": "Amount received each interval.",
-                    "default": 1000
-                },
-                {
-                    "type": "frequency_days",
-                    "display_name": "Frequency (Days)",
-                    "parameter_units": "days",
-                    "description": "Number of days between each income payment.",
-                    "default": 30
-                },
-                {
-                    "type": "to_key",
-                    "display_name": "To Envelope",
-                    "parameter_units": "envelope",
-                    "description": "Envelope where income is deposited.",
-                    "default": "Other (Cash)"
-                },
-                {
-                    "type": "end_days",
-                    "display_name": "End Date",
-                    "parameter_units": "date",
-                    "description": "When the recurring income ends.",
-                    "default": 3650
-                }
-            ]
-        },
-        {
-            "type": "reoccuring_spending",
-            "display_type": "Reoccuring Spending",
-            "weight": 30,
-            "category": "Living Expenses",
-            "description": "Spend a recurring amount at a specified interval.",
-            "icon": "repeat-2",
-            "disclaimer": "This event simulates recurring spending at set intervals. It does not account for price changes, missed payments, or spending categories.",
-            "parameters": [
-                {
-                    "type": "start_time",
-                    "display_name": "Start Date",
-                    "parameter_units": "date",
-                    "description": "When the recurring spending begins",
-                    "default": 0
-                },
-                {
-                    "type": "amount",
-                    "display_name": "Amount",
-                    "parameter_units": "usd",
-                    "description": "Amount spent each interval.",
-                    "default": 500
-                },
-                {
-                    "type": "frequency_days",
-                    "display_name": "Frequency (Days)",
-                    "parameter_units": "days",
-                    "description": "Number of days between each spending event.",
-                    "default": 30
-                },
-                {
-                    "type": "from_key",
-                    "display_name": "From Envelope",
-                    "parameter_units": "envelope",
-                    "description": "Envelope where spending is deducted from.",
-                    "default": "Other (Cash)"
-                },
-                {
-                    "type": "end_days",
-                    "display_name": "End Date",
-                    "parameter_units": "date",
-                    "description": "When the recurring spending ends.",
-                    "default": 3650
-                }
-            ]
-        },
-        {
-            "type": "reoccuring_transfer",
-            "display_type": "Reoccuring Transfer",
-            "weight": 35,
-            "category": "System",
-            "description": "Transfer a recurring amount between envelopes at a specified interval.",
-            "icon": "repeat-3",
-            "disclaimer": "This event simulates recurring transfers between envelopes. It does not include transfer fees, missed transfers, or currency conversion.",
-            "parameters": [
-                {
-                    "type": "start_time",
-                    "display_name": "Start Date",
-                    "parameter_units": "date",
-                    "description": "When the recurring transfer begins",
-                    "default": 0
-                },
-                {
-                    "type": "amount",
-                    "display_name": "Amount",
-                    "parameter_units": "usd",
-                    "description": "Amount transferred each interval.",
-                    "default": 200
-                },
-                {
-                    "type": "frequency_days",
-                    "display_name": "Frequency (Days)",
-                    "parameter_units": "days",
-                    "description": "Number of days between each transfer.",
-                    "default": 30
-                },
-                {
-                    "type": "from_key",
-                    "display_name": "From Envelope",
-                    "parameter_units": "envelope",
-                    "description": "Envelope where money is transferred from.",
-                    "default": "Other (Cash)"
-                },
-                {
-                    "type": "to_key",
-                    "display_name": "To Envelope",
-                    "parameter_units": "envelope",
-                    "description": "Envelope where money is transferred to.",
-                    "default": "Other (Investments)"
-                },
-                {
-                    "type": "end_days",
-                    "display_name": "End Date",
-                    "parameter_units": "date",
-                    "description": "When the recurring transfer ends.",
-                    "default": 3650
-                }
-            ]
-        },
-        {
             "type": "roth_ira_contribution",
             "display_type": "Roth IRA Contribution",
             "category": "Retirement",
@@ -2190,94 +2410,6 @@
                     "parameter_units": "envelope",
                     "description": "Envelope where Roth IRA is tracked.",
                     "default": "RothIRA"
-                }
-            ]
-        },
-        {
-            "type": "declare_accounts",
-            "display_type": "Declare Accounts",
-            "weight": 100,
-            "category": "System",
-            "description": "Declare the initial balances of up to five financial accounts (envelopes) at a specific time.",
-            "icon": "list",
-            "disclaimer": "This event is used to set the starting balances for up to five envelopes. It does not simulate transactions or transfers, only the initial state.",
-            "parameters": [
-                {
-                    "type": "start_time",
-                    "display_name": "Declaration Date",
-                    "parameter_units": "date",
-                    "description": "When the account balances are declared",
-                    "default": 0
-                },
-                {
-                    "type": "amount1",
-                    "display_name": "Amount 1",
-                    "parameter_units": "usd",
-                    "description": "Initial balance for Envelope 1.",
-                    "default": 0
-                },
-                {
-                    "type": "envelope1",
-                    "display_name": "Envelope 1",
-                    "parameter_units": "envelope",
-                    "description": "First envelope/account name.",
-                    "default": "Other (Cash)"
-                },
-                {
-                    "type": "amount2",
-                    "display_name": "Amount 2",
-                    "parameter_units": "usd",
-                    "description": "Initial balance for Envelope 2.",
-                    "default": 0
-                },
-                {
-                    "type": "envelope2",
-                    "display_name": "Envelope 2",
-                    "parameter_units": "envelope",
-                    "description": "Second envelope/account name.",
-                    "default": "Other (Savings)"
-                },
-                {
-                    "type": "amount3",
-                    "display_name": "Amount 3",
-                    "parameter_units": "usd",
-                    "description": "Initial balance for Envelope 3.",
-                    "default": 0
-                },
-                {
-                    "type": "envelope3",
-                    "display_name": "Envelope 3",
-                    "parameter_units": "envelope",
-                    "description": "Third envelope/account name.",
-                    "default": "Other (Investments)"
-                },
-                {
-                    "type": "amount4",
-                    "display_name": "Amount 4",
-                    "parameter_units": "usd",
-                    "description": "Initial balance for Envelope 4.",
-                    "default": 0
-                },
-                {
-                    "type": "envelope4",
-                    "display_name": "Envelope 4",
-                    "parameter_units": "envelope",
-                    "description": "Fourth envelope/account name.",
-                    "default": "Other (Retirement)"
-                },
-                {
-                    "type": "amount5",
-                    "display_name": "Amount 5",
-                    "parameter_units": "usd",
-                    "description": "Initial balance for Envelope 5.",
-                    "default": 0
-                },
-                {
-                    "type": "envelope5",
-                    "display_name": "Envelope 5",
-                    "parameter_units": "envelope",
-                    "description": "Fifth envelope/account name.",
-                    "default": "Other (Debt)"
                 }
             ]
         },

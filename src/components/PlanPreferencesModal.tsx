@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { X, Plus, Wallet, List, Edit3 } from 'lucide-react';
 import { usePlan } from '../contexts/PlanContext';
 import {
@@ -24,10 +24,15 @@ const PlanPreferencesModal: React.FC<PlanPreferencesModalProps> = ({
     onAddEnvelope,
     onManageEnvelopes,
 }) => {
-    const { plan, updatePlanTitle, updateBirthDate, setAdjustForInflation } = usePlan();
+    const { plan, updatePlanTitle, updateBirthDate, setAdjustForInflation, updatePlanInflationRate } = usePlan();
     const [isEditingTitle, setIsEditingTitle] = useState(false);
     const [tempTitle, setTempTitle] = useState('');
     const titleInputRef = useRef<HTMLInputElement>(null);
+    const [inflationInput, setInflationInput] = useState<string>(plan?.inflation_rate !== undefined ? (plan.inflation_rate * 100).toFixed(2) : '');
+
+    useEffect(() => {
+        setInflationInput(plan?.inflation_rate !== undefined ? (plan.inflation_rate * 100).toFixed(2) : '');
+    }, [plan?.inflation_rate]);
 
     const handleTitleClick = () => {
         setIsEditingTitle(true);
@@ -61,6 +66,26 @@ const PlanPreferencesModal: React.FC<PlanPreferencesModalProps> = ({
     const handleBirthDateChange = (value: number) => {
 
         updateBirthDate(value);
+    };
+
+    const handleInflationChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setInflationInput(e.target.value);
+    };
+
+    const handleInflationBlur = () => {
+        let val = parseFloat(inflationInput);
+        if (!isNaN(val)) {
+            updatePlanInflationRate(val / 100);
+            setInflationInput(val.toFixed(2));
+        } else {
+            setInflationInput(plan?.inflation_rate !== undefined ? (plan.inflation_rate * 100).toFixed(2) : '');
+        }
+    };
+
+    const handleInflationKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === 'Enter') {
+            handleInflationBlur();
+        }
     };
 
     return (
@@ -124,6 +149,20 @@ const PlanPreferencesModal: React.FC<PlanPreferencesModalProps> = ({
                             />
                             <span className="text-gray-700">Adjust for inflation</span>
                         </label>
+                        <div className="flex items-center gap-2 mt-2">
+                            <span className="text-gray-600 text-sm">Inflation Rate:</span>
+                            <input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                value={inflationInput}
+                                onChange={handleInflationChange}
+                                onBlur={handleInflationBlur}
+                                onKeyDown={handleInflationKeyDown}
+                                className="w-20 px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm text-right"
+                            />
+                            <span className="text-gray-500 text-sm">%</span>
+                        </div>
                     </div>
 
                     {/* Main Events Section */}

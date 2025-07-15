@@ -1,7 +1,8 @@
 
 import React, { useState, useRef } from 'react';
-import type { Plan } from '../contexts/PlanContext';
+import type { Plan, Envelope } from '../contexts/PlanContext';
 import { Menu, Plus, Save, FileText, FolderOpen, User, Edit3, HelpCircle } from 'lucide-react';
+import { RefreshCw } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -38,13 +39,13 @@ const Index = () => {
   const [tempTitle, setTempTitle] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const titleInputRef = useRef<HTMLInputElement>(null);
-  const [editingEnvelope, setEditingEnvelope] = useState<{ name: string; category: string; growth: string; rate: number } | null>(null);
+  const [editingEnvelope, setEditingEnvelope] = useState<Envelope | null>(null);
   const [isAddingEnvelope, setIsAddingEnvelope] = useState(false);
 
   // Mock authentication state - replace with real auth logic
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
-  const { plan, schema, loadPlanFromFile, savePlanToFile, updatePlanTitle, loadPlan } = usePlan();
+  const { plan, schema, loadPlanFromFile, savePlanToFile, updatePlanTitle, loadPlan, lockPlan } = usePlan();
 
   const [errorOpen, setErrorOpen] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
@@ -54,9 +55,8 @@ const Index = () => {
     setEventParametersOpen(true);
   };
 
-  const handleExport = () => {
-    savePlanToFile();
-  };
+  // Use the context's savePlanToFile for export
+  const handleExport = savePlanToFile;
 
   const handleOpen = () => {
     if (fileInputRef.current) {
@@ -152,7 +152,7 @@ const Index = () => {
   };
 
   // Handler to save envelope (add or edit)
-  const handleSaveEnvelope = (envelope: { name: string; category: string; growth: string; rate: number }) => {
+  const handleSaveEnvelope = (envelope: Envelope) => {
     if (!plan) return;
     let updatedEnvelopes;
     if (isAddingEnvelope) {
@@ -219,17 +219,35 @@ const Index = () => {
                     className="text-lg font-medium text-gray-900 bg-transparent border-none outline-none min-w-[200px]"
                     placeholder="Enter plan title..."
                   />
+                  {/* Switch button next to input */}
+                  <button
+                    onClick={lockPlan}
+                    title="Switch with locked plan"
+                    className="ml-1 p-1 rounded hover:bg-gray-100 transition-colors"
+                  >
+                    <RefreshCw size={18} className="text-gray-400 hover:text-gray-700" />
+                  </button>
                 </div>
               ) : (
-                <button
-                  onClick={handleTitleClick}
-                  className="group flex items-center gap-2 text-gray-500 hover:text-gray-700 transition-colors duration-200"
-                >
-                  <h1 className="text-lg font-medium text-gray-500 group-hover:text-gray-700 transition-colors duration-200">
-                    {plan?.title || 'Untitled Plan'}
-                  </h1>
-                  <Edit3 size={16} className="opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={handleTitleClick}
+                    className="group flex items-center gap-2 text-gray-500 hover:text-gray-700 transition-colors duration-200"
+                  >
+                    <h1 className="text-lg font-medium text-gray-500 group-hover:text-gray-700 transition-colors duration-200">
+                      {plan?.title || 'Untitled Plan'}
+                    </h1>
+                    <Edit3 size={16} className="opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+                  </button>
+                  {/* Switch button next to title */}
+                  <button
+                    onClick={lockPlan}
+                    title="Switch with locked plan"
+                    className="ml-1 p-1 rounded hover:bg-gray-100 transition-colors"
+                  >
+                    <RefreshCw size={18} className="text-gray-400 hover:text-gray-700" />
+                  </button>
+                </div>
               )}
             </div>
             <DropdownMenuContent className="w-56 bg-white border border-gray-200 shadow-lg ml-2">
@@ -276,25 +294,9 @@ const Index = () => {
         {/* Add Event Button - Bottom Center (more subtle and higher up) */}
         <button
           onClick={() => setEventLibraryOpen(true)}
-          className="fixed bottom-16 left-1/2 transform -translate-x-1/2 bg-slate-50/80 backdrop-blur-sm hover:bg-slate-100/90 text-slate-600 hover:text-slate-700 px-5 py-2.5 rounded-lg shadow-sm border border-slate-200/60 hover:border-slate-300/80 transition-all duration-200 flex items-center gap-2 text-sm font-medium hover:shadow-md"
-          style={{
-            background: 'rgba(248, 250, 252, 0.8)',
-            borderColor: 'rgba(203, 213, 225, 0.6)',
-            color: '#475569',
-            boxShadow: '0 1px 2px rgba(3, 198, 252, 0.05), 0 1px 3px rgba(0, 0, 0, 0.05)',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = 'rgba(248, 250, 252, 0.95)';
-            e.currentTarget.style.borderColor = 'rgba(3, 198, 252, 0.2)';
-            e.currentTarget.style.boxShadow = '0 2px 4px rgba(3, 198, 252, 0.08), 0 2px 6px rgba(0, 0, 0, 0.08)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = 'rgba(248, 250, 252, 0.8)';
-            e.currentTarget.style.borderColor = 'rgba(203, 213, 225, 0.6)';
-            e.currentTarget.style.boxShadow = '0 1px 2px rgba(3, 198, 252, 0.05), 0 1px 3px rgba(0, 0, 0, 0.05)';
-          }}
+          className="fixed bottom-16 left-1/2 transform -translate-x-1/2 bg-[#03c6fc]/10 backdrop-blur-sm hover:bg-[#03c6fc]/20 text-slate-700 px-5 py-2.5 rounded-lg shadow-sm border border-[#03c6fc]/20 hover:border-[#03c6fc]/40 transition-all duration-200 flex items-center gap-2 text-sm font-medium"
         >
-          <Plus size={18} />
+          <Plus size={18} className="" />
           Add Event
         </button>
       </div>
@@ -347,7 +349,7 @@ const Index = () => {
           setEditingEnvelope(null);
           setIsAddingEnvelope(false);
         }}
-        envelope={editingEnvelope}
+        envelope={editingEnvelope ? { ...editingEnvelope, rate: editingEnvelope.rate ?? 0 } : null}
         onSave={handleSaveEnvelope}
       />
       <EnvelopeManagerModal

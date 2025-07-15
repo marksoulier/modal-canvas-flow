@@ -39,7 +39,18 @@ export const iconMap: Record<string, string> = {
     'badge-dollar-sign': 'BadgeDollarSign',
     'dollar-bill': 'DollarBill',
     'wallet': 'Wallet',
-    'pencil': 'Pencil'
+    'pencil': 'Pencil',
+    // Added for schema support:
+    'repeat': 'Repeat', // Lucide has 'Repeat'
+    'repeat-2': 'Repeat2', // Use 'Repeat2' if available, else fallback to 'Repeat'
+    'repeat-3': 'Repeat3', // Use 'Repeat3' if available, else fallback to 'Repeat'
+    'arrow-right-arrow-left': 'ArrowUpDown', // Use up-down arrow for transfer money
+    'list': 'List', // Lucide: List
+    'arrow-up-down': 'ArrowUpDown', // Lucide: ArrowUpDown
+    'arrow-down': 'ArrowDown', // Lucide: ArrowDown
+    'arrow-right': 'ArrowRight', // Lucide: ArrowRight
+    'arrow-left': 'ArrowLeft', // Lucide: ArrowLeft
+    'arrow-right-left': 'ArrowRightLeft', // Lucide: ArrowRightLeft
 };
 
 // Types for the plan data structure
@@ -122,6 +133,7 @@ export interface Schema {
 
 interface PlanContextType {
     plan: Plan | null;
+    plan_locked: Plan | null; // <-- add this
     schema: Schema | null;
     loadPlan: (planData: Plan) => void;
     savePlan: () => string;
@@ -141,7 +153,10 @@ interface PlanContextType {
     updateBirthDate: (daysFromCurrent: number) => void;
     getEventDisclaimer: (eventType: string) => string;
     getParameterOptions: (eventType: string, parameterType: string) => string[];
-    setAdjustForInflation: (value: boolean) => void; // <-- add this
+    setAdjustForInflation: (value: boolean) => void;
+    currentDay: number;
+    updatePlanInflationRate: (newRate: number) => void; // <-- add this
+    lockPlan: () => void; // <-- add this
 }
 
 const SCHEMA_PATH = '/assets/event_schema.json';
@@ -150,6 +165,7 @@ const SCHEMA_PATH = '/assets/event_schema.json';
 // Set this to true to enable automatic saving/loading of the plan to/from localStorage
 const ENABLE_AUTO_PERSIST_PLAN = true;
 const LOCALSTORAGE_PLAN_KEY = 'user_plan_v1';
+const LOCALSTORAGE_PLAN_LOCKED_KEY = 'user_plan_locked_v1';
 
 const PlanContext = createContext<PlanContextType | null>(null);
 
@@ -165,8 +181,26 @@ interface PlanProviderProps {
     children: React.ReactNode;
 }
 
+// Helper to sanitize plan title for file name
+function getPlanFileName(title: string | undefined): string {
+    if (!title || !title.trim()) return 'plan.json';
+    // Remove invalid filename characters and trim
+    let safe = title.replace(/[^a-zA-Z0-9-_ ]/g, '').replace(/\s+/g, '_').substring(0, 40);
+    if (!safe) safe = 'plan';
+    return safe + '.json';
+}
+
+// Helper to get the next unique event or updating event id
+function getNextEventId(plan: Plan): number {
+    const mainIds = plan.events.map(e => e.id);
+    const updatingIds = plan.events.flatMap(e => e.updating_events?.map(ue => ue.id) || []);
+    const allIds = [...mainIds, ...updatingIds];
+    return allIds.length > 0 ? Math.max(...allIds) + 1 : 1;
+}
+
 export function PlanProvider({ children }: PlanProviderProps) {
     const [plan, setPlan] = useState<Plan | null>(null);
+    const [plan_locked, setPlanLocked] = useState<Plan | null>(null); // <-- add this
     const [schema, setSchema] = useState<Schema | null>(null);
     const [isInitialized, setIsInitialized] = useState(false);
 
@@ -193,8 +227,10 @@ export function PlanProvider({ children }: PlanProviderProps) {
         if (isInitialized) return; // Prevent double init
         const tryLoadPlan = async () => {
             let loaded = false;
+            let lockedLoaded = false;
             if (ENABLE_AUTO_PERSIST_PLAN) {
                 const stored = localStorage.getItem(LOCALSTORAGE_PLAN_KEY);
+                const storedLocked = localStorage.getItem(LOCALSTORAGE_PLAN_LOCKED_KEY);
                 if (stored) {
                     try {
                         const parsed = JSON.parse(stored);
@@ -204,18 +240,36 @@ export function PlanProvider({ children }: PlanProviderProps) {
                         console.warn('Failed to parse plan from localStorage:', e);
                     }
                 }
+                if (storedLocked) {
+                    try {
+                        const parsedLocked = JSON.parse(storedLocked);
+                        setPlanLocked(parsedLocked);
+                        lockedLoaded = true;
+                    } catch (e) {
+                        console.warn('Failed to parse locked plan from localStorage:', e);
+                    }
+                }
             }
             if (!loaded) {
                 // Fallback to default plan
                 try {
                     const response = await fetch('/assets/plan.json');
-                    if (!response.ok) {
-                        throw new Error('Failed to load default plan');
-                    }
+                    if (!response.ok) throw new Error('Failed to load default plan');
                     const defaultPlan = await response.json();
                     setPlan(defaultPlan);
                 } catch (error) {
                     console.error('Error loading default plan:', error);
+                }
+            }
+            if (!lockedLoaded) {
+                // Fallback to default locked plan
+                try {
+                    const response = await fetch('/assets/plan_locked.json');
+                    if (!response.ok) throw new Error('Failed to load default locked plan');
+                    const defaultLockedPlan = await response.json();
+                    setPlanLocked(defaultLockedPlan);
+                } catch (error) {
+                    console.error('Error loading default locked plan:', error);
                 }
             }
             setIsInitialized(true);
@@ -233,6 +287,17 @@ export function PlanProvider({ children }: PlanProviderProps) {
             console.warn('Failed to save plan to localStorage:', e);
         }
     }, [plan]);
+
+    // --- Auto-save plan_locked to localStorage on every change ---
+    useEffect(() => {
+        if (!ENABLE_AUTO_PERSIST_PLAN) return;
+        if (!plan_locked) return;
+        try {
+            localStorage.setItem(LOCALSTORAGE_PLAN_LOCKED_KEY, JSON.stringify(plan_locked));
+        } catch (e) {
+            console.warn('Failed to save locked plan to localStorage:', e);
+        }
+    }, [plan_locked]);
 
     const loadPlan = useCallback((planData: Plan) => {
         setPlan(planData);
@@ -260,12 +325,12 @@ export function PlanProvider({ children }: PlanProviderProps) {
         if (!plan) {
             throw new Error('No plan data to save');
         }
-
+        const fileName = getPlanFileName(plan.title);
         const blob = new Blob([JSON.stringify(plan, null, 2)], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = 'plan.json';
+        a.download = fileName;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
@@ -377,11 +442,7 @@ export function PlanProvider({ children }: PlanProviderProps) {
         });
 
         // Generate a new unique ID
-        const newId = Math.max(
-            ...plan.events.map(e => e.id),
-            ...plan.events.flatMap(e => e.updating_events?.map(ue => ue.id) || []),
-            0
-        ) + 1;
+        const newId = getNextEventId(plan);
 
         // Create parameters with default values from schema
         const parameters = eventSchema.parameters.map((param, index) => ({
@@ -389,6 +450,13 @@ export function PlanProvider({ children }: PlanProviderProps) {
             type: param.type,
             value: param.default
         }));
+
+        // For the start_time and end_time parameters add the current day value
+        parameters.forEach(param => {
+            if (param.type === 'start_time' || param.type === 'end_time') {
+                param.value = Number(param.value) + currentDay;
+            }
+        });
 
         // Create the new event
         const newEvent: Event = {
@@ -437,10 +505,7 @@ export function PlanProvider({ children }: PlanProviderProps) {
         }
 
         // Generate a new unique ID for the updating event
-        const newId = Math.max(
-            ...(mainEvent.updating_events?.map(e => e.id) || [0]),
-            0
-        ) + 1;
+        const newId = getNextEventId(plan);
 
         // Create parameters with default values from schema
         const parameters = updatingEventSchema.parameters.map((param, index) => ({
@@ -448,6 +513,13 @@ export function PlanProvider({ children }: PlanProviderProps) {
             type: param.type,
             value: param.default
         }));
+
+        // For start_time and end_time parameters add the main event's start_time
+        parameters.forEach(param => {
+            if (param.type === 'start_time' || param.type === 'end_time') {
+                param.value = Number(param.value) + Number(mainEvent.parameters.find(p => p.type === 'start_time')?.value);
+            }
+        });
 
         // Create the new updating event
         const newUpdatingEvent: UpdatingEvent = {
@@ -635,6 +707,33 @@ export function PlanProvider({ children }: PlanProviderProps) {
         });
     }, [plan]);
 
+    // Calculate currentDay from plan.birth_date and today
+    let currentDay = 0;
+    if (plan && plan.birth_date) {
+        const birthDate = new Date(plan.birth_date);
+        const today = new Date();
+        currentDay = Math.floor((today.getTime() - birthDate.getTime()) / (1000 * 60 * 60 * 24));
+    }
+
+    const updatePlanInflationRate = useCallback((newRate: number) => {
+        if (!plan) {
+            throw new Error('No plan data available');
+        }
+        setPlan(prevPlan => {
+            if (!prevPlan) return null;
+            return { ...prevPlan, inflation_rate: newRate };
+        });
+    }, [plan]);
+
+    // --- Add lockPlan method ---
+    const lockPlan = useCallback(() => {
+        const temp = plan_locked;
+        setPlanLocked(plan);
+        setPlan(temp);
+        console.log("plan_locked", plan_locked);
+        console.log("plan", plan);
+    }, [plan, plan_locked]);
+
     const getEventDisclaimer = useCallback((eventType: string) => {
         if (!schema) return '';
         const eventSchema = schema.events.find(e => e.type === eventType);
@@ -664,6 +763,7 @@ export function PlanProvider({ children }: PlanProviderProps) {
 
     const value = {
         plan,
+        plan_locked, // <-- add to context value
         schema,
         loadPlan,
         savePlan,
@@ -683,7 +783,10 @@ export function PlanProvider({ children }: PlanProviderProps) {
         updateBirthDate,
         getEventDisclaimer,
         getParameterOptions,
-        setAdjustForInflation, // <-- add to context
+        setAdjustForInflation,
+        currentDay,
+        updatePlanInflationRate, // <-- add to context value
+        lockPlan, // <-- add to context value
     };
 
     // Don't render children until we've attempted to load the default plan and schema

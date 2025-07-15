@@ -3,15 +3,23 @@ import type { Theta, FuncWithTheta } from "./types";
 
 export const u = (t: number): number => (t >= 0 ? 1.0 : 0.0);
 
-export const P = (params: Record<string, any>): Theta => {
-    return (_t: number) => params;
+// Update P to support hybrid (constant or function) parameters
+export const P = (params: Record<string, number | ((t: number) => number)>): Theta => {
+    return (t: number) => {
+        const result: Record<string, number> = {};
+        for (const key in params) {
+            const val = params[key];
+            result[key] = typeof val === "function" ? (val as (t: number) => number)(t) : val;
+        }
+        return result;
+    };
 };
 
 export const T = (
     theta_event: Record<string, number>,
     f: (params: Record<string, any>, t: number) => number,
     theta: Theta = P({}),
-    theta_g: Record<string, any> = { type: "None", r: 0.0 }
+    theta_g: Record<string, any>
 ): ((t: number) => number) => {
     const t_k = theta_event.t_k;
     const params = theta(t_k); // θ = θ(t_k) - evaluate at t_k
@@ -23,7 +31,7 @@ export const R = (
     theta_re: Record<string, number>,
     f: (params: Record<string, any>, t: number) => number,
     theta: Theta,
-    theta_g: Record<string, any> = { type: "None", r: 0.0 },
+    theta_g: Record<string, any>,
     omega: Record<number, [number, Theta]> = {}
 ): ((t: number) => number) => {
     const t0 = theta_re.t0;
@@ -74,6 +82,13 @@ export const gamma = (
     return (t: number) =>
         t < tStar ? theta(t) : { ...theta(t), ...thetaChange };
 };
+
+export const inflationAdjust = (
+    base: number,
+    inflation_rate: number,
+    start_time: number
+) => (t: number) =>
+        base * Math.pow(1 + inflation_rate, (t - start_time) / 365);
 
 // Growth magnitude function with different compounding types
 export const f_growth = (theta_g: Record<string, any>, t: number): number => {
@@ -243,6 +258,45 @@ export const f_get_job = (theta: Record<string, any>, t: number): number => {
     return R({ t0: theta.time_start, dt: 365 / theta.p, tf: theta.time_end }, f_salary, P(theta), { type: "None", r: 0.0 })(t);
 };
 
+export const outflow = (event: any, envelopes: Record<string, any>) => {
+    const params = event.parameters;
+
+    // Get growth parameters for source envelope
+    const [theta_growth_source] = get_growth_parameters(envelopes, params.from_key);
+    // Create a one-time outflow function for the purchase
+    const purchase_func = T(
+        { t_k: params.start_time },
+        f_out,
+        P({ b: params.amount }),
+        theta_growth_source
+    );
+
+    // Add the purchase function to the specified envelope
+    const from_key = params.from_key;
+    envelopes[from_key].functions.push(purchase_func);
+};
+
+export const inflow = (event: any, envelopes: Record<string, any>) => {
+    const params = event.parameters;
+
+    // Get growth parameters for source envelope
+    const [theta_growth_dest] = get_growth_parameters(envelopes, params.to_key);
+
+    // Create a one-time inflow function for the purchase
+    const purchase_func = T(
+        { t_k: params.start_time },
+        f_in,
+        P({ a: params.amount }),
+        theta_growth_dest
+    );
+    // Add the purchase function to the specified envelope
+    envelopes[params.to_key].functions.push(purchase_func);
+}
+
+
+
+
+
 // f_get_wage_job: recurring wage payments - REMOVED (no longer used)
 
 export const manual_correction = (event: any, envelopes: Record<string, any>) => {
@@ -362,9 +416,37 @@ export const reoccuring_income = (event: any, envelopes: Record<string, any>) =>
 
     // Create recurring income function
     const income_func = R(
-        { t0: params.start_time, dt: params.frequency_days, tf: params.end_days },
+        { t0: params.start_time, dt: params.frequency_days, tf: params.end_time },
         f_in,
         P({ a: params.amount }),
+        theta_growth_dest
+    );
+
+    envelopes[params.to_key].functions.push(income_func);
+};
+
+export const reoccuring_income_changing_parameters = (event: any, envelopes: Record<string, any>) => {
+    const params = event.parameters;
+
+    // Get growth parameters for destination envelope
+    const [_, theta_growth_dest] = get_growth_parameters(envelopes, undefined, params.to_key);
+
+
+    //handle updating events
+    let theta = P({ a: params.amount });
+    for (const upd of event.updating_events || []) {
+        const upd_type = upd.type;
+        const upd_params = upd.parameters || {};
+        if (upd_type === "update_amount") {
+            theta = gamma(theta, { a: upd_params.amount }, upd_params.start_time);
+        }
+    }
+
+    // Create recurring income function
+    const income_func = R(
+        { t0: params.start_time, dt: params.frequency_days, tf: params.end_time },
+        f_in,
+        theta,
         theta_growth_dest
     );
 
@@ -379,7 +461,7 @@ export const reoccuring_spending = (event: any, envelopes: Record<string, any>) 
 
     // Create recurring spending function
     const spending_func = R(
-        { t0: params.start_time, dt: params.frequency_days, tf: params.end_days },
+        { t0: params.start_time, dt: params.frequency_days, tf: params.end_time },
         f_out,
         P({ b: params.amount }),
         theta_growth_source
@@ -398,7 +480,7 @@ export const reoccuring_transfer = (event: any, envelopes: Record<string, any>) 
 
     // Outflow from source envelope
     const outflow_func = R(
-        { t0: params.start_time, dt: params.frequency_days, tf: params.end_days },
+        { t0: params.start_time, dt: params.frequency_days, tf: params.end_time },
         f_out,
         P({ b: params.amount }),
         theta_growth_source
@@ -408,7 +490,7 @@ export const reoccuring_transfer = (event: any, envelopes: Record<string, any>) 
 
     // Inflow to destination envelope
     const inflow_func = R(
-        { t0: params.start_time, dt: params.frequency_days, tf: params.end_days },
+        { t0: params.start_time, dt: params.frequency_days, tf: params.end_time },
         f_in,
         P({ a: params.amount }),
         theta_growth_dest
@@ -688,6 +770,7 @@ export const buy_house = (event: any, envelopes: Record<string, any>) => {
     for (const upd of event.updating_events || []) {
         const upd_type = upd.type;
         const upd_params = upd.parameters || {};
+        const mortgage_key = params.mortgage_envelope;
 
         if (upd_type === "new_appraisal") {
             // Update house value with new appraisal
@@ -700,9 +783,6 @@ export const buy_house = (event: any, envelopes: Record<string, any>) => {
             envelopes[to_key].functions.push(new_house_func);
 
         } else if (upd_type === "extra_mortgage_payment") {
-            // Get growth parameters from mortgage envelope
-            const [theta_growth_mortgage] = get_growth_parameters(envelopes, mortgage_key);
-
             // Handle extra payment
             const extra_payment = T(
                 { t_k: upd_params.start_time },
@@ -713,9 +793,6 @@ export const buy_house = (event: any, envelopes: Record<string, any>) => {
             envelopes[mortgage_key].functions.push(extra_payment);
 
         } else if (upd_type === "late_payment") {
-            // Get growth parameters from mortgage envelope
-            const [theta_growth_mortgage] = get_growth_parameters(envelopes, mortgage_key);
-
             // Handle late payment
             const late_payment = T(
                 { t_k: upd_params.start_time },
@@ -915,7 +992,7 @@ export const have_kid = (event: any, envelopes: Record<string, any>) => {
 
             // Create recurring childcare cost function
             const childcare_func = R(
-                { t0: upd_params.start_time, dt: 30, tf: upd_params.start_time + upd_params.end_days },
+                { t0: upd_params.start_time, dt: 30, tf: upd_params.start_time + upd_params.end_time },
                 f_out,
                 P({ b: upd_params.monthly_cost }),
                 theta_growth_source
@@ -939,7 +1016,7 @@ export const have_kid = (event: any, envelopes: Record<string, any>) => {
 
             // Create recurring college fund contribution function
             const contribution_func = R(
-                { t0: upd_params.start_time, dt: 30, tf: upd_params.start_time + upd_params.end_days },
+                { t0: upd_params.start_time, dt: 30, tf: upd_params.start_time + upd_params.end_time },
                 f_out,
                 P({ b: upd_params.monthly_contribution }),
                 theta_growth_source
@@ -948,7 +1025,7 @@ export const have_kid = (event: any, envelopes: Record<string, any>) => {
 
             // Create corresponding inflow to college fund envelope
             const fund_inflow = R(
-                { t0: upd_params.start_time, dt: 30, tf: upd_params.start_time + upd_params.end_days },
+                { t0: upd_params.start_time, dt: 30, tf: upd_params.start_time + upd_params.end_time },
                 f_in,
                 P({ a: upd_params.monthly_contribution }),
                 theta_growth_college
@@ -1131,7 +1208,7 @@ export const receive_government_aid = (event: any, envelopes: Record<string, any
 
     // Create recurring payment function
     const aid_func = R(
-        { t0: params.start_time, dt: params.frequency_days, tf: params.start_time + params.end_days },
+        { t0: params.start_time, dt: params.frequency_days, tf: params.start_time + params.end_time },
         f_in,
         P({ a: params.amount }),
         theta_growth_dest
@@ -1296,7 +1373,7 @@ export const buy_groceries = (event: any, envelopes: Record<string, any>) => {
 
     // Create recurring monthly grocery payment function
     const grocery_func = R(
-        { t0: params.start_time, dt: 30, tf: params.start_time + params.end_days },
+        { t0: params.start_time, dt: 30, tf: params.start_time + params.end_time },
         f_out,
         P({ b: params.monthly_amount }),
         theta_growth_source
@@ -1314,7 +1391,7 @@ export const buy_groceries = (event: any, envelopes: Record<string, any>) => {
         if (upd_type === "update_amount") {
             // Create new payment function with updated amount
             const new_grocery_func = R(
-                { t0: upd_params.start_time, dt: 30, tf: params.start_time + params.end_days },
+                { t0: upd_params.start_time, dt: 30, tf: params.start_time + params.end_time },
                 f_out,
                 P({ b: params.new_amount }),
                 theta_growth_source
@@ -1379,9 +1456,10 @@ export const monthly_budgeting = (event: any, envelopes: Record<string, any>) =>
     const from_key = params.from_key;
     const start_time = params.start_time;
     const end_time = params.end_time;
+    const inflation_rate = params.inflation_rate ?? 0.02; // Default 2% if not provided
 
     // List of parameter keys to skip (not budget categories)
-    const skip_keys = new Set(["start_time", "end_time", "from_key"]);
+    const skip_keys = new Set(["start_time", "end_time", "from_key", "inflation_rate"]);
 
     // Get growth parameters for source envelope
     const [theta_growth_source, _] = get_growth_parameters(envelopes, from_key);
@@ -1389,10 +1467,14 @@ export const monthly_budgeting = (event: any, envelopes: Record<string, any>) =>
     // For each budget category, create a recurring outflow
     Object.keys(params).forEach(key => {
         if (!skip_keys.has(key) && typeof params[key] === "number" && params[key] > 0) {
+            // Allow for inflation adjustment by passing a function for b
+            const theta = P({
+                b: inflationAdjust(params[key], inflation_rate, start_time)
+            });
             const outflow_func = R(
                 { t0: start_time, dt: 30, tf: end_time },
                 f_out,
-                P({ b: params[key] }),
+                theta,
                 theta_growth_source
             );
             envelopes[from_key].functions.push(outflow_func);

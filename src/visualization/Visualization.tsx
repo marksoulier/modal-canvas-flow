@@ -21,9 +21,7 @@ import { Button } from '../components/ui/button';
 import { Trash2 } from 'lucide-react';
 import {
   formatNumber,
-  getAgeFromDays,
   formatDate,
-  daysToDate,
   getIntervalInDays,
   generateEnvelopeColors,
   Legend,
@@ -32,7 +30,6 @@ import {
 } from './viz_utils';
 import type {
   TimeInterval,
-  ExtendedTimeInterval,
   Datum
 } from './viz_utils';
 import { getAllEventsByDate } from './Events';
@@ -96,8 +93,6 @@ function groupEnvelopesByCategory(plan: Plan | null, envelopeKeys: string[]): Re
   return categoryMap;
 }
 
-// --- Type for enhanced data points with category sums ---
-type CategoryDatum = Datum & { categorySums: Record<string, number> };
 
 export function Visualization({ onAnnotationClick, onAnnotationDelete }: VisualizationProps) {
   const svgRef = useRef<SVGSVGElement>(null);
@@ -113,7 +108,6 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
   const [netWorthData, setNetWorthData] = useState<Datum[]>([]);
   const [timeInterval, setTimeInterval] = useState<TimeInterval>('year');
   const [birthDate, setBirthDate] = useState<Date>(new Date(2000, 0, 1)); // Default to Jan 1, 2000
-  const [currentDaysSinceBirth, setCurrentDaysSinceBirth] = useState<number>(0);
   const [hoveredEventId, setHoveredEventId] = useState<number | null>(null);
   const [lastMouse, setLastMouse] = useState<{ x: number, y: number } | null>(null);
   const [dragStartPos, setDragStartPos] = useState<{ x: number; y: number } | null>(null);
@@ -123,6 +117,9 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
     displayType: string;
     description: string;
   } | null>(null);
+
+  // State for locked plan simulation results
+  const [lockedNetWorthData, setLockedNetWorthData] = useState<{ date: number, value: number }[]>([]);
 
   const width = window.innerWidth;
   const height = window.innerHeight;
@@ -143,7 +140,7 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
     }
   }, [wheelHandler]);
 
-  const { plan, getEventIcon, updateParameter, schema, deleteEvent, getEventDisplayType } = usePlan();
+  const { plan, plan_locked, getEventIcon, updateParameter, schema, deleteEvent, getEventDisplayType, currentDay } = usePlan();
 
   // Base sizes that will be adjusted by zoom
   const baseLineWidth = 2;
@@ -152,6 +149,31 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
 
   const startDate: number = 0
   const endDate: number = 80 * 365
+
+  // Run simulation for locked plan
+  useEffect(() => {
+    const runLockedSim = async () => {
+      if (!plan_locked || !schema) {
+        setLockedNetWorthData([]);
+        return;
+      }
+      try {
+        const result = await runSimulation(
+          plan_locked,
+          schema,
+          startDate,
+          endDate,
+          getIntervalInDays(timeInterval),
+          currentDay
+        );
+        // Only keep {date, value}
+        setLockedNetWorthData(result.map(({ date, value }) => ({ date, value })));
+      } catch (err) {
+        setLockedNetWorthData([]);
+      }
+    };
+    runLockedSim();
+  }, [plan_locked, schema, timeInterval, currentDay]);
 
   // Function to determine time interval based on zoom level
   const getTimeIntervalFromZoom = (zoom: number): TimeInterval => {
@@ -176,14 +198,6 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
         if (plan.birth_date) {
           const birthDateObj = new Date(plan.birth_date);
           setBirthDate(birthDateObj);
-
-          // Calculate current days since birth
-          const currentDate = new Date();
-          const daysSinceBirth = Math.floor(
-            (currentDate.getTime() - birthDateObj.getTime()) / (1000 * 60 * 60 * 24)
-          );
-          setCurrentDaysSinceBirth(daysSinceBirth);
-          //console.log('Current days since birth:', daysSinceBirth);
         }
 
         // Run simulation with plan and schema from context
@@ -193,7 +207,7 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
           startDate,
           endDate,
           getIntervalInDays(timeInterval),
-          currentDaysSinceBirth // pass current day
+          currentDay // pass current day
         );
         //console.log('Loaded Financial Results:', result);
         setNetWorthData(result);
@@ -205,7 +219,7 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
     };
 
     loadSchemaAndRunSim();
-  }, [timeInterval, plan, schema]); // Re-run when time interval, plan, or schema changes
+  }, [timeInterval, plan, schema, currentDay]); // Re-run when time interval, plan, schema, or currentDay changes
 
   // Calculate stacked data from simulation results
   const stackedData = useMemo(() => {
@@ -488,8 +502,8 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
           // Move handleZoomToYears here so it's in scope for the buttons
           const handleZoomToYears = (years: number) => {
             const daysPerYear = 365;
-            const xmin = currentDaysSinceBirth - 20 * years - 20; // aproximate padding on side
-            const xmax = currentDaysSinceBirth + years * daysPerYear;
+            const xmin = currentDay - 20 * years - 20; // aproximate padding on side
+            const xmax = currentDay + years * daysPerYear;
             const maxDate = Math.max(...netWorthData.map(d => d.date));
             const clampedXmax = Math.min(xmax, maxDate);
             const regionWidth = clampedXmax - xmin;
@@ -733,7 +747,7 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
                         yScale={visibleYScale}
                         stroke="none"
                         fill={color.area}
-                        fillOpacity={0.2}
+                        fillOpacity={0.8}
                         curve={curveLinear}
                       />
                     );
@@ -770,8 +784,8 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
 
                   {/* Current day indicator line - more subtle and full height */}
                   <line
-                    x1={xScale(currentDaysSinceBirth)}
-                    x2={xScale(currentDaysSinceBirth)}
+                    x1={xScale(currentDay)}
+                    x2={xScale(currentDay)}
                     y1={0}
                     y2={height * 2}
                     stroke="#a0aec0" // subtle gray
@@ -781,6 +795,18 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
                 </g>
 
                 {/* Net Worth Line and Data Circles rendered outside the zoom <g> so their thickness and size are fixed */}
+                {/* Locked Plan Net Worth Line (light gray, overlay) */}
+                {lockedNetWorthData.length > 0 && (
+                  <LinePath
+                    data={lockedNetWorthData}
+                    x={d => xScale(d.date) * zoom.transformMatrix.scaleX + zoom.transformMatrix.translateX}
+                    y={d => visibleYScale(d.value) * zoom.transformMatrix.scaleY + zoom.transformMatrix.translateY}
+                    stroke="#d1d5db"
+                    strokeWidth={2}
+                    curve={curveLinear}
+                    strokeDasharray="4,2"
+                  />
+                )}
                 <LinePath
                   data={netWorthData}
                   x={d => xScale(d.date) * zoom.transformMatrix.scaleX + zoom.transformMatrix.translateX}
@@ -1034,11 +1060,11 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
               )}
 
               {/* Bottom axis tooltip for current day indicator line (gray, more transparent) */}
-              {typeof currentDaysSinceBirth === 'number' && (
+              {typeof currentDay === 'number' && (
                 <div
                   style={{
                     position: 'absolute',
-                    left: (xScale(currentDaysSinceBirth) * zoom.transformMatrix.scaleX) + zoom.transformMatrix.translateX,
+                    left: (xScale(currentDay) * zoom.transformMatrix.scaleX) + zoom.transformMatrix.translateX,
                     bottom: 24, // just above the x axis
                     transform: 'translateX(-50%)',
                     background: 'rgba(255,255,255,0.85)',
@@ -1052,7 +1078,7 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
                     boxShadow: '0 2px 4px rgba(0,0,0,0.04)'
                   }}
                 >
-                  {formatDate(currentDaysSinceBirth, birthDate, 'full', true, true)}
+                  {formatDate(currentDay, birthDate, 'full', true, true)}
                 </div>
               )}
 

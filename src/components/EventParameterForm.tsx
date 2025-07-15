@@ -23,6 +23,7 @@ import type { Plan, Event, Parameter, Schema, SchemaEvent, UpdatingEvent } from 
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from './ui/accordion';
 import DatePicker from './DatePicker';
 import { Pencil } from 'lucide-react';
+import { valueToDay } from '../hooks/resultsEvaluation';
 
 
 interface EventParametersFormProps {
@@ -40,7 +41,7 @@ const EventParametersForm: React.FC<EventParametersFormProps> = ({
     onSelectEvent,
     onOpenEnvelopeModal
 }) => {
-    const { plan, schema, getEventIcon, updateParameter, deleteEvent, getParameterDisplayName, getParameterUnits, getEventDisplayType, addUpdatingEvent, getParameterDescription, updateEventDescription, getParameterOptions } = usePlan();
+    const { plan, schema, getEventIcon, updateParameter, deleteEvent, getParameterDisplayName, getParameterUnits, getEventDisplayType, addUpdatingEvent, getParameterDescription, updateEventDescription, getParameterOptions, currentDay } = usePlan();
     const [parameters, setParameters] = useState<Record<number, { type: string; value: string | number }>>({});
     const [loading, setLoading] = useState(false);
     const [newUpdatingEventType, setNewUpdatingEventType] = useState<string>("");
@@ -52,6 +53,8 @@ const EventParametersForm: React.FC<EventParametersFormProps> = ({
     // State for updating event descriptions
     const [updatingDescriptions, setUpdatingDescriptions] = useState<Record<number, string>>({});
     const [usdInputFocus, setUsdInputFocus] = useState<Record<number, boolean>>({});
+    const [usdTodayMode, setUsdTodayMode] = useState<Record<number, boolean>>({});
+    const [usdTodayValues, setUsdTodayValues] = useState<Record<number, string>>({});
 
     // Helper to get eventType and paramType for any eventId and paramId (main or updating)
     function getEventTypeAndParamType(eventId: number, paramId: number): { eventType: string, paramType: string } | null {
@@ -257,39 +260,91 @@ const EventParametersForm: React.FC<EventParametersFormProps> = ({
         if (paramUnits === 'usd') {
             // Show formatted value with commas when not focused, raw when focused
             const isFocused = usdInputFocus[param.id] || false;
+            const isTodayMode = usdTodayMode[param.id] || false;
             let displayValue = String(value);
-            if (!isFocused && value !== '' && value !== '-' && !isNaN(Number(value))) {
-                displayValue = Number(value).toLocaleString('en-US');
-            }
+            let todayValue = '';
+            let actualValue = value;
             const placeholder = defaultValue ? String(defaultValue) : '';
+            // Get eventDay from 'start_date' parameter
+            let eventDay = currentDay;
+            if (plan && plan.events) {
+                const event = plan.events.find(e => e.id === eventId);
+                if (event) {
+                    const startDateParam = event.parameters.find(p => p.type === 'start_time');
+                    if (startDateParam) {
+                        eventDay = Number(startDateParam.value) || currentDay;
+                    }
+                }
+            }
+            // Use inflationRate from plan
+            const inflationRate = plan?.inflation_rate || 0.03;
+            if (isTodayMode && value !== '' && !isNaN(Number(value))) {
+                // Convert actual value to today's value for display
+                let todayValNum = valueToDay(Number(value), currentDay, eventDay, inflationRate);
+                todayValNum = Math.round(todayValNum * 100) / 100;
+                todayValue = todayValNum.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                displayValue = isFocused ? (usdTodayValues[param.id] ?? todayValue) : todayValue;
+            } else if (!isFocused && value !== '' && value !== '-' && !isNaN(Number(value))) {
+                displayValue = (Math.round(Number(value) * 100) / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            }
             return (
-                <div className="relative">
-                    <Input
-                        type="text"
-                        value={displayValue}
-                        placeholder={String(placeholder)}
-                        onFocus={() => setUsdInputFocus(prev => ({ ...prev, [param.id]: true }))}
-                        onBlur={(e) => {
-                            setUsdInputFocus(prev => ({ ...prev, [param.id]: false }));
-                            let newValue = e.target.value.replace(/,/g, '');
-                            // Only parse if not empty or just '-'
-                            if (newValue === '' || newValue === '-') {
-                                handleInputBlur(param.id, '');
-                            } else {
-                                const parsed = parseFloat(newValue);
-                                handleInputBlur(param.id, isNaN(parsed) ? '' : parsed);
-                            }
-                        }}
-                        onChange={(e) => {
-                            // Allow raw input (including minus, decimal, etc.)
-                            let raw = e.target.value.replace(/,/g, '');
-                            handleInputChange(param.id, raw);
-                        }}
-                        className="w-full pr-12 placeholder:text-muted-foreground"
-                    />
-                    <div className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
-                        $
+                <div className="flex flex-col gap-1">
+                    <div className="flex items-center gap-2">
+                        <label className="flex items-center gap-1 text-xs text-gray-500 cursor-pointer">
+                            <input
+                                type="checkbox"
+                                checked={isTodayMode}
+                                onChange={e => setUsdTodayMode(prev => ({ ...prev, [param.id]: e.target.checked }))}
+                                className="form-checkbox h-4 w-4 text-blue-500 border-gray-300 rounded"
+                                style={{ accentColor: '#3b82f6' }}
+                            />
+                            Use Today's Value
+                        </label>
                     </div>
+                    <div className="relative flex items-center">
+                        <Input
+                            type="text"
+                            value={displayValue}
+                            placeholder={String(placeholder)}
+                            onFocus={() => setUsdInputFocus(prev => ({ ...prev, [param.id]: true }))}
+                            onBlur={e => {
+                                setUsdInputFocus(prev => ({ ...prev, [param.id]: false }));
+                                let newValue = e.target.value.replace(/,/g, '');
+                                if (isTodayMode) {
+                                    // Convert from today's value to event day value before saving
+                                    const todayVal = parseFloat(newValue);
+                                    let eventVal = isNaN(todayVal) ? '' : valueToDay(todayVal, eventDay, currentDay, inflationRate);
+                                    if (typeof eventVal === 'number' && !isNaN(eventVal)) eventVal = Math.round(eventVal * 100) / 100;
+                                    // Always save as string with 2 decimals for consistency
+                                    handleInputBlur(param.id, typeof eventVal === 'number' && !isNaN(eventVal) ? Number(eventVal.toFixed(2)) : '');
+                                    setUsdTodayValues(prev => ({ ...prev, [param.id]: newValue }));
+                                } else {
+                                    if (newValue === '' || newValue === '-') {
+                                        handleInputBlur(param.id, '');
+                                    } else {
+                                        let parsed = parseFloat(newValue);
+                                        if (typeof parsed === 'number' && !isNaN(parsed)) parsed = Math.round(parsed * 100) / 100;
+                                        handleInputBlur(param.id, typeof parsed === 'number' && !isNaN(parsed) ? Number(parsed.toFixed(2)) : '');
+                                    }
+                                }
+                            }}
+                            onChange={e => {
+                                let raw = e.target.value.replace(/,/g, '');
+                                if (isTodayMode) {
+                                    setUsdTodayValues(prev => ({ ...prev, [param.id]: raw }));
+                                } else {
+                                    handleInputChange(param.id, raw);
+                                }
+                            }}
+                            className="w-full pr-12 placeholder:text-muted-foreground"
+                        />
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground pointer-events-none flex items-center">$</span>
+                    </div>
+                    {isTodayMode && value !== '' && !isNaN(Number(value)) && (
+                        <div className="mt-1 text-xs text-gray-400 bg-gray-50 rounded px-2 py-1 border border-gray-100">
+                            <span className="font-mono">{(Math.round(Number(value) * 100) / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (Future Value)</span>
+                        </div>
+                    )}
                 </div>
             );
         }

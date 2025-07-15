@@ -1,20 +1,68 @@
 // resultsEvaluation.ts
 
+/**
+ * Converts a value at a specific day (future or past) to today's value (present value).
+ * This is the inverse of valueToDay.
+ * @param valueAtDay - Value at the target day
+ * @param targetDay - The day the value is in
+ * @param currentDay - The reference day for "today"
+ * @param inflationRate - Annual inflation rate (e.g., 0.03 for 3%)
+ * @returns Value in today's money
+ */
+export function valueToToday(
+    valueAtDay: number,
+    targetDay: number,
+    currentDay: number,
+    inflationRate: number
+): number {
+    // d = number of days between target and current
+    const d = targetDay - currentDay;
+    // Present Value = Future Value / (1 + r)^(d/365)
+    return valueAtDay / Math.pow(1 + inflationRate, d / 365);
+}
+
+/**
+ * Adjusts all simulated results to present value ("today's money") given the current day.
+ * This discounts future values to present value using the inflation rate.
+ * @param results - Record of arrays of values (per envelope)
+ * @param tRange - Array of time points (days)
+ * @param currentDay - The day considered as "today"
+ * @param inflationRate - Annual inflation rate (e.g., 0.03 for 3%)
+ * @returns Adjusted results in today's money
+ */
 export function inflationAdjust(
     results: Record<string, number[]>,
     tRange: number[],
     currentDay: number,
     inflationRate: number
 ): Record<string, number[]> {
-    const dailyRate = Math.pow(1 + inflationRate, 1 / 365) - 1;
-    const adjustmentFactors = tRange.map(t => Math.exp(-dailyRate * (currentDay - t)));
-
+    // Adjust each value to present value using valueToToday
     const adjustedResults: Record<string, number[]> = {};
     for (const key in results) {
-        adjustedResults[key] = results[key].map((v, i) => v * adjustmentFactors[i]);
+        adjustedResults[key] = results[key].map((v, i) => valueToToday(v, tRange[i], currentDay, inflationRate));
     }
-
     return adjustedResults;
+}
+
+/**
+ * Converts a value in today's money to the value at a specific day (future or past) relative to currentDay.
+ * For example, to get the equivalent value in year 2050 dollars, use a future day.
+ * @param valueToday - Value in today's money
+ * @param targetDay - The day to convert to
+ * @param currentDay - The reference day for "today"
+ * @param inflationRate - Annual inflation rate (e.g., 0.03 for 3%)
+ * @returns Value in the money of the target day
+ */
+export function valueToDay(
+    valueToday: number,
+    targetDay: number,
+    currentDay: number,
+    inflationRate: number
+): number {
+    // d = number of days between target and current
+    const d = targetDay - currentDay;
+    // Discrete compounding: FV = PV * (1 + r)^(d/365)
+    return valueToday * Math.pow(1 + inflationRate, d / 365);
 }
 
 export function evaluateResults(
