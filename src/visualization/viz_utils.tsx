@@ -226,6 +226,9 @@ export const Legend = ({ envelopes, envelopeColors, currentValues, getCategory, 
         categoryMap[category].push(envelope);
     });
 
+    if (!envelopes || envelopes.length === 0) {
+        return null;
+    }
     return (
         <div className="absolute right-4 bottom-12 bg-white p-4 rounded-lg shadow-lg">
             <h3 className="text-sm font-semibold mb-2">Envelopes</h3>

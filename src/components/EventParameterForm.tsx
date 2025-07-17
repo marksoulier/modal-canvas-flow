@@ -42,7 +42,8 @@ const EventParametersForm: React.FC<EventParametersFormProps> = ({
     onOpenEnvelopeModal
 }) => {
     const { plan, schema, getEventIcon, updateParameter, deleteEvent, getParameterDisplayName, getParameterUnits, getEventDisplayType, addUpdatingEvent, getParameterDescription, updateEventDescription, getParameterOptions, currentDay } = usePlan();
-    const [parameters, setParameters] = useState<Record<number, { type: string; value: string | number }>>({});
+    // State for local parameter editing (now supports main and updating events)
+    const [parameters, setParameters] = useState<Record<number, Record<number, { type: string; value: string | number }>>>({});
     const [loading, setLoading] = useState(false);
     const [newUpdatingEventType, setNewUpdatingEventType] = useState<string>("");
     const [description, setDescription] = useState<string>("");
@@ -69,24 +70,35 @@ const EventParametersForm: React.FC<EventParametersFormProps> = ({
     useEffect(() => {
         if (schema && plan) {
             const { event, parentEvent } = findEventOrUpdatingEventById(plan, eventId);
-            let eventType = '';
-            let params: Parameter[] = [];
+            const newParams: Record<number, Record<number, { type: string; value: string | number }>> = {};
             if (event) {
-                eventType = (event as any).type;
-                params = (event as any).parameters;
+                // Always add the current event (main or updating)
+                newParams[event.id] = {};
+                (event as any).parameters?.forEach((param: Parameter) => {
+                    const eventType = (event as any).type;
+                    const paramUnits = getParameterUnits(eventType, param.type);
+                    newParams[event.id][param.id] = {
+                        type: param.type,
+                        value: paramUnits === 'percentage' ? ((param.value as number) * 100).toFixed(2) : param.value
+                    };
+                });
+                // If this is a main event, also add all updating events
+                if (!parentEvent && (event as any).updating_events) {
+                    (event as any).updating_events.forEach((ue: UpdatingEvent) => {
+                        newParams[ue.id] = {};
+                        ue.parameters.forEach((param: Parameter) => {
+                            const eventType = ue.type;
+                            const paramUnits = getParameterUnits(eventType, param.type);
+                            newParams[ue.id][param.id] = {
+                                type: param.type,
+                                value: paramUnits === 'percentage' ? ((param.value as number) * 100).toFixed(2) : param.value
+                            };
+                        });
+                    });
+                }
             }
-            const newParams: Record<number, { type: string; value: string | number }> = {};
-            params.forEach(param => {
-                const paramUnits = getParameterUnits(eventType, param.type);
-                newParams[param.id] = {
-                    type: param.type,
-                    value: paramUnits === 'percentage' ? ((param.value as number) * 100).toFixed(2) : param.value
-                };
-            });
             setParameters(newParams);
-            //console.log("Event ID:", eventId, "Starting parameters:", newParams);
         } else {
-            // Reset parameters if event not found
             setParameters({});
         }
     }, [schema, plan, eventId, getParameterUnits]);
@@ -122,19 +134,21 @@ const EventParametersForm: React.FC<EventParametersFormProps> = ({
         // Save all parameters
         const event = plan?.events.find(e => e.id === eventId);
         if (event) {
-            Object.entries(parameters).forEach(([paramId, paramData]) => {
-                const paramUnits = getParameterUnits(event.type, paramData.type);
-                let value = paramData.value;
-                if (paramUnits === 'percentage') {
-                    value = parseFloat(paramData.value as string) / 100;
-                } else if (paramUnits === 'usd') {
-                    value = parseFloat(paramData.value as string) || 0;
-                }
-                // Find the parameter type from the paramId
-                const paramObj = parameters[parseInt(paramId)];
-                if (paramObj && paramObj.type) {
-                    updateParameter(eventId, paramObj.type, value);
-                }
+            Object.entries(parameters).forEach(([eventId, eventParams]) => {
+                Object.entries(eventParams).forEach(([paramId, paramData]) => {
+                    const paramUnits = getParameterUnits(event.type, paramData.type);
+                    let value = paramData.value;
+                    if (paramUnits === 'percentage') {
+                        value = parseFloat(paramData.value as string) / 100;
+                    } else if (paramUnits === 'usd') {
+                        value = parseFloat(paramData.value as string) || 0;
+                    }
+                    // Find the parameter type from the paramId
+                    const paramObj = parameters[parseInt(eventId)]?.[parseInt(paramId)];
+                    if (paramObj && paramObj.type) {
+                        updateParameter(parseInt(eventId), paramObj.type, value);
+                    }
+                });
             });
         }
 
@@ -144,18 +158,21 @@ const EventParametersForm: React.FC<EventParametersFormProps> = ({
         onClose();
     };
 
-    const handleInputChange = (paramId: number, value: any) => {
+    const handleInputChange = (eventIdForParam: number, paramId: number, value: any) => {
         setParameters(prev => ({
             ...prev,
-            [paramId]: {
-                ...prev[paramId],
-                value: value
+            [eventIdForParam]: {
+                ...prev[eventIdForParam],
+                [paramId]: {
+                    ...prev[eventIdForParam]?.[paramId],
+                    value: value
+                }
             }
         }));
     };
 
-    const handleInputBlur = (paramId: number, value: any) => {
-        const info = getEventTypeAndParamType(eventId, paramId);
+    const handleInputBlur = (paramId: number, value: any, eventIdForParam: number) => {
+        const info = getEventTypeAndParamType(eventIdForParam, paramId);
         if (!info) return;
         const paramUnits = getParameterUnits(info.eventType, info.paramType);
         let saveValue = value;
@@ -164,21 +181,31 @@ const EventParametersForm: React.FC<EventParametersFormProps> = ({
         } else if (paramUnits === 'usd') {
             saveValue = parseFloat(value) || 0;
         }
-        updateParameter(eventId, info.paramType, saveValue);
+        updateParameter(eventIdForParam, info.paramType, saveValue);
+        // Also update local state to reflect the saved value (in case of normalization)
+        setParameters(prev => ({
+            ...prev,
+            [eventIdForParam]: {
+                ...prev[eventIdForParam],
+                [paramId]: {
+                    ...prev[eventIdForParam]?.[paramId],
+                    value: value
+                }
+            }
+        }));
     };
 
-    const renderDatePicker = (param: Parameter) => {
+    const renderDatePicker = (param: Parameter, event: (Event | UpdatingEvent)) => {
         if (!plan?.birth_date) return null;
-
-        const paramData = parameters[param.id];
+        const paramData = parameters[event.id]?.[param.id];
         const value = paramData?.value || 0;
 
         return (
             <DatePicker
                 value={value}
                 onChange={(newValue) => {
-                    handleInputChange(param.id, newValue);
-                    handleInputBlur(param.id, newValue);
+                    handleInputChange(event.id, param.id, newValue);
+                    handleInputBlur(param.id, newValue, event.id);
                 }}
                 birthDate={plan.birth_date}
                 placeholder="Pick a date"
@@ -186,47 +213,52 @@ const EventParametersForm: React.FC<EventParametersFormProps> = ({
         );
     };
 
-    const renderInput = (param: Parameter, eventType?: string) => {
-        const paramData = parameters[param.id];
+    const renderInput = (param: Parameter, event: (Event | UpdatingEvent)) => {
+        const paramData = parameters[event.id]?.[param.id];
         const value = paramData?.value ?? '';
-        const event = plan?.events.find(e => e.id === eventId);
-        const typeToUse = eventType || (event ? event.type : '');
+        const typeToUse = (event as any).type;
         const paramUnits = getParameterUnits(typeToUse, param.type);
-        const schemaParam = eventType
-            ? schema?.events.find(e => e.type === eventType)?.parameters.find(p => p.type === param.type)
-            : event ? schema?.events.find(e => e.type === event.type)?.parameters.find(p => p.type === param.type) : undefined;
+        // Find schema for this event type
+        const schemaEvent = schema?.events.find(e => e.type === typeToUse);
+        // If this is an updating event, look in updating_events
+        let schemaParam = schemaEvent?.parameters.find(p => p.type === param.type);
+        if (!schemaParam && (event as any).id && (event as any).parameters && schemaEvent?.updating_events) {
+            for (const ue of schemaEvent.updating_events) {
+                if (ue.type === typeToUse) {
+                    schemaParam = ue.parameters.find(p => p.type === param.type);
+                    break;
+                }
+            }
+        }
         const defaultValue = schemaParam?.default;
 
         if (paramUnits === 'date') {
-            return renderDatePicker(param);
+            return renderDatePicker(param, event);
         }
 
         if (paramUnits === 'envelope') {
             // Build display map
             const displayEnvelopeMap: Record<string, string> = {};
+            const envelopeCategoryMap: Record<string, string> = {};
             plan?.envelopes.forEach((envelopeObj) => {
                 const envelope = envelopeObj.name;
                 const otherMatch = envelope.match(/^Other \((.+)\)$/);
                 if (otherMatch) {
                     displayEnvelopeMap[otherMatch[1]] = envelope;
+                    envelopeCategoryMap[envelope] = envelopeObj.category || 'Uncategorized';
                 } else {
                     displayEnvelopeMap[envelope] = envelope;
+                    envelopeCategoryMap[envelope] = envelopeObj.category || 'Uncategorized';
                 }
             });
-
-            console.log("Parameters: ", parameters);
-            // Debug: Log available envelopes and display map
-            //console.log('Available envelopes in plan:', plan?.envelopes?.map(e => e.name));
-            //console.log('DisplayEnvelopeMap:', displayEnvelopeMap);
 
             return (
                 <div className="flex items-center gap-1">
                     <Select
                         value={value as string}
                         onValueChange={(newValue) => {
-                            //console.log('Envelope selected:', newValue);
-                            handleInputChange(param.id, newValue);
-                            handleInputBlur(param.id, newValue);
+                            handleInputChange(event.id, param.id, newValue);
+                            handleInputBlur(param.id, newValue, event.id);
                         }}
                     >
                         <SelectTrigger className="w-full">
@@ -235,7 +267,7 @@ const EventParametersForm: React.FC<EventParametersFormProps> = ({
                         <SelectContent>
                             {Object.entries(displayEnvelopeMap).map(([displayName, envelopeKey]) => (
                                 <SelectItem key={envelopeKey} value={envelopeKey}>
-                                    {displayName} <span style={{ color: '#888', fontSize: '0.8em' }}>({envelopeKey})</span>
+                                    {displayName} <span style={{ color: '#888', fontSize: '0.8em' }}>({envelopeCategoryMap[envelopeKey]})</span>
                                 </SelectItem>
                             ))}
                         </SelectContent>
@@ -268,9 +300,9 @@ const EventParametersForm: React.FC<EventParametersFormProps> = ({
             // Get eventDay from 'start_date' parameter
             let eventDay = currentDay;
             if (plan && plan.events) {
-                const event = plan.events.find(e => e.id === eventId);
-                if (event) {
-                    const startDateParam = event.parameters.find(p => p.type === 'start_time');
+                const eventMain = plan.events.find(e => e.id === eventId);
+                if (eventMain) {
+                    const startDateParam = eventMain.parameters.find(p => p.type === 'start_time');
                     if (startDateParam) {
                         eventDay = Number(startDateParam.value) || currentDay;
                     }
@@ -285,7 +317,9 @@ const EventParametersForm: React.FC<EventParametersFormProps> = ({
                 todayValue = todayValNum.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
                 displayValue = isFocused ? (usdTodayValues[param.id] ?? todayValue) : todayValue;
             } else if (!isFocused && value !== '' && value !== '-' && !isNaN(Number(value))) {
-                displayValue = (Math.round(Number(value) * 100) / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                displayValue = Number(value).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            } else if (isFocused) {
+                displayValue = String(value);
             }
             return (
                 <div className="flex flex-col gap-1">
@@ -316,15 +350,15 @@ const EventParametersForm: React.FC<EventParametersFormProps> = ({
                                     let eventVal = isNaN(todayVal) ? '' : valueToDay(todayVal, eventDay, currentDay, inflationRate);
                                     if (typeof eventVal === 'number' && !isNaN(eventVal)) eventVal = Math.round(eventVal * 100) / 100;
                                     // Always save as string with 2 decimals for consistency
-                                    handleInputBlur(param.id, typeof eventVal === 'number' && !isNaN(eventVal) ? Number(eventVal.toFixed(2)) : '');
+                                    handleInputBlur(param.id, typeof eventVal === 'number' && !isNaN(eventVal) ? Number(eventVal.toFixed(2)) : '', event.id);
                                     setUsdTodayValues(prev => ({ ...prev, [param.id]: newValue }));
                                 } else {
                                     if (newValue === '' || newValue === '-') {
-                                        handleInputBlur(param.id, '');
+                                        handleInputBlur(param.id, '', event.id);
                                     } else {
                                         let parsed = parseFloat(newValue);
                                         if (typeof parsed === 'number' && !isNaN(parsed)) parsed = Math.round(parsed * 100) / 100;
-                                        handleInputBlur(param.id, typeof parsed === 'number' && !isNaN(parsed) ? Number(parsed.toFixed(2)) : '');
+                                        handleInputBlur(param.id, typeof parsed === 'number' && !isNaN(parsed) ? Number(parsed.toFixed(2)) : '', event.id);
                                     }
                                 }
                             }}
@@ -332,8 +366,9 @@ const EventParametersForm: React.FC<EventParametersFormProps> = ({
                                 let raw = e.target.value.replace(/,/g, '');
                                 if (isTodayMode) {
                                     setUsdTodayValues(prev => ({ ...prev, [param.id]: raw }));
+                                    handleInputChange(event.id, param.id, raw);
                                 } else {
-                                    handleInputChange(param.id, raw);
+                                    handleInputChange(event.id, param.id, raw);
                                 }
                             }}
                             className="w-full pr-12 placeholder:text-muted-foreground"
@@ -361,15 +396,15 @@ const EventParametersForm: React.FC<EventParametersFormProps> = ({
                         placeholder={placeholder}
                         onChange={(e) => {
                             // Allow raw input (including minus, decimal, etc.)
-                            handleInputChange(param.id, e.target.value);
+                            handleInputChange(event.id, param.id, e.target.value);
                         }}
                         onBlur={(e) => {
                             const val = e.target.value;
                             if (val === '' || val === '-') {
-                                handleInputBlur(param.id, '');
+                                handleInputBlur(param.id, '', event.id);
                             } else {
                                 const parsed = parseFloat(val);
-                                handleInputBlur(param.id, isNaN(parsed) ? '' : parsed);
+                                handleInputBlur(param.id, isNaN(parsed) ? '' : parsed, event.id);
                             }
                         }}
                         step={paramUnits === 'percentage' ? '0.01' : 'any'}
@@ -393,15 +428,15 @@ const EventParametersForm: React.FC<EventParametersFormProps> = ({
                         placeholder={placeholder}
                         onChange={(e) => {
                             // Allow raw input (including minus, etc.)
-                            handleInputChange(param.id, e.target.value);
+                            handleInputChange(event.id, param.id, e.target.value);
                         }}
                         onBlur={(e) => {
                             const val = e.target.value;
                             if (val === '' || val === '-') {
-                                handleInputBlur(param.id, '');
+                                handleInputBlur(param.id, '', event.id);
                             } else {
                                 const parsed = parseInt(val, 10);
-                                handleInputBlur(param.id, isNaN(parsed) ? '' : parsed);
+                                handleInputBlur(param.id, isNaN(parsed) ? '' : parsed, event.id);
                             }
                         }}
                         step="1"
@@ -420,8 +455,8 @@ const EventParametersForm: React.FC<EventParametersFormProps> = ({
                 <Select
                     value={value as string}
                     onValueChange={(newValue) => {
-                        handleInputChange(param.id, newValue);
-                        handleInputBlur(param.id, newValue);
+                        handleInputChange(event.id, param.id, newValue);
+                        handleInputBlur(param.id, newValue, event.id);
                     }}
                 >
                     <SelectTrigger className="w-full">
@@ -441,8 +476,8 @@ const EventParametersForm: React.FC<EventParametersFormProps> = ({
                 type="text"
                 value={String(value)}
                 placeholder={defaultValue ? String(defaultValue) : ''}
-                onChange={(e) => handleInputChange(param.id, e.target.value)}
-                onBlur={(e) => handleInputBlur(param.id, e.target.value)}
+                onChange={(e) => handleInputChange(event.id, param.id, e.target.value)}
+                onBlur={(e) => handleInputBlur(param.id, e.target.value, event.id)}
                 className="w-full placeholder:text-muted-foreground"
             />
         );
@@ -494,19 +529,33 @@ const EventParametersForm: React.FC<EventParametersFormProps> = ({
 
 
                 <form onSubmit={handleSubmit} className="space-y-6">
-                    {(currentEvent?.parameters || currentUpdatingEvent?.parameters)?.map((param) => (
+                    {currentEvent && currentEvent.parameters && currentEvent.parameters.map((param) => (
                         <div key={param.id} className="space-y-2">
                             <div className="space-y-1">
                                 <Label htmlFor={param.id.toString()} className="text-sm font-medium">
-                                    {getParameterDisplayName((currentEvent ? (currentEvent as any).type : (currentUpdatingEvent as any)?.type) || '', param.type)}
+                                    {getParameterDisplayName((currentEvent as any).type, param.type)}
                                 </Label>
                                 <p className="text-xs text-muted-foreground">
                                     {getEventDefinition(plan, schema, eventId)?.parameters.find((p: any) => p.type === param.type)?.description}
                                 </p>
                             </div>
-                            {renderInput(param, (currentEvent ? (currentEvent as any).type : (currentUpdatingEvent as any)?.type) || undefined)}
+                            {currentEvent && renderInput(param, currentEvent as any)}
                         </div>
                     ))}
+                    {currentUpdatingEvent && currentUpdatingEvent.parameters &&
+                        currentUpdatingEvent.parameters.map((param) => (
+                            <div key={param.id} className="space-y-2">
+                                <div className="space-y-1">
+                                    <Label htmlFor={param.id.toString()} className="text-sm font-medium">
+                                        {getParameterDisplayName((currentUpdatingEvent as any).type, param.type)}
+                                    </Label>
+                                    <p className="text-xs text-muted-foreground">
+                                        {getEventDefinition(plan, schema, eventId)?.parameters.find((p: any) => p.type === param.type)?.description}
+                                    </p>
+                                </div>
+                                {currentUpdatingEvent && renderInput(param, currentUpdatingEvent as any)}
+                            </div>
+                        ))}
 
                     {/* Main Event Description Edit Box (before Updating Events) */}
                     <div className="mt-2">
@@ -572,9 +621,11 @@ const EventParametersForm: React.FC<EventParametersFormProps> = ({
                                             <SelectValue placeholder="Add updating event" />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            {mainEventSchema?.updating_events?.map(ue => (
-                                                <SelectItem key={ue.type} value={ue.type}>{ue.display_type}</SelectItem>
-                                            ))}
+                                            {mainEventSchema?.updating_events
+                                                ?.filter(ue => ue.display_event !== false)
+                                                .map(ue => (
+                                                    <SelectItem key={ue.type} value={ue.type}>{ue.display_type}</SelectItem>
+                                                ))}
                                         </SelectContent>
                                     </Select>
                                     <Button
@@ -608,7 +659,7 @@ const EventParametersForm: React.FC<EventParametersFormProps> = ({
                                                             <p className="text-xs text-muted-foreground">
                                                                 {getParameterDescription(ue.type, param.type)}
                                                             </p>
-                                                            {renderInput(param, ue.type)}
+                                                            {renderInput(param, ue)}
                                                         </div>
                                                     ))}
                                                     {/* Updating Event Description Edit Box */}

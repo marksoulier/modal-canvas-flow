@@ -33,28 +33,36 @@ const EnvelopeManagerModal: React.FC<EnvelopeManagerModalProps> = ({ isOpen, onC
         </DialogHeader>
 
         <div className="space-y-4">
-          {plan?.envelopes.map((envelope, index) => (
-            <div key={index} className="border rounded-lg p-4 space-y-3">
-              <div className="flex justify-between items-start">
-                <div>
-                  <h3 className="font-semibold text-lg">{envelope.name}</h3>
-                  <p className="text-sm text-gray-600">Category: {envelope.category}</p>
-                  <p className="text-sm text-gray-600">Growth: {envelope.growth}</p>
-                  {envelope.growth !== 'None' && (
-                    <p className="text-sm text-gray-600">Rate: {(envelope.rate * 100).toFixed(2)}%</p>
-                  )}
-                </div>
-                <div className="flex gap-2">
-                  <Button onClick={() => onEditEnvelope(envelope)} size="sm" variant="outline">
-                    <Pencil size={16} />
-                  </Button>
-                  <Button onClick={() => deleteEnvelope(index)} size="sm" variant="destructive">
-                    <Trash2 size={16} />
-                  </Button>
+          {plan?.envelopes.map((envelope, index) => {
+            // Display only the part inside parentheses for 'Other (X)' envelopes
+            let displayName = envelope.name;
+            const otherMatch = envelope.name.match(/^Other \((.+)\)$/i);
+            if (otherMatch) {
+              displayName = otherMatch[1];
+            }
+            return (
+              <div key={index} className="border rounded-lg p-4 space-y-3">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <h3 className="font-semibold text-lg">{displayName}</h3>
+                    <p className="text-sm text-gray-600">Category: {envelope.category}</p>
+                    <p className="text-sm text-gray-600">Growth: {envelope.growth}</p>
+                    {envelope.growth !== 'None' && typeof envelope.rate === 'number' && (
+                      <p className="text-sm text-gray-600">Rate: {(envelope.rate * 100).toFixed(2)}%</p>
+                    )}
+                  </div>
+                  <div className="flex gap-2">
+                    <Button onClick={() => onEditEnvelope({ ...envelope, rate: envelope.rate ?? 0 })} size="sm" variant="outline">
+                      <Pencil size={16} />
+                    </Button>
+                    <Button onClick={() => deleteEnvelope(index)} size="sm" variant="destructive">
+                      <Trash2 size={16} />
+                    </Button>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
 
           {plan?.envelopes.length === 0 && (
             <div className="text-center py-8 text-gray-500">

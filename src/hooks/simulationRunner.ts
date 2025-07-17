@@ -6,9 +6,10 @@ import {
     buy_health_insurance, buy_life_insurance,
     receive_government_aid, invest_money,
     high_yield_savings_account, pay_taxes, buy_groceries, manual_correction,
-    get_wage_job, transfer_money, reoccuring_income, reoccuring_spending, reoccuring_transfer,
+    get_wage_job, transfer_money, reoccuring_income, reoccuring_spending, reoccuring_transfer, reoccuring_income_changing_parameters,
     declare_accounts, purchase,
-    monthly_budgeting, roth_ira_contribution, tax_payment_estimated
+    monthly_budgeting, roth_ira_contribution, tax_payment_estimated,
+    reoccuring_spending_inflation_adjusted, loan_amortization
 } from './baseFunctions';
 import { evaluateResults } from './resultsEvaluation';
 import type { Plan, Schema } from '../contexts/PlanContext';
@@ -21,15 +22,16 @@ interface Datum {
     };
 }
 
-export function initializeEnvelopes(plan: Plan): Record<string, { functions: ((t: number) => number)[], growth_type: string, growth_rate: number, days_of_usefulness?: number }> {
-    const envelopes: Record<string, { functions: ((t: number) => number)[], growth_type: string, growth_rate: number, days_of_usefulness?: number }> = {};
+export function initializeEnvelopes(plan: Plan): Record<string, { functions: ((t: number) => number)[], growth_type: string, growth_rate: number, days_of_usefulness?: number, inflation_rate?: number }> {
+    const envelopes: Record<string, { functions: ((t: number) => number)[], growth_type: string, growth_rate: number, days_of_usefulness?: number, inflation_rate?: number }> = {};
 
     for (const env of plan.envelopes) {
         const name = env.name;
         const growth_type = env.growth || "None";
         const rate = env.rate || 0.0;
         const days_of_usefulness = env.days_of_usefulness;
-        envelopes[name] = { functions: [], growth_type, growth_rate: rate, days_of_usefulness };
+        const inflation_rate = plan.inflation_rate;
+        envelopes[name] = { functions: [], growth_type, growth_rate: rate, days_of_usefulness: days_of_usefulness, inflation_rate: inflation_rate };
     }
 
     return envelopes;
@@ -99,12 +101,15 @@ export async function runSimulation(
                 case 'buy_groceries': buy_groceries(event, envelopes); break;
                 case 'transfer_money': transfer_money(event, envelopes); break;
                 case 'reoccuring_income': reoccuring_income(event, envelopes); break;
+                case 'reoccuring_income_changing_parameters': reoccuring_income_changing_parameters(event, envelopes); break;
                 case 'reoccuring_spending': reoccuring_spending(event, envelopes); break;
+                case 'reoccuring_spending_inflation_adjusted': reoccuring_spending_inflation_adjusted(event, envelopes); break;
                 case 'reoccuring_transfer': reoccuring_transfer(event, envelopes); break;
                 case 'pass_away': pass_away(event, envelopes); break;
                 case 'monthly_budgeting': monthly_budgeting(event, envelopes); break;
                 case 'roth_ira_contribution': roth_ira_contribution(event, envelopes); break;
                 case 'tax_payment_estimated': tax_payment_estimated(event, envelopes); break;
+                case 'loan_amortization': loan_amortization(event, envelopes); break;
                 default:
                     console.warn(`⚠️ Unhandled event type: ${event.type}`);
             }

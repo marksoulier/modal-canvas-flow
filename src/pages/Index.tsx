@@ -30,7 +30,7 @@ const Index = () => {
   const [eventLibraryOpen, setEventLibraryOpen] = useState(false);
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [planPreferencesModalOpen, setPlanPreferencesModalOpen] = useState(false);
-  const [subscriptionModalOpen, setSubscriptionModalOpen] = useState(true);
+  const [subscriptionModalOpen, setSubscriptionModalOpen] = useState(false);
   const [userAccountModalOpen, setUserAccountModalOpen] = useState(false);
   const [eventParametersOpen, setEventParametersOpen] = useState(false);
   const [addEnvelopeModalOpen, setAddEnvelopeModalOpen] = useState(false);
@@ -223,13 +223,13 @@ const Index = () => {
                     placeholder="Enter plan title..."
                   />
                   {/* Switch button next to input */}
-                  <button
+                  {/* <button
                     onClick={lockPlan}
                     title="Switch with locked plan"
                     className="ml-1 p-1 rounded hover:bg-gray-100 transition-colors"
                   >
                     <RefreshCw size={18} className="text-gray-400 hover:text-gray-700" />
-                  </button>
+                  </button> */}
                 </div>
               ) : (
                 <div className="flex items-center gap-2">
@@ -243,13 +243,13 @@ const Index = () => {
                     <Edit3 size={16} className="opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
                   </button>
                   {/* Switch button next to title */}
-                  <button
+                  {/* <button
                     onClick={lockPlan}
                     title="Switch with locked plan"
                     className="ml-1 p-1 rounded hover:bg-gray-100 transition-colors"
                   >
                     <RefreshCw size={18} className="text-gray-400 hover:text-gray-700" />
-                  </button>
+                  </button> */}
                 </div>
               )}
             </div>
@@ -276,13 +276,13 @@ const Index = () => {
                 Plan Preferences
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem
+              {/* <DropdownMenuItem
                 onClick={() => setHelpModalOpen(true)}
                 className="cursor-pointer"
               >
                 <HelpCircle className="mr-2 h-4 w-4" />
                 Help
-              </DropdownMenuItem>
+              </DropdownMenuItem> */}
               <DropdownMenuItem
                 onClick={handleAccount}
                 className="cursor-pointer"

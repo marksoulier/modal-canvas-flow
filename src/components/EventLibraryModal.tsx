@@ -31,6 +31,7 @@ const EventLibraryModal: React.FC<EventLibraryModalProps> = ({ isOpen, onClose, 
   };
 
   const filteredEvents = schema ? schema.events.filter(event => {
+    if (event.display_event !== true) return false;
     const displayName = getEventDisplayType(event.type).toLowerCase();
     const matchesSearch = displayName.includes(searchTerm.toLowerCase()) ||
       event.type.toLowerCase().includes(searchTerm.toLowerCase()) ||

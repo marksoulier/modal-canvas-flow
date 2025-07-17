@@ -40,7 +40,6 @@ export const iconMap: Record<string, string> = {
     'dollar-bill': 'DollarBill',
     'wallet': 'Wallet',
     'pencil': 'Pencil',
-    // Added for schema support:
     'repeat': 'Repeat', // Lucide has 'Repeat'
     'repeat-2': 'Repeat2', // Use 'Repeat2' if available, else fallback to 'Repeat'
     'repeat-3': 'Repeat3', // Use 'Repeat3' if available, else fallback to 'Repeat'
@@ -108,6 +107,7 @@ export interface SchemaUpdatingEvent {
     icon: string;
     description: string;
     parameters: SchemaParameter[];
+    display_event?: boolean;
 }
 
 export interface SchemaEvent {
@@ -120,6 +120,7 @@ export interface SchemaEvent {
     parameters: SchemaParameter[];
     updating_events?: SchemaUpdatingEvent[];
     disclaimer?: string;
+    display_event?: boolean;
 }
 
 export interface Schema {
@@ -165,7 +166,7 @@ const SCHEMA_PATH = '/assets/event_schema.json';
 
 // --- AUTO-PERSISTENCE FLAG ---
 // Set this to true to enable automatic saving/loading of the plan to/from localStorage
-const ENABLE_AUTO_PERSIST_PLAN = false;
+const ENABLE_AUTO_PERSIST_PLAN = true;
 const LOCALSTORAGE_PLAN_KEY = 'user_plan_v1';
 const LOCALSTORAGE_PLAN_LOCKED_KEY = 'user_plan_locked_v1';
 

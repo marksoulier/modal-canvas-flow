@@ -97,6 +97,7 @@
         {
             "type": "inflow",
             "display_type": "Inflow (Debit)",
+            "display_event": true,
             "weight": 1,
             "category": "System",
             "description": "A simple inflow of money into an envelope.",
@@ -128,6 +129,7 @@
         {
             "type": "outflow",
             "display_type": "Outflow (Credit)",
+            "display_event": true,
             "weight": 2,
             "category": "System",
             "description": "A simple outflow of money from an envelope.",
@@ -159,6 +161,7 @@
         {
             "type": "transfer_money",
             "display_type": "Money Transfer",
+            "display_event": true,
             "weight": 80,
             "category": "System",
             "description": "Transfer money between envelopes with optional growth rate for destination.",
@@ -198,6 +201,7 @@
         {
             "type": "reoccuring_income",
             "display_type": "Reoccuring Income",
+            "display_event": true,
             "weight": 40,
             "category": "Income & Employment",
             "description": "Receive a recurring income at a specified interval.",
@@ -210,6 +214,13 @@
                     "parameter_units": "date",
                     "description": "When the recurring income begins",
                     "default": 0
+                },
+                {
+                    "type": "end_time",
+                    "display_name": "End Date",
+                    "parameter_units": "date",
+                    "description": "When the recurring income ends.",
+                    "default": 3650
                 },
                 {
                     "type": "amount",
@@ -231,19 +242,13 @@
                     "parameter_units": "envelope",
                     "description": "Envelope where income is deposited.",
                     "default": "Other (Cash)"
-                },
-                {
-                    "type": "end_time",
-                    "display_name": "End Date",
-                    "parameter_units": "date",
-                    "description": "When the recurring income ends.",
-                    "default": 3650
                 }
             ]
         },
         {
             "type": "reoccuring_spending",
             "display_type": "Reoccuring Spending",
+            "display_event": true,
             "weight": 30,
             "category": "Living Expenses",
             "description": "Spend a recurring amount at a specified interval.",
@@ -256,6 +261,13 @@
                     "parameter_units": "date",
                     "description": "When the recurring spending begins",
                     "default": 0
+                },
+                {
+                    "type": "end_time",
+                    "display_name": "End Date",
+                    "parameter_units": "date",
+                    "description": "When the recurring spending ends.",
+                    "default": 3650
                 },
                 {
                     "type": "amount",
@@ -277,19 +289,13 @@
                     "parameter_units": "envelope",
                     "description": "Envelope where spending is deducted from.",
                     "default": "Other (Cash)"
-                },
-                {
-                    "type": "end_time",
-                    "display_name": "End Date",
-                    "parameter_units": "date",
-                    "description": "When the recurring spending ends.",
-                    "default": 3650
                 }
             ]
         },
         {
             "type": "reoccuring_income_changing_parameters",
             "display_type": "Reoccuring Income (Updating Amount)",
+            "display_event": false,
             "weight": 40,
             "category": "Income & Employment",
             "description": "Receive a recurring income at a specified interval. The frequency and amount can be updated over time.",
@@ -302,6 +308,13 @@
                     "parameter_units": "date",
                     "description": "When the recurring income begins",
                     "default": 0
+                },
+                {
+                    "type": "end_time",
+                    "display_name": "End Date",
+                    "parameter_units": "date",
+                    "description": "When the recurring income ends.",
+                    "default": 3650
                 },
                 {
                     "type": "amount",
@@ -323,19 +336,13 @@
                     "parameter_units": "envelope",
                     "description": "Envelope where income is deposited.",
                     "default": "Other (Cash)"
-                },
-                {
-                    "type": "end_time",
-                    "display_name": "End Date",
-                    "parameter_units": "date",
-                    "description": "When the recurring income ends.",
-                    "default": 3650
                 }
             ],
             "updating_events": [
                 {
                     "type": "update_amount",
                     "display_type": "Update Amount",
+                    "display_event": true,
                     "icon": "repeat",
                     "description": "Update the amount of the recurring income.",
                     "parameters": [
@@ -358,13 +365,62 @@
             ]
         },
         {
+            "type": "reoccuring_spending_inflation_adjusted",
+            "display_type": "Reoccuring Spending (Inflation Adjusted)",
+            "display_event": false,
+            "weight": 40,
+            "category": "Living Expenses",
+            "description": "Spend a recurring amount at a specified interval. The amount is adjusted for inflation over time.",
+            "icon": "repeat",
+            "disclaimer": "This event simulates recurring spending at set intervals. It does not account for missed payments, taxes, or spending changes.",
+            "parameters": [
+                {
+                    "type": "start_time",
+                    "display_name": "Start Date",
+                    "parameter_units": "date",
+                    "description": "When the recurring income begins",
+                    "default": 0
+                },
+                {
+                    "type": "end_time",
+                    "display_name": "End Date",
+                    "parameter_units": "date",
+                    "description": "When the recurring income ends.",
+                    "default": 3650
+                },
+                {
+                    "type": "amount",
+                    "display_name": "Amount",
+                    "parameter_units": "usd",
+                    "description": "Amount received each interval.",
+                    "default": 1000
+                },
+                {
+                    "type": "frequency_days",
+                    "display_name": "Frequency (Days)",
+                    "parameter_units": "days",
+                    "description": "Number of days between each income payment.",
+                    "default": 30
+                },
+                {
+                    "type": "from_key",
+                    "display_name": "To Envelope",
+                    "parameter_units": "envelope",
+                    "description": "Envelope where spending is deducted from.",
+                    "default": "Other (Cash)"
+                }
+            ],
+            "updating_events": []
+        },
+        {
             "type": "manual_correction",
             "display_type": "Manual Adjustment",
+            "display_event": true,
             "weight": 85,
             "category": "System",
             "description": "Manually adjust the value of an envelope for tracking accuracy.",
             "icon": "edit",
-            "disclaimer": "This event allows manual adjustment of an envelope's value. It does not validate the reason for adjustment or track adjustment history.",
+            "disclaimer": "This event allows manual adjustment of an envelope's value. This is ued to correct an accout to a specific amount.",
             "parameters": [
                 {
                     "type": "start_time",
@@ -392,11 +448,12 @@
         {
             "type": "reoccuring_transfer",
             "display_type": "Reoccuring Transfer",
+            "display_event": true,
             "weight": 35,
             "category": "System",
             "description": "Transfer a recurring amount between envelopes at a specified interval.",
             "icon": "repeat-3",
-            "disclaimer": "This event simulates recurring transfers between envelopes. It does not include transfer fees, missed transfers, or currency conversion.",
+            "disclaimer": "This event simulates recurring transfers between envelopes. It does not include transfer fees, missed transfers, or currency conversion. This also does not take into account the time to transfer the money.",
             "parameters": [
                 {
                     "type": "start_time",
@@ -404,6 +461,13 @@
                     "parameter_units": "date",
                     "description": "When the recurring transfer begins",
                     "default": 0
+                },
+                {
+                    "type": "end_time",
+                    "display_name": "End Date",
+                    "parameter_units": "date",
+                    "description": "When the recurring transfer ends.",
+                    "default": 3650
                 },
                 {
                     "type": "amount",
@@ -432,24 +496,18 @@
                     "parameter_units": "envelope",
                     "description": "Envelope where money is transferred to.",
                     "default": "Other (Investments)"
-                },
-                {
-                    "type": "end_time",
-                    "display_name": "End Date",
-                    "parameter_units": "date",
-                    "description": "When the recurring transfer ends.",
-                    "default": 3650
                 }
             ]
         },
         {
             "type": "declare_accounts",
             "display_type": "Declare Accounts",
+            "display_event": true,
             "weight": 100,
             "category": "System",
             "description": "Declare the initial balances of up to five financial accounts (envelopes) at a specific time.",
             "icon": "list",
-            "disclaimer": "This event is used to set the starting balances for up to five envelopes. It does not simulate transactions or transfers, only the initial state.",
+            "disclaimer": "This event is used to set the starting balances for up to five envelopes. Use this on todays date to set the account balance for your envelopes.",
             "parameters": [
                 {
                     "type": "start_time",
@@ -531,8 +589,63 @@
             ]
         },
         {
+            "type": "loan_amortization",
+            "display_type": "Loan Amortization",
+            "display_event": false,
+            "weight": 10,
+            "category": "Debt",
+            "description": "Amortize a loan over a specified period.",
+            "icon": "credit-card",
+            "disclaimer": "This event simulates loan amortization, calculating monthly payments and interest. It does not account for missed payments, prepayments, or changes in interest rates.",
+            "parameters": [
+                {
+                    "type": "start_time",
+                    "display_name": "Start Date",
+                    "parameter_units": "date",
+                    "description": "When the loan starts",
+                    "default": 0
+                },
+                {
+                    "type": "principal",
+                    "display_name": "Principal",
+                    "parameter_units": "usd",
+                    "description": "Principal amount of the loan",
+                    "default": 10000
+                },
+                {
+                    "type": "interest_rate",
+                    "display_name": "Interest Rate (APR%)",
+                    "parameter_units": "percentage",
+                    "description": "Interest rate of the loan",
+                    "default": 0.05
+                },
+                {
+                    "type": "loan_term_years",
+                    "display_name": "Loan Term (Years)",
+                    "parameter_units": "years",
+                    "description": "Number of years to pay off the loan",
+                    "default": 30
+                },
+                {
+                    "type": "to_key",
+                    "display_name": "To Envelope",
+                    "parameter_units": "envelope",
+                    "description": "Envelope where the loan is deposited",
+                    "default": "Other (Debt)"
+                },
+                {
+                    "type": "from_key",
+                    "display_name": "From Envelope",
+                    "parameter_units": "envelope",
+                    "description": "Envelope where the loan is deducted from",
+                    "default": "Other (Cash)"
+                }
+            ]
+        },
+        {
             "type": "purchase",
             "display_type": "Purchase",
+            "display_event": true,
             "category": "Living Expenses",
             "weight": 5,
             "description": "Basic purchase or spending of money",
@@ -565,6 +678,7 @@
         {
             "type": "gift",
             "display_type": "Gift",
+            "display_event": true,
             "weight": 10,
             "category": "Living Expenses",
             "description": " gift of money from something",
@@ -595,8 +709,112 @@
             ]
         },
         {
+            "type": "monthly_budgeting",
+            "display_type": "Monthly Budgeting",
+            "display_event": true,
+            "category": "Living Expenses",
+            "weight": 20,
+            "description": "Set your typical monthly budget for common expense categories.",
+            "icon": "list",
+            "disclaimer": "This event allows you to set up recurring monthly expenses for common budget categories.",
+            "parameters": [
+                {
+                    "type": "start_time",
+                    "display_name": "Start Date",
+                    "parameter_units": "date",
+                    "description": "When the monthly budgeting starts.",
+                    "default": 0
+                },
+                {
+                    "type": "end_time",
+                    "display_name": "End Date",
+                    "parameter_units": "date",
+                    "description": "When the monthly budgeting ends.",
+                    "default": 99999
+                },
+                {
+                    "type": "frequency_days",
+                    "display_name": "Frequency (Days)",
+                    "parameter_units": "days",
+                    "description": "Number of days between each budgeting event.",
+                    "default": 30
+                },
+                {
+                    "type": "from_key",
+                    "display_name": "From Envelope",
+                    "parameter_units": "envelope",
+                    "description": "Envelope from which funds are spent.",
+                    "default": "Other (Cash)"
+                },
+                {
+                    "type": "groceries",
+                    "display_name": "Groceries",
+                    "parameter_units": "usd",
+                    "description": "Monthly spending on groceries and food at home.",
+                    "default": 600
+                },
+                {
+                    "type": "utilities",
+                    "display_name": "Utilities",
+                    "parameter_units": "usd",
+                    "description": "Monthly cost for electricity, water, gas, etc.",
+                    "default": 200
+                },
+                {
+                    "type": "transportation",
+                    "display_name": "Transportation",
+                    "parameter_units": "usd",
+                    "description": "Monthly spending on public transit, gas, car payment, etc.",
+                    "default": 300
+                },
+                {
+                    "type": "insurance",
+                    "display_name": "Insurance",
+                    "parameter_units": "usd",
+                    "description": "Monthly insurance premiums (health, auto, etc.).",
+                    "default": 250
+                },
+                {
+                    "type": "healthcare",
+                    "display_name": "Healthcare",
+                    "parameter_units": "usd",
+                    "description": "Monthly out-of-pocket healthcare costs.",
+                    "default": 100
+                },
+                {
+                    "type": "dining_out",
+                    "display_name": "Dining Out",
+                    "parameter_units": "usd",
+                    "description": "Monthly spending on restaurants, takeout, and coffee shops.",
+                    "default": 200
+                },
+                {
+                    "type": "entertainment",
+                    "display_name": "Entertainment",
+                    "parameter_units": "usd",
+                    "description": "Monthly spending on movies, streaming, events, etc.",
+                    "default": 100
+                },
+                {
+                    "type": "personal_care",
+                    "display_name": "Personal Care",
+                    "parameter_units": "usd",
+                    "description": "Monthly spending on haircuts, toiletries, gym, etc.",
+                    "default": 75
+                },
+                {
+                    "type": "miscellaneous",
+                    "display_name": "Miscellaneous",
+                    "parameter_units": "usd",
+                    "description": "Other monthly expenses not listed above.",
+                    "default": 100
+                }
+            ]
+        },
+        {
             "type": "get_job",
             "display_type": "Employment",
+            "display_event": true,
             "weight": 90,
             "category": "Income & Employment",
             "description": "Start earning a salary from employment.",
@@ -692,6 +910,7 @@
                 {
                     "type": "get_a_raise",
                     "display_type": "Raise",
+                    "display_event": true,
                     "icon": "arrow-up",
                     "description": "Receive an increase in salary.",
                     "parameters": [
@@ -714,6 +933,7 @@
                 {
                     "type": "get_a_bonus",
                     "display_type": "Bonus",
+                    "display_event": true,
                     "icon": "dollar-sign",
                     "description": "Receive a one-time cash bonus.",
                     "parameters": [
@@ -736,6 +956,7 @@
                 {
                     "type": "change_401k_contribution",
                     "display_type": "Adjust 401k Contribution",
+                    "display_event": false,
                     "icon": "sliders-horizontal",
                     "description": "Adjust the percentage of income contributed to 401k.",
                     "parameters": [
@@ -760,6 +981,7 @@
         {
             "type": "get_wage_job",
             "display_type": "Wage Employment",
+            "display_event": true,
             "weight": 90,
             "category": "Income & Employment",
             "description": "Start earning an hourly wage from employment.",
@@ -855,6 +1077,7 @@
                 {
                     "type": "get_a_raise",
                     "display_type": "Raise",
+                    "display_event": true,
                     "icon": "arrow-up",
                     "description": "Receive an increase in hourly wage.",
                     "parameters": [
@@ -877,6 +1100,7 @@
                 {
                     "type": "change_hours",
                     "display_type": "Change Hours",
+                    "display_event": true,
                     "icon": "clock",
                     "description": "Change the number of hours worked per week.",
                     "parameters": [
@@ -899,6 +1123,7 @@
                 {
                     "type": "change_401k_contribution",
                     "display_type": "Adjust 401k Contribution",
+                    "display_event": false,
                     "icon": "sliders-horizontal",
                     "description": "Adjust the percentage of wages contributed to 401k.",
                     "parameters": [
@@ -921,6 +1146,7 @@
                 {
                     "type": "change_employer_match",
                     "display_type": "Update Employer Match",
+                    "display_event": false,
                     "icon": "handshake",
                     "description": "Update the employer's 401k match rate.",
                     "parameters": [
@@ -945,6 +1171,7 @@
         {
             "type": "start_business",
             "display_type": "Business",
+            "display_event": false,
             "weight": 80,
             "category": "Income & Employment",
             "description": "Start your own business by investing capital.",
@@ -984,6 +1211,7 @@
                 {
                     "type": "business_income",
                     "display_type": "Business Income",
+                    "display_event": true,
                     "icon": "bar-chart",
                     "description": "Start receiving business revenue.",
                     "parameters": [
@@ -1020,6 +1248,7 @@
                 {
                     "type": "business_loss",
                     "display_type": "Business Loss",
+                    "display_event": true,
                     "icon": "x-octagon",
                     "description": "Incur a business loss from operations.",
                     "parameters": [
@@ -1051,6 +1280,7 @@
         {
             "type": "retirement",
             "display_type": "Retirement",
+            "display_event": true,
             "weight": 70,
             "category": "Income & Employment",
             "description": "Transition from employment to retirement with withdrawals.",
@@ -1104,6 +1334,7 @@
         {
             "type": "buy_house",
             "display_type": "Home Purchase",
+            "display_event": true,
             "weight": 80,
             "category": "Major Purchases",
             "description": "Purchase a home with mortgage terms.",
@@ -1192,6 +1423,7 @@
                 {
                     "type": "new_appraisal",
                     "display_type": "New Appraisal",
+                    "display_event": false,
                     "icon": "clipboard-check",
                     "description": "New professional appraisal of home value.",
                     "parameters": [
@@ -1214,6 +1446,7 @@
                 {
                     "type": "extra_mortgage_payment",
                     "display_type": "Extra Mortgage Payment",
+                    "display_event": false,
                     "icon": "plus",
                     "description": "Make an extra one-time payment toward principal.",
                     "parameters": [
@@ -1250,6 +1483,7 @@
                 {
                     "type": "late_payment",
                     "display_type": "Late Payment",
+                    "display_event": false,
                     "icon": "clock",
                     "description": "Make a mortgage payment late.",
                     "parameters": [
@@ -1286,6 +1520,7 @@
                 {
                     "type": "sell_house",
                     "display_type": "Sell House",
+                    "display_event": false,
                     "icon": "dollar-sign",
                     "description": "Sell your home and receive proceeds.",
                     "parameters": [
@@ -1322,6 +1557,7 @@
                 {
                     "type": "buy_home_insurance",
                     "display_type": "Home Insurance",
+                    "display_event": false,
                     "icon": "shield-check",
                     "description": "Purchase insurance policy for the house.",
                     "parameters": [
@@ -1365,6 +1601,7 @@
                         {
                             "type": "tornado_damage",
                             "display_type": "Tornado Damage",
+                            "display_event": true,
                             "icon": "wind",
                             "description": "Damage to property due to tornado.",
                             "parameters": [
@@ -1401,6 +1638,7 @@
                         {
                             "type": "house_fire",
                             "display_type": "House Fire",
+                            "display_event": true,
                             "icon": "flame",
                             "description": "Damage to property due to fire.",
                             "parameters": [
@@ -1437,6 +1675,7 @@
                         {
                             "type": "flood_damage",
                             "display_type": "Flood Damage",
+                            "display_event": true,
                             "icon": "waves",
                             "description": "Damage to home due to flood.",
                             "parameters": [
@@ -1463,6 +1702,7 @@
         {
             "type": "buy_car",
             "display_type": "Car Purchase",
+            "display_event": true,
             "weight": 40,
             "category": "Major Purchases",
             "description": "Purchase a car with or without a loan.",
@@ -1530,6 +1770,7 @@
                 {
                     "type": "pay_loan_early",
                     "display_type": "Pay Loan Early",
+                    "display_event": false,
                     "icon": "badge-dollar-sign",
                     "description": "Pay off the car loan ahead of schedule.",
                     "parameters": [
@@ -1559,6 +1800,7 @@
                 {
                     "type": "car_repair",
                     "display_type": "Car Repair",
+                    "display_event": false,
                     "icon": "wrench",
                     "description": "Pay for major car repairs.",
                     "parameters": [
@@ -1590,6 +1832,7 @@
         {
             "type": "have_kid",
             "display_type": "Child Birth",
+            "display_event": true,
             "weight": 50,
             "category": "Life Events",
             "description": "Have a child and incur related early-life costs.",
@@ -1622,6 +1865,7 @@
                 {
                     "type": "childcare_costs",
                     "display_type": "Childcare Costs",
+                    "display_event": false,
                     "icon": "hand-coins",
                     "description": "Monthly childcare expenses after birth.",
                     "parameters": [
@@ -1658,6 +1902,7 @@
                 {
                     "type": "college_fund",
                     "display_type": "College Fund",
+                    "display_event": false,
                     "icon": "graduation-cap",
                     "description": "Start saving for your child's college education.",
                     "parameters": [
@@ -1710,6 +1955,7 @@
         {
             "type": "marriage",
             "display_type": "Marriage",
+            "display_event": true,
             "weight": 40,
             "category": "Life Events",
             "description": "Get married and incur event-related expenses.",
@@ -1742,6 +1988,7 @@
         {
             "type": "divorce",
             "display_type": "Divorce",
+            "display_event": true,
             "weight": 60,
             "category": "Life Events",
             "description": "Divorce settlement and legal costs.",
@@ -1781,6 +2028,7 @@
         {
             "type": "pass_away",
             "display_type": "Death",
+            "display_event": true,
             "weight": 90,
             "category": "Life Events",
             "description": "Death of the individual and end-of-life costs.",
@@ -1799,6 +2047,7 @@
         {
             "type": "buy_health_insurance",
             "display_type": "Health Insurance",
+            "display_event": false,
             "weight": 60,
             "category": "Health & Insurance",
             "description": "Purchase a health insurance plan with monthly payments.",
@@ -1845,6 +2094,7 @@
                 {
                     "type": "medical_expense",
                     "display_type": "Medical Expense",
+                    "display_event": false,
                     "icon": "pill",
                     "description": "Major medical procedure or cost covered by insurance.",
                     "parameters": [
@@ -1890,6 +2140,7 @@
         {
             "type": "buy_life_insurance",
             "display_type": "Life Insurance",
+            "display_event": false,
             "weight": 70,
             "category": "Health & Insurance",
             "description": "Buy term life insurance to protect dependents.",
@@ -1936,6 +2187,7 @@
                 {
                     "type": "increase_coverage",
                     "display_type": "Increase Coverage",
+                    "display_event": true,
                     "icon": "plus-circle",
                     "description": "Change to a higher coverage amount and premium.",
                     "parameters": [
@@ -1967,6 +2219,7 @@
         {
             "type": "receive_government_aid",
             "display_type": "Government Aid",
+            "display_event": true,
             "weight": 50,
             "category": "Taxes & Government",
             "description": "Regular cash benefits from government programs.",
@@ -2013,6 +2266,7 @@
         {
             "type": "invest_money",
             "display_type": "Investment",
+            "display_event": true,
             "weight": 70,
             "category": "Investments & Assets",
             "description": "Invest a lump sum into the stock market or similar vehicle.",
@@ -2046,19 +2300,13 @@
                     "parameter_units": "envelope",
                     "description": "Envelope to which the investment is applied.",
                     "default": "Other (Investments)"
-                },
-                {
-                    "type": "expected_return",
-                    "display_name": "Expected Return",
-                    "parameter_units": "apy",
-                    "description": "Estimated annual rate of return.",
-                    "default": 0.07
                 }
             ],
             "updating_events": [
                 {
                     "type": "Reoccuring Dividend Payout",
                     "display_type": "Dividend Payout",
+                    "display_event": true,
                     "icon": "badge-dollar-sign",
                     "description": "Receive dividend payments from invested stocks.",
                     "parameters": [
@@ -2070,24 +2318,32 @@
                             "default": 0
                         },
                         {
+                            "type": "end_time",
+                            "display_name": "Dividend End Date",
+                            "parameter_units": "date",
+                            "description": "When dividend payments end",
+                            "default": 3650
+                        },
+                        {
+                            "type": "frequency_days",
+                            "display_name": "Dividend Frequency",
+                            "parameter_units": "days",
+                            "description": "Number of days between each dividend payment.",
+                            "default": 30
+                        },
+                        {
                             "type": "amount",
                             "display_name": "Dividend Amount",
                             "parameter_units": "usd",
                             "description": "Dividend amount received.",
                             "default": 200
-                        },
-                        {
-                            "type": "to_key",
-                            "display_name": "To Envelope",
-                            "parameter_units": "envelope",
-                            "description": "Envelope where dividends are received",
-                            "default": "Other (Cash)"
                         }
                     ]
                 },
                 {
                     "type": "Reoccuring Contribution",
                     "display_type": "Reoccuring Contribution",
+                    "display_event": true,
                     "icon": "dollar-bill",
                     "description": "Put in reoccuring deposits",
                     "parameters": [
@@ -2106,18 +2362,18 @@
                             "default": 3650
                         },
                         {
+                            "type": "frequency_days",
+                            "display_name": "Contribution Frequency",
+                            "parameter_units": "days",
+                            "description": "Number of days between each contribution.",
+                            "default": 30
+                        },
+                        {
                             "type": "amount",
                             "display_name": "Contribution Amount",
                             "parameter_units": "usd",
                             "description": "Amount put in.",
                             "default": 200
-                        },
-                        {
-                            "type": "from_key",
-                            "display_name": "From Envelope",
-                            "parameter_units": "envelope",
-                            "description": "Envelope where contributions are from",
-                            "default": "Other (Cash)"
                         }
                     ]
                 }
@@ -2126,6 +2382,7 @@
         {
             "type": "high_yield_savings_account",
             "display_type": "High Yield Savings",
+            "display_event": true,
             "weight": 50,
             "category": "Investments & Assets",
             "description": "Open a high-yield savings account that earns daily interest.",
@@ -2172,6 +2429,7 @@
         {
             "type": "pay_taxes",
             "display_type": "Tax Payment",
+            "display_event": true,
             "weight": 30,
             "category": "Taxes & Government",
             "description": "Annual payment of federal and state taxes.",
@@ -2189,7 +2447,7 @@
                     "type": "total_tax_due",
                     "display_name": "Tax Amount",
                     "parameter_units": "usd",
-                    "description": "Amount owed in taxes.",
+                    "description": "Amount owed in taxes. Add updating event of a tax refund.",
                     "default": 8000
                 },
                 {
@@ -2204,6 +2462,7 @@
                 {
                     "type": "receive_tax_refund",
                     "display_type": "Tax Refund",
+                    "display_event": true,
                     "icon": "wallet",
                     "description": "Receive refund from overpaid taxes.",
                     "parameters": [
@@ -2235,6 +2494,7 @@
         {
             "type": "buy_groceries",
             "display_type": "Grocery Purchase",
+            "display_event": false,
             "weight": 15,
             "category": "Living Expenses",
             "description": "Spend a recurring amount on monthly groceries.",
@@ -2273,103 +2533,9 @@
             "updating_events": []
         },
         {
-            "type": "monthly_budgeting",
-            "display_type": "Monthly Budgeting",
-            "category": "Living Expenses",
-            "weight": 20,
-            "description": "Set your typical monthly budget for common expense categories.",
-            "icon": "list",
-            "disclaimer": "This event allows you to set up recurring monthly expenses for common budget categories.",
-            "parameters": [
-                {
-                    "type": "start_time",
-                    "display_name": "Start Date",
-                    "parameter_units": "date",
-                    "description": "When the monthly budgeting starts.",
-                    "default": 0
-                },
-                {
-                    "type": "end_time",
-                    "display_name": "End Date",
-                    "parameter_units": "date",
-                    "description": "When the monthly budgeting ends.",
-                    "default": 99999
-                },
-                {
-                    "type": "from_key",
-                    "display_name": "From Envelope",
-                    "parameter_units": "envelope",
-                    "description": "Envelope from which funds are spent.",
-                    "default": "Other (Cash)"
-                },
-                {
-                    "type": "groceries",
-                    "display_name": "Groceries",
-                    "parameter_units": "usd",
-                    "description": "Monthly spending on groceries and food at home.",
-                    "default": 600
-                },
-                {
-                    "type": "utilities",
-                    "display_name": "Utilities",
-                    "parameter_units": "usd",
-                    "description": "Monthly cost for electricity, water, gas, etc.",
-                    "default": 200
-                },
-                {
-                    "type": "transportation",
-                    "display_name": "Transportation",
-                    "parameter_units": "usd",
-                    "description": "Monthly spending on public transit, gas, car payment, etc.",
-                    "default": 300
-                },
-                {
-                    "type": "insurance",
-                    "display_name": "Insurance",
-                    "parameter_units": "usd",
-                    "description": "Monthly insurance premiums (health, auto, etc.).",
-                    "default": 250
-                },
-                {
-                    "type": "healthcare",
-                    "display_name": "Healthcare",
-                    "parameter_units": "usd",
-                    "description": "Monthly out-of-pocket healthcare costs.",
-                    "default": 100
-                },
-                {
-                    "type": "dining_out",
-                    "display_name": "Dining Out",
-                    "parameter_units": "usd",
-                    "description": "Monthly spending on restaurants, takeout, and coffee shops.",
-                    "default": 200
-                },
-                {
-                    "type": "entertainment",
-                    "display_name": "Entertainment",
-                    "parameter_units": "usd",
-                    "description": "Monthly spending on movies, streaming, events, etc.",
-                    "default": 100
-                },
-                {
-                    "type": "personal_care",
-                    "display_name": "Personal Care",
-                    "parameter_units": "usd",
-                    "description": "Monthly spending on haircuts, toiletries, gym, etc.",
-                    "default": 75
-                },
-                {
-                    "type": "miscellaneous",
-                    "display_name": "Miscellaneous",
-                    "parameter_units": "usd",
-                    "description": "Other monthly expenses not listed above.",
-                    "default": 100
-                }
-            ]
-        },
-        {
             "type": "roth_ira_contribution",
             "display_type": "Roth IRA Contribution",
+            "display_event": true,
             "category": "Retirement",
             "weight": 60,
             "description": "Contribute to a Roth IRA account.",
@@ -2389,6 +2555,13 @@
                     "parameter_units": "date",
                     "description": "When the contribution ends.",
                     "default": 99999
+                },
+                {
+                    "type": "frequency_days",
+                    "display_name": "Contribution Frequency",
+                    "parameter_units": "days",
+                    "description": "Number of days between each contribution.",
+                    "default": 365
                 },
                 {
                     "type": "amount",
@@ -2416,6 +2589,7 @@
         {
             "type": "tax_payment_estimated",
             "display_type": "Tax Payment (Estimated)",
+            "display_event": true,
             "category": "Taxes & Government",
             "weight": 35,
             "description": "Estimate your annual tax payment based on salary and filing status.",
@@ -2498,6 +2672,20 @@
                     "parameter_units": "percentage",
                     "description": "Estimated state tax rate.",
                     "default": 0.05
+                },
+                {
+                    "type": "federal_income_tax_withheld",
+                    "display_name": "Federal Income Tax Withheld",
+                    "parameter_units": "usd",
+                    "description": "Total federal income tax already withheld.",
+                    "default": 0
+                },
+                {
+                    "type": "state_income_tax_withheld",
+                    "display_name": "State Income Tax Withheld",
+                    "parameter_units": "usd",
+                    "description": "Total state income tax already withheld.",
+                    "default": 0
                 },
                 {
                     "type": "from_key",
