@@ -1377,13 +1377,6 @@
                     "default": 0.03
                 },
                 {
-                    "type": "appreciation_rate",
-                    "display_name": "Appreciation Rate",
-                    "parameter_units": "apy",
-                    "description": "Estimated yearly value increase.",
-                    "default": 0.05
-                },
-                {
                     "type": "downpayment",
                     "display_name": "Down Payment",
                     "parameter_units": "usd",

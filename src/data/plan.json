@@ -1,9 +1,9 @@
 {
   "title": "Demo Plan",
   "birth_date": "2001-01-01",
-  "inflation_rate": 0.03,
+  "inflation_rate": 0.024,
   "adjust_for_inflation": false,
-  "retirement_goal": 1000000,
+  "retirement_goal": 0,
   "envelopes": [
     {
       "name": "Other (Cash)",

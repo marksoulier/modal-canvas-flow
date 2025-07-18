@@ -37,11 +37,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.log('AuthContext: Fetching user data for ID:', userId);
         try {
             // First try to get existing user data
-            const { data, error } = await supabase
-                .from('user_data')
-                .select('*')
-                .eq('user_id', userId)
-                .single();
+            const { data, error } = await supabase.from('user_data').select('*').eq('user_id', userId);
 
             if (error) {
                 // If no data exists, create it

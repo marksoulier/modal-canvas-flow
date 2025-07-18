@@ -1038,35 +1038,35 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
                 {firstDayAboveGoal && netWorthValues && (
                   <>
                     {/* Tick mark for net worth value */}
-                    <line
-                      x1={width - 60}
-                      x2={width - 40}
-                      y1={visibleYScale(netWorthValues.netWorth) * zoom.transformMatrix.scaleY + zoom.transformMatrix.translateY}
-                      y2={visibleYScale(netWorthValues.netWorth) * zoom.transformMatrix.scaleY + zoom.transformMatrix.translateY}
-                      stroke="#335966"
-                      strokeWidth={2}
-                    />
+                    {/* <line
+                    x1={width - 60}
+                    x2={width - 40}
+                    y1={visibleYScale(netWorthValues.netWorth) * zoom.transformMatrix.scaleY + zoom.transformMatrix.translateY}
+                    y2={visibleYScale(netWorthValues.netWorth) * zoom.transformMatrix.scaleY + zoom.transformMatrix.translateY}
+                    stroke="#335966"
+                    strokeWidth={2}
+                  /> */}
 
                     {/* Tick mark for locked net worth value */}
-                    <line
-                      x1={width - 60}
-                      x2={width - 40}
-                      y1={visibleYScale(netWorthValues.lockedNetWorth) * zoom.transformMatrix.scaleY + zoom.transformMatrix.translateY}
-                      y2={visibleYScale(netWorthValues.lockedNetWorth) * zoom.transformMatrix.scaleY + zoom.transformMatrix.translateY}
-                      stroke="#d1d5db"
-                      strokeWidth={2}
-                    />
+                    {/* <line
+                    x1={width - 60}
+                    x2={width - 40}
+                    y1={visibleYScale(netWorthValues.lockedNetWorth) * zoom.transformMatrix.scaleY + zoom.transformMatrix.translateY}
+                    y2={visibleYScale(netWorthValues.lockedNetWorth) * zoom.transformMatrix.scaleY + zoom.transformMatrix.translateY}
+                    stroke="#d1d5db"
+                    strokeWidth={2}
+                  /> */}
 
                     {/* Horizontal line connecting the two tick marks */}
-                    <line
-                      x1={width - 50}
-                      x2={width - 50}
-                      y1={visibleYScale(netWorthValues.lockedNetWorth) * zoom.transformMatrix.scaleY + zoom.transformMatrix.translateY}
-                      y2={visibleYScale(netWorthValues.netWorth) * zoom.transformMatrix.scaleY + zoom.transformMatrix.translateY}
-                      stroke="#335966"
-                      strokeWidth={1}
-                      strokeDasharray="2,2"
-                    />
+                    {/* <line
+                    x1={width - 50}
+                    x2={width - 50}
+                    y1={visibleYScale(netWorthValues.lockedNetWorth) * zoom.transformMatrix.scaleY + zoom.transformMatrix.translateY}
+                    y2={visibleYScale(netWorthValues.netWorth) * zoom.transformMatrix.scaleY + zoom.transformMatrix.translateY}
+                    stroke="#335966"
+                    strokeWidth={1}
+                    strokeDasharray="2,2"
+                  /> */}
                   </>
                 )}
               </svg>
@@ -1129,55 +1129,8 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
                 </div>
               )}
 
-              {/* Bottom axis tooltip for current day indicator line (gray, more transparent) */}
-              {typeof currentDay === 'number' && (
-                <div
-                  style={{
-                    position: 'absolute',
-                    left: (xScale(currentDay) * zoom.transformMatrix.scaleX) + zoom.transformMatrix.translateX,
-                    bottom: 24, // just above the x axis
-                    transform: 'translateX(-50%)',
-                    background: 'rgba(255,255,255,0.85)',
-                    border: '1px solid #d1d5db',
-                    color: '#6b7280',
-                    padding: '4px 10px',
-                    borderRadius: '4px',
-                    fontSize: '12px',
-                    pointerEvents: 'none',
-                    zIndex: 9,
-                    boxShadow: '0 2px 4px rgba(0,0,0,0.04)'
-                  }}
-                >
-                  {formatDate(currentDay, birthDate, 'full', true, true)}
-                </div>
-              )}
-
-              {/* Bottom axis tooltip for first day above retirement goal (orange outline) */}
-              {firstDayAboveGoal && (
-                <div
-                  style={{
-                    position: 'absolute',
-                    left: (xScale(firstDayAboveGoal) * zoom.transformMatrix.scaleX) + zoom.transformMatrix.translateX,
-                    bottom: 24, // just above the x axis
-                    transform: 'translateX(-50%)',
-                    background: 'white',
-                    border: '2px solid #f59e42',
-                    color: '#f59e42',
-                    padding: '4px 10px',
-                    borderRadius: '4px',
-                    fontSize: '12px',
-                    pointerEvents: 'none',
-                    zIndex: 10,
-                    boxShadow: '0 2px 4px rgba(0,0,0,0.08)',
-                    fontWeight: '500'
-                  }}
-                >
-                  {formatDate(firstDayAboveGoal, birthDate, 'full', true, true)}
-                </div>
-              )}
-
               {/* Difference label in the middle of the connecting line */}
-              {firstDayAboveGoal && netWorthValues && (
+              {/* {firstDayAboveGoal && netWorthValues && (
                 <div
                   style={{
                     position: 'absolute',
@@ -1197,7 +1150,7 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
                 >
                   {formatNumber({ valueOf: () => netWorthValues.difference })}
                 </div>
-              )}
+              )} */}
 
               {/* Event Description Tooltip (on-canvas) */}
               {eventDescriptionTooltip && (
