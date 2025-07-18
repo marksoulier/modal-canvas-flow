@@ -16,19 +16,43 @@ interface UserAccountModalProps {
 }
 
 const UserAccountModal: React.FC<UserAccountModalProps> = ({ isOpen, onClose, onSignOut }) => {
-  const { user, userData, isPremium } = useAuth();
+  const { user, userData, isPremium, isLoading } = useAuth();
 
-  // Mock saved financial plans
-  const savedPlans = [
-    { id: 1, name: 'Retirement Plan 2024', lastModified: '2024-01-15' },
-    { id: 2, name: 'House Purchase Strategy', lastModified: '2024-01-10' },
-    { id: 3, name: 'Emergency Fund Plan', lastModified: '2024-01-05' },
-  ];
-
-  const handleLoadPlan = (planId: number) => {
+  const handleLoadPlan = (planId: string) => {
     console.log(`Loading plan ${planId}`);
+    // TODO: Implement plan loading logic
     onClose();
   };
+
+  if (isLoading) {
+    return (
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>User Account</DialogTitle>
+          </DialogHeader>
+          <div className="flex items-center justify-center p-8">
+            <div className="text-sm text-gray-500">Loading account data...</div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
+  if (!user) {
+    return (
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>User Account</DialogTitle>
+          </DialogHeader>
+          <div className="flex items-center justify-center p-8">
+            <div className="text-sm text-gray-500">Please sign in to view account information.</div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -65,27 +89,38 @@ const UserAccountModal: React.FC<UserAccountModalProps> = ({ isOpen, onClose, on
 
           {/* Saved Plans */}
           <div>
-            <h3 className="text-lg font-medium text-gray-900 mb-3">Saved Financial Plans</h3>
-            {savedPlans.length > 0 ? (
+            <h3 className="text-lg font-medium text-gray-900 mb-3">
+              Saved Financial Plans ({userData?.plans?.length || 0})
+            </h3>
+            {userData?.plans && userData.plans.length > 0 ? (
               <div className="space-y-2">
-                {savedPlans.map((plan) => (
-                  <div
-                    key={plan.id}
-                    className="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer"
-                    onClick={() => handleLoadPlan(plan.id)}
-                  >
-                    <div>
-                      <p className="font-medium text-gray-900">{plan.name}</p>
-                      <p className="text-sm text-gray-500">Last modified: {plan.lastModified}</p>
+                {userData.plans.map((plan) => {
+                  let planData;
+                  try {
+                    planData = JSON.parse(plan.plan_data);
+                  } catch {
+                    planData = { title: 'Untitled Plan' };
+                  }
+
+                  return (
+                    <div
+                      key={plan.id}
+                      className="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer"
+                      onClick={() => handleLoadPlan(plan.id)}
+                    >
+                      <div>
+                        <p className="font-medium text-gray-900">{planData.title || 'Untitled Plan'}</p>
+                        <p className="text-sm text-gray-500">Plan ID: {plan.id.slice(0, 8)}...</p>
+                      </div>
+                      <Button variant="outline" size="sm">
+                        Load
+                      </Button>
                     </div>
-                    <Button variant="outline" size="sm">
-                      Load
-                    </Button>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             ) : (
-              <p className="text-gray-500 text-center py-4">No saved plans yet</p>
+              <p className="text-gray-500 text-center py-4">No saved plans yet. Create and save your first financial plan!</p>
             )}
           </div>
           

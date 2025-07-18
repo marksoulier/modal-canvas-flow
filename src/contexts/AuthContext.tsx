@@ -38,7 +38,97 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [userData, setUserData] = useState<UserData | null>(null);
     const [isLoading, setIsLoading] = useState(true);
 
-   
+    // Fetch user data from database
+    const fetchUserData = async (userId: string) => {
+        try {
+            const { data: profile, error: profileError } = await supabase
+                .from('user_profiles')
+                .select('plan_type, subscription_date')
+                .eq('user_id', userId)
+                .single();
+
+            if (profileError && profileError.code !== 'PGRST116') {
+                console.error('Error fetching profile:', profileError);
+                return;
+            }
+
+            const { data: plans, error: plansError } = await supabase
+                .from('user_plans')
+                .select('id, plan_data')
+                .eq('user_id', userId);
+
+            if (plansError) {
+                console.error('Error fetching plans:', plansError);
+                return;
+            }
+
+            setUserData({
+                plan_type: profile?.plan_type || 'free',
+                subscription_date: profile?.subscription_date || null,
+                plans: plans || []
+            });
+        } catch (error) {
+            console.error('Error in fetchUserData:', error);
+        }
+    };
+
+    // Initialize auth state
+    useEffect(() => {
+        // Set up auth state listener
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(
+            async (event, session) => {
+                setUser(session?.user ?? null);
+                
+                if (session?.user) {
+                    await fetchUserData(session.user.id);
+                } else {
+                    setUserData(null);
+                }
+                
+                setIsLoading(false);
+            }
+        );
+
+        // Check for existing session
+        supabase.auth.getSession().then(({ data: { session } }) => {
+            setUser(session?.user ?? null);
+            if (session?.user) {
+                fetchUserData(session.user.id);
+            } else {
+                setIsLoading(false);
+            }
+        });
+
+        return () => subscription.unsubscribe();
+    }, []);
+
+    const signIn = async (email: string, password: string) => {
+        const { error } = await supabase.auth.signInWithPassword({
+            email,
+            password
+        });
+        
+        if (error) throw error;
+    };
+
+    const signUp = async (email: string, password: string) => {
+        const redirectUrl = `${window.location.origin}/modal-canvas-flow/`;
+        
+        const { error } = await supabase.auth.signUp({
+            email,
+            password,
+            options: {
+                emailRedirectTo: redirectUrl
+            }
+        });
+        
+        if (error) throw error;
+    };
+
+    const signOut = async () => {
+        const { error } = await supabase.auth.signOut();
+        if (error) throw error;
+    };
 
     const value = {
         user,
