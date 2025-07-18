@@ -16,9 +16,61 @@ export type Database = {
     Tables: {
       plans: {
         Row: {
+          created_at: string | null
+          id: string
+          plan_data: Json
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          plan_data: Json
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          plan_data?: Json
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      user_data: {
+        Row: {
+          created_at: string | null
+          id: string
+          plan_type: string | null
+          subscription_date: string | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          plan_type?: string | null
+          subscription_date?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          plan_type?: string | null
+          subscription_date?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      user_plans: {
+        Row: {
           created_at: string
           id: string
           plan_data: Json
+          plan_name: string
           updated_at: string
           user_id: string
         }
@@ -26,6 +78,7 @@ export type Database = {
           created_at?: string
           id?: string
           plan_data: Json
+          plan_name: string
           updated_at?: string
           user_id: string
         }
@@ -33,33 +86,7 @@ export type Database = {
           created_at?: string
           id?: string
           plan_data?: Json
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
-      user_data: {
-        Row: {
-          created_at: string
-          id: string
-          plan_type: string
-          subscription_date: string | null
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          plan_type?: string
-          subscription_date?: string | null
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          plan_type?: string
-          subscription_date?: string | null
+          plan_name?: string
           updated_at?: string
           user_id?: string
         }
