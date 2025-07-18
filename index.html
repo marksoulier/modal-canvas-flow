@@ -3,47 +3,88 @@
 
 <head>
   <meta charset="UTF-8" />
+  <!-- Single Page App Routing Fix -->
+  <script type="text/javascript">
+    (function () {
+      // Debugging function
+      function debug(message) {
+        console.log('Index Debug:', message);
+      }
+
+      debug('Starting routing check');
+      debug('Hostname: ' + window.location.hostname);
+      debug('Full URL: ' + window.location.href);
+      debug('Search params: ' + window.location.search);
+
+      // Check if we're in production or development
+      var isProduction = window.location.hostname === 'financial-planner.com';
+      debug('Is production? ' + isProduction);
+
+      if (isProduction || window.location.hostname === 'localhost') {
+        if (window.location.search.includes('?p=')) {
+          debug('Found path parameter in URL');
+          var redirectPath = window.location.search.split('?p=')[1];
+          debug('Extracted path: ' + redirectPath);
+
+          // Decode the path if it was encoded
+          redirectPath = decodeURIComponent(redirectPath);
+          debug('Decoded path: ' + redirectPath);
+
+          window.history.replaceState(null, null, redirectPath);
+          debug('Updated URL to: ' + window.location.href);
+        } else {
+          debug('No path parameter found in URL');
+        }
+      }
+    })();
+  </script>
+  <link rel="icon" type="image/png" href="/favicon.png" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>modal-canvas-flow</title>
-  <meta name="description" content="Lovable Generated Project" />
-  <meta name="author" content="Lovable" />
 
-  <meta property="og:title" content="modal-canvas-flow" />
-  <meta property="og:description" content="Lovable Generated Project" />
+  <!-- Primary Meta Tags -->
+  <title>Financial Planner</title>
+  <meta name="title" content="Financial Planner" />
+  <meta name="description"
+    content="Plan your financial future with Financial Planner. Track goals, manage events, and visualize your path to financial freedom." />
+
+  <!-- Open Graph / Facebook -->
   <meta property="og:type" content="website" />
-  <meta property="og:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
+  <meta property="og:url" content="https://financial-planner.com/" />
+  <meta property="og:title" content="Financial Planner" />
+  <meta property="og:description"
+    content="Plan your financial future with Financial Planner. Track goals, manage events, and visualize your path to financial freedom." />
+  <meta property="og:image" content="/favicon.png" />
+  <meta property="og:site_name" content="Financial Planner" />
+  <meta property="og:locale" content="en_US" />
 
-  <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:site" content="@lovable_dev" />
-  <meta name="twitter:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
+  <!-- Twitter -->
+  <meta property="twitter:card" content="summary_large_image" />
+  <meta property="twitter:url" content="https://financial-planner.com/" />
+  <meta property="twitter:title" content="Financial Planner" />
+  <meta property="twitter:description"
+    content="Plan your financial future with Financial Planner. Track goals, manage events, and visualize your path to financial freedom." />
+  <meta property="twitter:image" content="/favicon.png" />
+  <meta property="twitter:site" content="@finplannerapp" />
+
+  <!-- Social Media Profiles -->
+  <meta property="og:see_also" content="https://twitter.com/finplannerapp" />
+  <meta property="og:see_also" content="https://facebook.com/finplannerapp" />
+  <meta property="og:see_also" content="https://linkedin.com/company/finplannerapp" />
+  <meta name="twitter:creator" content="@finplannerapp" />
+  <meta name="facebook:profile" content="https://facebook.com/finplannerapp" />
+  <meta name="linkedin:profile" content="https://linkedin.com/company/finplannerapp" />
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Spline+Sans:wght@300;400;500;600;700&display=swap"
+    rel="stylesheet">
 </head>
 
 <body>
-  <script type="text/javascript">
-    // Single Page Apps for GitHub Pages
-    // MIT License
-    // https://github.com/rafgraph/spa-github-pages
-    // This script checks to see if a redirect is present in the query string,
-    // converts it back into the correct url and adds it to the
-    // browser's history using window.history.replaceState(...),
-    // which won't cause the browser to attempt to load the new url.
-    // When the single page app is loaded further down in this file,
-    // the correct url will be waiting in the browser's history for
-    // the single page app to route accordingly.
-    (function (l) {
-      if (l.search[1] === '/') {
-        var decoded = l.search.slice(1).split('&').map(function (s) {
-          return s.replace(/~and~/g, '&')
-        }).join('?');
-        window.history.replaceState(null, null,
-          l.pathname.slice(0, -1) + decoded + l.hash
-        );
-      }
-    }(window.location))
-  </script>
   <div id="root"></div>
-  <!-- IMPORTANT: DO NOT REMOVE THIS SCRIPT TAG OR THIS VERY COMMENT! -->
-  <script src="https://cdn.gpteng.co/gptengineer.js" type="module"></script>
   <script type="module" src="/src/main.tsx"></script>
 </body>
 
