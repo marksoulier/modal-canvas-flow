@@ -56,6 +56,7 @@ const EventParametersForm: React.FC<EventParametersFormProps> = ({
     const [usdInputFocus, setUsdInputFocus] = useState<Record<number, boolean>>({});
     const [usdTodayMode, setUsdTodayMode] = useState<Record<number, boolean>>({});
     const [usdTodayValues, setUsdTodayValues] = useState<Record<number, string>>({});
+    const [customDaysMode, setCustomDaysMode] = useState<Record<number, boolean>>({});
 
     // Helper to get eventType and paramType for any eventId and paramId (main or updating)
     function getEventTypeAndParamType(eventId: number, paramId: number): { eventType: string, paramType: string } | null {
@@ -420,31 +421,80 @@ const EventParametersForm: React.FC<EventParametersFormProps> = ({
         if (paramUnits === 'days') {
             const placeholder = defaultValue ? String(defaultValue) : '';
 
+            // Define frequency options with their day mappings
+            const frequencyOptions = [
+                { label: 'Daily', value: 1 },
+                { label: 'Weekly', value: 7 },
+                { label: 'Biweekly', value: 14 },
+                { label: 'Monthly', value: 30 },
+                { label: 'Quarterly', value: 90 },
+                { label: 'Semi-annually', value: 182 },
+                { label: 'Yearly', value: 365 },
+                { label: 'Custom', value: 'custom' }
+            ];
+
+            // Find if current value matches any predefined option
+            const currentValue = Number(value);
+            const matchingOption = frequencyOptions.find(option =>
+                typeof option.value === 'number' && option.value === currentValue
+            );
+            const isCustomMode = customDaysMode[param.id] || !matchingOption;
+            const selectedValue = isCustomMode ? 'Custom' : (matchingOption ? matchingOption.label : 'Custom');
+
             return (
-                <div className="relative">
-                    <Input
-                        type="text"
-                        value={String(value)}
-                        placeholder={placeholder}
-                        onChange={(e) => {
-                            // Allow raw input (including minus, etc.)
-                            handleInputChange(event.id, param.id, e.target.value);
-                        }}
-                        onBlur={(e) => {
-                            const val = e.target.value;
-                            if (val === '' || val === '-') {
-                                handleInputBlur(param.id, '', event.id);
-                            } else {
-                                const parsed = parseInt(val, 10);
-                                handleInputBlur(param.id, isNaN(parsed) ? '' : parsed, event.id);
+                <div className="space-y-2">
+                    <Select
+                        value={selectedValue}
+                        onValueChange={(newValue) => {
+                            const option = frequencyOptions.find(opt => opt.label === newValue);
+                            if (option && typeof option.value === 'number') {
+                                setCustomDaysMode(prev => ({ ...prev, [param.id]: false }));
+                                handleInputChange(event.id, param.id, option.value);
+                                handleInputBlur(param.id, option.value, event.id);
+                            } else if (newValue === 'Custom') {
+                                setCustomDaysMode(prev => ({ ...prev, [param.id]: true }));
                             }
                         }}
-                        step="1"
-                        className="w-full pr-12 placeholder:text-muted-foreground"
-                    />
-                    <div className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
-                        days
-                    </div>
+                    >
+                        <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Select frequency" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {frequencyOptions.map((option) => (
+                                <SelectItem key={option.label} value={option.label}>
+                                    {option.label}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+
+                    {isCustomMode && (
+                        <div className="relative">
+                            <Input
+                                type="text"
+                                value={String(value)}
+                                placeholder={placeholder}
+                                onChange={(e) => {
+                                    // Allow raw input (including minus, etc.)
+                                    handleInputChange(event.id, param.id, e.target.value);
+                                }}
+                                onBlur={(e) => {
+                                    const val = e.target.value;
+                                    if (val === '' || val === '-') {
+                                        handleInputBlur(param.id, '', event.id);
+                                    } else {
+                                        const parsed = parseInt(val, 10);
+                                        handleInputBlur(param.id, isNaN(parsed) ? '' : parsed, event.id);
+                                    }
+                                }}
+                                step="1"
+                                className="w-full pr-12 placeholder:text-muted-foreground"
+                            />
+                            <div className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                                days
+                            </div>
+                        </div>
+                    )}
                 </div>
             );
         }

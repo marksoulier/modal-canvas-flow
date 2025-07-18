@@ -162,7 +162,7 @@ interface PlanContextType {
     updateRetirementGoal: (newGoal: number) => void; // <-- add this
 }
 
-const SCHEMA_PATH = './assets/event_schema.json';
+const SCHEMA_PATH = '/assets/event_schema.json';
 
 // --- AUTO-PERSISTENCE FLAG ---
 // Set this to true to enable automatic saving/loading of the plan to/from localStorage
@@ -256,7 +256,7 @@ export function PlanProvider({ children }: PlanProviderProps) {
             if (!loaded) {
                 // Fallback to default plan
                 try {
-                    const response = await fetch('./assets/plan.json');
+                    const response = await fetch('/assets/plan.json');
                     if (!response.ok) throw new Error('Failed to load default plan');
                     const defaultPlan = await response.json();
                     setPlan(defaultPlan);
@@ -267,7 +267,7 @@ export function PlanProvider({ children }: PlanProviderProps) {
             if (!lockedLoaded) {
                 // Fallback to default locked plan
                 try {
-                    const response = await fetch('./assets/plan_locked.json');
+                    const response = await fetch('/assets/plan_locked.json');
                     if (!response.ok) throw new Error('Failed to load default locked plan');
                     const defaultLockedPlan = await response.json();
                     setPlanLocked(defaultLockedPlan);
