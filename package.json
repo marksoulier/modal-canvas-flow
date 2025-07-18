@@ -3,6 +3,7 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "homepage": "https://marksoulier.github.io/modal-canvas-flow",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
