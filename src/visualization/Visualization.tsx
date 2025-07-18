@@ -27,6 +27,7 @@ import {
   Legend,
   findClosestPoint,
   getEnvelopeAndCategoryColors,
+  findFirstDayAboveGoal,
 } from './viz_utils';
 import type {
   TimeInterval,
@@ -502,6 +503,12 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
               range: [height, 0],
             });
           }, [visibleData, visibleLockedNetWorthData, height]);
+
+          // Find first day when net worth exceeds retirement goal
+          const firstDayAboveGoal = useMemo(() => {
+            if (!plan?.retirement_goal || plan.retirement_goal <= 0) return null;
+            return findFirstDayAboveGoal(netWorthData, plan.retirement_goal);
+          }, [netWorthData, plan?.retirement_goal]);
 
           // Move handleZoomToYears here so it's in scope for the buttons
           const handleZoomToYears = (years: number) => {
@@ -1098,6 +1105,30 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
                   }}
                 >
                   {formatDate(currentDay, birthDate, 'full', true, true)}
+                </div>
+              )}
+
+              {/* Bottom axis tooltip for first day above retirement goal (orange outline) */}
+              {firstDayAboveGoal && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    left: (xScale(firstDayAboveGoal) * zoom.transformMatrix.scaleX) + zoom.transformMatrix.translateX,
+                    bottom: 24, // just above the x axis
+                    transform: 'translateX(-50%)',
+                    background: 'white',
+                    border: '2px solid #f59e42',
+                    color: '#f59e42',
+                    padding: '4px 10px',
+                    borderRadius: '4px',
+                    fontSize: '12px',
+                    pointerEvents: 'none',
+                    zIndex: 10,
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.08)',
+                    fontWeight: '500'
+                  }}
+                >
+                  {formatDate(firstDayAboveGoal, birthDate, 'full', true, true)}
                 </div>
               )}
 

@@ -284,6 +284,23 @@ export interface Datum {
     };
 }
 
+// Find the first day when net worth exceeds the retirement goal
+export const findFirstDayAboveGoal = (
+    netWorthData: Datum[],
+    retirementGoal: number
+): number | null => {
+    if (!netWorthData.length || retirementGoal <= 0) return null;
+
+    // Find the first point where net worth exceeds the goal
+    for (let i = 0; i < netWorthData.length; i++) {
+        if (netWorthData[i].value >= retirementGoal) {
+            return netWorthData[i].date;
+        }
+    }
+
+    return null;
+};
+
 export const findClosestPoint = (data: Datum[], dataX: number): Datum | null => {
     if (!data.length) return null;
     return data.reduce((closest, point) => {
