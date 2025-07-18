@@ -309,3 +309,19 @@ export const findClosestPoint = (data: Datum[], dataX: number): Datum | null => 
         return distance < closestDistance ? point : closest;
     });
 };
+
+// Get the net worth, locked net worth, and their difference on a specific day (exact match only)
+export const getNetWorthAndLockedOnDay = (
+    netWorthData: Datum[],
+    lockedNetWorthData: { date: number, value: number }[],
+    day: number
+): { netWorth: number, lockedNetWorth: number, difference: number } | null => {
+    const netWorthPoint = netWorthData.find(d => d.date === day);
+    const lockedPoint = lockedNetWorthData.find(d => d.date === day);
+    if (!netWorthPoint || !lockedPoint) return null;
+    return {
+        netWorth: netWorthPoint.value,
+        lockedNetWorth: lockedPoint.value,
+        difference: netWorthPoint.value - lockedPoint.value,
+    };
+};

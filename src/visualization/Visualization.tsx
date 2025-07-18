@@ -28,6 +28,7 @@ import {
   findClosestPoint,
   getEnvelopeAndCategoryColors,
   findFirstDayAboveGoal,
+  getNetWorthAndLockedOnDay,
 } from './viz_utils';
 import type {
   TimeInterval,
@@ -510,6 +511,12 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
             return findFirstDayAboveGoal(netWorthData, plan.retirement_goal);
           }, [netWorthData, plan?.retirement_goal]);
 
+          // Get the net worth and locked net worth values at the intersection day
+          const netWorthValues = useMemo(() => {
+            if (!firstDayAboveGoal) return null;
+            return getNetWorthAndLockedOnDay(netWorthData, lockedNetWorthData, firstDayAboveGoal);
+          }, [netWorthData, lockedNetWorthData, firstDayAboveGoal]);
+
           // Move handleZoomToYears here so it's in scope for the buttons
           const handleZoomToYears = (years: number) => {
             const daysPerYear = 365;
@@ -950,6 +957,9 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
                                   onClick={() => {
                                     deleteEvent(event.id);
                                     onAnnotationDelete?.(event.id);
+                                    // Clear tooltip when event is deleted
+                                    setEventDescriptionTooltip(null);
+                                    setHoveredEventId(null);
                                   }}
                                 >
                                   <Trash2 className="mr-2 h-4 w-4" />
@@ -1023,9 +1033,43 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
                     );
                   })()
                 }
-              </svg>
 
-              {/* Add Legend */}
+                {/* Net worth values at intersection day (right side with tick marks) */}
+                {firstDayAboveGoal && netWorthValues && (
+                  <>
+                    {/* Tick mark for net worth value */}
+                    <line
+                      x1={width - 60}
+                      x2={width - 40}
+                      y1={visibleYScale(netWorthValues.netWorth) * zoom.transformMatrix.scaleY + zoom.transformMatrix.translateY}
+                      y2={visibleYScale(netWorthValues.netWorth) * zoom.transformMatrix.scaleY + zoom.transformMatrix.translateY}
+                      stroke="#335966"
+                      strokeWidth={2}
+                    />
+
+                    {/* Tick mark for locked net worth value */}
+                    <line
+                      x1={width - 60}
+                      x2={width - 40}
+                      y1={visibleYScale(netWorthValues.lockedNetWorth) * zoom.transformMatrix.scaleY + zoom.transformMatrix.translateY}
+                      y2={visibleYScale(netWorthValues.lockedNetWorth) * zoom.transformMatrix.scaleY + zoom.transformMatrix.translateY}
+                      stroke="#d1d5db"
+                      strokeWidth={2}
+                    />
+
+                    {/* Horizontal line connecting the two tick marks */}
+                    <line
+                      x1={width - 50}
+                      x2={width - 50}
+                      y1={visibleYScale(netWorthValues.lockedNetWorth) * zoom.transformMatrix.scaleY + zoom.transformMatrix.translateY}
+                      y2={visibleYScale(netWorthValues.netWorth) * zoom.transformMatrix.scaleY + zoom.transformMatrix.translateY}
+                      stroke="#335966"
+                      strokeWidth={1}
+                      strokeDasharray="2,2"
+                    />
+                  </>
+                )}
+              </svg>
               {netWorthData.length > 0 && (
                 <Legend
                   envelopes={Object.keys(netWorthData[0].parts)}
@@ -1129,6 +1173,29 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
                   }}
                 >
                   {formatDate(firstDayAboveGoal, birthDate, 'full', true, true)}
+                </div>
+              )}
+
+              {/* Difference label in the middle of the connecting line */}
+              {firstDayAboveGoal && netWorthValues && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    left: width - 80,
+                    top: (visibleYScale(netWorthValues.lockedNetWorth) + visibleYScale(netWorthValues.netWorth)) / 2 * zoom.transformMatrix.scaleY + zoom.transformMatrix.translateY - 10,
+                    background: 'rgba(255, 255, 255, 0.9)',
+                    border: `1px solid ${netWorthValues.difference >= 0 ? '#10b981' : '#ef4444'}`,
+                    color: netWorthValues.difference >= 0 ? '#10b981' : '#ef4444',
+                    padding: '3px 6px',
+                    borderRadius: '3px',
+                    fontSize: '11px',
+                    fontWeight: 500,
+                    zIndex: 21,
+                    transform: 'translateY(-50%)',
+                    boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+                  }}
+                >
+                  {formatNumber({ valueOf: () => netWorthValues.difference })}
                 </div>
               )}
 

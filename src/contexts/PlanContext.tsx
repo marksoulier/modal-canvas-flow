@@ -1,5 +1,8 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import * as LucideIcons from 'lucide-react';
+import eventSchemaData from '@/data/event_schema.json';
+import defaultPlanData from '@/data/plan.json';
+import defaultLockedPlanData from '@/data/plan_locked.json';
 
 // Map of Lucide icon names to schema icon names
 export const iconMap: Record<string, string> = {
@@ -162,7 +165,7 @@ interface PlanContextType {
     updateRetirementGoal: (newGoal: number) => void; // <-- add this
 }
 
-const SCHEMA_PATH = './assets/event_schema.json';
+// Schema and default data are now imported directly
 
 // --- AUTO-PERSISTENCE FLAG ---
 // Set this to true to enable automatic saving/loading of the plan to/from localStorage
@@ -209,20 +212,12 @@ export function PlanProvider({ children }: PlanProviderProps) {
 
     // Load schema on mount
     useEffect(() => {
-        const loadSchema = async () => {
-            try {
-                const response = await fetch(SCHEMA_PATH);
-                if (!response.ok) {
-                    throw new Error('Failed to load schema');
-                }
-                const schemaData = await response.json();
-                setSchema(schemaData);
-            } catch (error) {
-                console.error('Error loading schema:', error);
-                throw error;
-            }
-        };
-        loadSchema();
+        try {
+            setSchema(eventSchemaData);
+        } catch (error) {
+            console.error('Error loading schema:', error);
+            throw error;
+        }
     }, []);
 
     // --- Clean startup: load from localStorage if available, else load default plan ---
@@ -256,10 +251,7 @@ export function PlanProvider({ children }: PlanProviderProps) {
             if (!loaded) {
                 // Fallback to default plan
                 try {
-                    const response = await fetch('./assets/plan.json');
-                    if (!response.ok) throw new Error('Failed to load default plan');
-                    const defaultPlan = await response.json();
-                    setPlan(defaultPlan);
+                    setPlan(defaultPlanData);
                 } catch (error) {
                     console.error('Error loading default plan:', error);
                 }
@@ -267,10 +259,7 @@ export function PlanProvider({ children }: PlanProviderProps) {
             if (!lockedLoaded) {
                 // Fallback to default locked plan
                 try {
-                    const response = await fetch('./assets/plan_locked.json');
-                    if (!response.ok) throw new Error('Failed to load default locked plan');
-                    const defaultLockedPlan = await response.json();
-                    setPlanLocked(defaultLockedPlan);
+                    setPlanLocked(defaultLockedPlanData);
                 } catch (error) {
                     console.error('Error loading default locked plan:', error);
                 }
