@@ -10,6 +10,7 @@ import { Download, Cloud } from 'lucide-react';
 import { usePlan } from '../contexts/PlanContext';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../integrations/supabase/client';
+import { toast } from 'sonner';
 
 interface SaveModalProps {
   isOpen: boolean;
@@ -24,7 +25,10 @@ const SaveModal: React.FC<SaveModalProps> = ({ isOpen, onClose, onShowAuth }) =>
   const { user } = useAuth();
 
   const saveToCloud = async () => {
-    if (!user || !plan) return;
+    if (!user || !plan) {
+      toast.error('Unable to save: User not logged in or no plan data');
+      return;
+    }
 
     setIsSaving(true);
     try {
@@ -37,12 +41,14 @@ const SaveModal: React.FC<SaveModalProps> = ({ isOpen, onClose, onShowAuth }) =>
         });
 
       if (error) throw error;
+      
+      toast.success('Plan saved to cloud successfully!');
+      onClose();
     } catch (error) {
       console.error('Error saving to cloud:', error);
-      // You might want to show an error message to the user here
+      toast.error('Failed to save plan to cloud. Please try again.');
     } finally {
       setIsSaving(false);
-      onClose();
     }
   };
 
