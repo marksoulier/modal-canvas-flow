@@ -20,6 +20,7 @@ import EditEnvelopeModal from '../components/EditEnvelopeModal';
 import EnvelopeManagerModal from '../components/EnvelopeManagerModal';
 import { Visualization } from '../visualization/Visualization';
 import { usePlan } from '../contexts/PlanContext';
+import { useAuth } from '../contexts/AuthContext';
 import ErrorToast from '../components/ErrorToast';
 import PlanPreferencesModal from '../components/PlanPreferencesModal';
 import { extractSchema, validateProblem } from '../hooks/schemaChecker';
@@ -30,7 +31,7 @@ const Index = () => {
   const [eventLibraryOpen, setEventLibraryOpen] = useState(false);
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [planPreferencesModalOpen, setPlanPreferencesModalOpen] = useState(false);
-  const [subscriptionModalOpen, setSubscriptionModalOpen] = useState(false);
+  const [subscriptionModalOpen, setSubscriptionModalOpen] = useState(true);
   const [userAccountModalOpen, setUserAccountModalOpen] = useState(false);
   const [eventParametersOpen, setEventParametersOpen] = useState(false);
   const [addEnvelopeModalOpen, setAddEnvelopeModalOpen] = useState(false);
@@ -43,8 +44,8 @@ const Index = () => {
   const [editingEnvelope, setEditingEnvelope] = useState<Envelope | null>(null);
   const [isAddingEnvelope, setIsAddingEnvelope] = useState(false);
 
-  // Mock authentication state - replace with real auth logic
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  // Use real authentication from AuthContext
+  const { user, signOut: authSignOut } = useAuth();
 
   const { plan, schema, loadPlanFromFile, savePlanToFile, updatePlanTitle, loadPlan, lockPlan } = usePlan();
 
@@ -126,16 +127,22 @@ const Index = () => {
   };
 
   const handleAccount = () => {
-    if (isAuthenticated) {
+    if (user) {
       setUserAccountModalOpen(true);
     } else {
       setAuthModalOpen(true);
     }
   };
 
-  const handleSignOut = () => {
-    setIsAuthenticated(false);
-    setUserAccountModalOpen(false);
+  const handleSignOut = async () => {
+    try {
+      console.log('🚪 Signing out from Index page...');
+      await authSignOut();
+      setUserAccountModalOpen(false);
+      console.log('✅ Sign out successful');
+    } catch (error) {
+      console.error('❌ Sign out failed:', error);
+    }
   };
 
   // Handler to open EditEnvelopeModal for a specific envelope
@@ -306,7 +313,14 @@ const Index = () => {
 
       {/* Modals */}
       <HelpModal isOpen={helpModalOpen} onClose={() => setHelpModalOpen(false)} />
-      <SaveModal isOpen={saveModalOpen} onClose={() => setSaveModalOpen(false)} />
+      <SaveModal
+        isOpen={saveModalOpen}
+        onClose={() => setSaveModalOpen(false)}
+        onShowAuth={() => {
+          setSaveModalOpen(false);
+          setAuthModalOpen(true);
+        }}
+      />
       <EventLibraryModal
         isOpen={eventLibraryOpen}
         onClose={() => setEventLibraryOpen(false)}
@@ -319,8 +333,9 @@ const Index = () => {
         isOpen={authModalOpen}
         onClose={() => setAuthModalOpen(false)}
         onSignIn={() => {
-          setIsAuthenticated(true);
           setAuthModalOpen(false);
+          setUserAccountModalOpen(true);
+          console.log('✅ User signed in successfully - opening account modal');
         }}
         onUpgrade={() => {
           setAuthModalOpen(false);

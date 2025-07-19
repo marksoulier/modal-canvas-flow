@@ -71,7 +71,7 @@ const UserAccountModal: React.FC<UserAccountModalProps> = ({ isOpen, onClose, on
         <DialogHeader>
           <DialogTitle>User Account</DialogTitle>
         </DialogHeader>
-        
+
         <div className="space-y-4">
           <div>
             <h3 className="text-lg font-semibold mb-2">Account Information</h3>
@@ -79,19 +79,19 @@ const UserAccountModal: React.FC<UserAccountModalProps> = ({ isOpen, onClose, on
               <p><strong>Email:</strong> {user.email}</p>
               <div className="flex items-center justify-between">
                 <p>
-                  <strong>Plan:</strong> 
+                  <strong>Plan:</strong>
                   <Badge variant={isPremium ? "default" : "secondary"} className="ml-2">
                     {userData?.profile?.plan_type || 'free'}
                   </Badge>
                 </p>
-                <div className="flex items-center space-x-2">
+                {/* <div className="flex items-center space-x-2">
                   <label htmlFor="premium-toggle" className="text-sm">Premium</label>
                   <Switch
                     id="premium-toggle"
                     checked={isPremium}
                     onCheckedChange={handleTogglePremium}
                   />
-                </div>
+                </div> */}
               </div>
               {userData?.profile?.subscription_date && (
                 <p><strong>Member since:</strong> {new Date(userData.profile.subscription_date).toLocaleDateString()}</p>

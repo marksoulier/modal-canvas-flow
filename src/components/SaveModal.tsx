@@ -9,8 +9,8 @@ import { Button } from './ui/button';
 import { Download, Cloud } from 'lucide-react';
 import { usePlan } from '../contexts/PlanContext';
 import { useAuth } from '../contexts/AuthContext';
-import { supabase } from '../integrations/supabase/client';
 import { toast } from 'sonner';
+import OverwriteConfirmDialog from './OverwriteConfirmDialog';
 
 interface SaveModalProps {
   isOpen: boolean;
@@ -21,73 +21,57 @@ interface SaveModalProps {
 const SaveModal: React.FC<SaveModalProps> = ({ isOpen, onClose, onShowAuth }) => {
   const [selectedOption, setSelectedOption] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [showOverwriteDialog, setShowOverwriteDialog] = useState(false);
+  const [conflictPlanName, setConflictPlanName] = useState('');
   const { savePlanToFile, plan } = usePlan();
-  const { user } = useAuth();
+  const { user, savePlanToCloud, confirmOverwritePlan } = useAuth();
 
   const saveToCloud = async () => {
-    if (!user || !plan) {
-      toast.error('Unable to save: User not logged in or no plan data');
+    if (!plan) {
+      toast.error('No plan data to save');
       return;
     }
 
     setIsSaving(true);
     try {
-      // First check if user has a plan already
-      // Add explicit user_id filter for performance (in addition to RLS)
-      const { data: existingPlans, error: selectError } = await supabase
-        .from('plans')
-        .select('id')
-        .eq('user_id', user.id) // Explicit filter for performance
-        .limit(1);
+      const result = await savePlanToCloud(plan);
 
-      if (selectError) {
-        console.error('Error checking existing plans:', selectError);
-        throw selectError;
+      if (result.success) {
+        onClose();
+      } else if (result.requiresConfirmation && result.existingPlanName) {
+        setConflictPlanName(result.existingPlanName);
+        setShowOverwriteDialog(true);
       }
-
-      if (existingPlans && existingPlans.length > 0) {
-        // Update existing plan with explicit user_id filter
-        const { error } = await supabase
-          .from('plans')
-          .update({
-            plan_data: plan as any, // Type assertion for JSON compatibility
-            updated_at: new Date().toISOString(),
-          })
-          .eq('user_id', user.id); // Explicit filter for performance
-
-        if (error) {
-          console.error('Error updating plan:', error);
-          throw error;
-        }
-      } else {
-        // Insert new plan
-        const { error } = await supabase
-          .from('plans')
-          .insert({
-            user_id: user.id,
-            plan_data: plan as any, // Type assertion for JSON compatibility
-          });
-
-        if (error) {
-          console.error('Error inserting plan:', error);
-          throw error;
-        }
-      }
-
-      toast.success('Plan saved to cloud successfully!');
-      onClose();
     } catch (error: any) {
       console.error('Error saving to cloud:', error);
-
-      // Handle specific timeout errors
-      if (error?.message?.includes('timeout') || error?.code === 'PGRST301') {
-        toast.error('Request timed out. This may be due to database performance issues. Please try again.');
-      } else {
-        toast.error('Failed to save plan to cloud. Please try again.');
-      }
+      toast.error('Failed to save plan to cloud. Please try again.');
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const handleOverwriteConfirm = async () => {
+    if (!plan || !conflictPlanName) return;
+
+    setShowOverwriteDialog(false);
+    setIsSaving(true);
+
+    try {
+      const success = await confirmOverwritePlan(plan, conflictPlanName);
+      if (success) {
+        onClose();
+      }
+    } catch (error: any) {
+      console.error('Error overwriting plan:', error);
+      toast.error('Failed to overwrite plan. Please try again.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleOverwriteCancel = () => {
+    setShowOverwriteDialog(false);
+    setConflictPlanName('');
   };
 
   const handleCloudSaveClick = () => {
@@ -123,37 +107,47 @@ const SaveModal: React.FC<SaveModalProps> = ({ isOpen, onClose, onShowAuth }) =>
   ];
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Save Options</DialogTitle>
-        </DialogHeader>
+    <>
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Save Options</DialogTitle>
+          </DialogHeader>
 
-        <div className="space-y-3">
-          {saveOptions.map((option) => (
-            <button
-              key={option.id}
-              onClick={option.onClick}
-              disabled={isSaving}
-              className={`w-full flex items-center gap-3 p-4 text-left border rounded-lg transition-colors hover:bg-accent
+          <div className="space-y-3">
+            {saveOptions.map((option) => (
+              <button
+                key={option.id}
+                onClick={option.onClick}
+                disabled={isSaving}
+                className={`w-full flex items-center gap-3 p-4 text-left border rounded-lg transition-colors hover:bg-accent
                 ${!user && option.id === 'cloud' ? 'opacity-75' : ''}`}
-            >
-              <option.icon size={20} className={option.color} />
-              <div>
-                <div className="font-medium">{option.title}</div>
-                <div className="text-sm text-muted-foreground">{option.description}</div>
-              </div>
-            </button>
-          ))}
-        </div>
+              >
+                <option.icon size={20} className={option.color} />
+                <div>
+                  <div className="font-medium">{option.title}</div>
+                  <div className="text-sm text-muted-foreground">{option.description}</div>
+                </div>
+              </button>
+            ))}
+          </div>
 
-        <div className="flex gap-3 pt-4">
-          <Button variant="outline" onClick={onClose} className="flex-1">
-            Cancel
-          </Button>
-        </div>
-      </DialogContent>
-    </Dialog>
+          <div className="flex gap-3 pt-4">
+            <Button variant="outline" onClick={onClose} className="flex-1">
+              Cancel
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Overwrite Confirmation Dialog */}
+      <OverwriteConfirmDialog
+        isOpen={showOverwriteDialog}
+        onClose={handleOverwriteCancel}
+        onConfirm={handleOverwriteConfirm}
+        planName={conflictPlanName}
+      />
+    </>
   );
 };
 
