@@ -33,40 +33,58 @@ const SaveModal: React.FC<SaveModalProps> = ({ isOpen, onClose, onShowAuth }) =>
     setIsSaving(true);
     try {
       // First check if user has a plan already
-      const { data: existingPlans } = await supabase
+      // Add explicit user_id filter for performance (in addition to RLS)
+      const { data: existingPlans, error: selectError } = await supabase
         .from('plans')
         .select('id')
-        .eq('user_id', user.id)
+        .eq('user_id', user.id) // Explicit filter for performance
         .limit(1);
 
+      if (selectError) {
+        console.error('Error checking existing plans:', selectError);
+        throw selectError;
+      }
+
       if (existingPlans && existingPlans.length > 0) {
-        // Update existing plan
+        // Update existing plan with explicit user_id filter
         const { error } = await supabase
           .from('plans')
           .update({
-            plan_data: plan,
+            plan_data: plan as any, // Type assertion for JSON compatibility
             updated_at: new Date().toISOString(),
           })
-          .eq('user_id', user.id);
+          .eq('user_id', user.id); // Explicit filter for performance
 
-        if (error) throw error;
+        if (error) {
+          console.error('Error updating plan:', error);
+          throw error;
+        }
       } else {
         // Insert new plan
         const { error } = await supabase
           .from('plans')
           .insert({
             user_id: user.id,
-            plan_data: plan,
+            plan_data: plan as any, // Type assertion for JSON compatibility
           });
 
-        if (error) throw error;
+        if (error) {
+          console.error('Error inserting plan:', error);
+          throw error;
+        }
       }
-      
+
       toast.success('Plan saved to cloud successfully!');
       onClose();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving to cloud:', error);
-      toast.error('Failed to save plan to cloud. Please try again.');
+
+      // Handle specific timeout errors
+      if (error?.message?.includes('timeout') || error?.code === 'PGRST301') {
+        toast.error('Request timed out. This may be due to database performance issues. Please try again.');
+      } else {
+        toast.error('Failed to save plan to cloud. Please try again.');
+      }
     } finally {
       setIsSaving(false);
     }

@@ -3,36 +3,36 @@ import { supabase } from '@/integrations/supabase/client';
 import type { User } from '@supabase/supabase-js';
 
 interface Plan {
-  id: string;
-  plan_name: string;
-  plan_data: any;
-  created_at: string;
-  updated_at: string;
+    id: string;
+    plan_name: string;
+    plan_data: any;
+    created_at: string;
+    updated_at: string;
 }
 
 interface UserProfile {
-  id: string;
-  user_id: string;
-  plan_type: 'free' | 'premium';
-  subscription_date: string | null;
-  created_at: string;
-  updated_at: string;
+    id: string;
+    user_id: string;
+    plan_type: 'free' | 'premium';
+    subscription_date: string | null;
+    created_at: string;
+    updated_at: string;
 }
 
 interface UserData {
-  profile: UserProfile | null;
-  plans: Plan[];
+    profile: UserProfile | null;
+    plans: Plan[];
 }
 
 interface AuthContextType {
-  user: User | null;
-  userData: UserData | null;
-  isLoading: boolean;
-  isPremium: boolean;
-  signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string) => Promise<void>;
-  signOut: () => Promise<void>;
-  togglePremium: () => Promise<void>;
+    user: User | null;
+    userData: UserData | null;
+    isLoading: boolean;
+    isPremium: boolean;
+    signIn: (email: string, password: string) => Promise<void>;
+    signUp: (email: string, password: string) => Promise<void>;
+    signOut: () => Promise<void>;
+    togglePremium: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -53,18 +53,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Fetch user data from database
     const fetchUserData = async (userId: string) => {
         try {
+            // Add explicit user_id filter in addition to RLS for performance
             const { data: profile, error: profileError } = await supabase
                 .from('user_profiles')
                 .select('*')
-                .eq('user_id', userId)
+                .eq('user_id', userId) // Explicit filter for performance
                 .single();
 
-            if (profileError) throw profileError;
+            if (profileError && profileError.code !== 'PGRST116') {
+                throw profileError;
+            }
 
             const { data: plans, error: plansError } = await supabase
                 .from('plans')
                 .select('*')
-                .eq('user_id', userId);
+                .eq('user_id', userId); // Explicit filter for performance
 
             if (plansError) throw plansError;
 
@@ -72,18 +75,41 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 profile: profile || null,
                 plans: plans || [],
             });
-        } catch (error) {
-            console.error('Error fetching user data:', error);
+
             // Create profile if it doesn't exist
-            if (error.code === 'PGRST116') {
+            if (!profile || profileError?.code === 'PGRST116') {
                 try {
                     const { error: insertError } = await supabase
                         .from('user_profiles')
                         .insert({ user_id: userId, plan_type: 'free' });
-                    
+
                     if (!insertError) {
                         // Retry fetching after creating profile
-                        fetchUserData(userId);
+                        setTimeout(() => fetchUserData(userId), 1000);
+                    }
+                } catch (insertError) {
+                    console.error('Error creating user profile:', insertError);
+                }
+            }
+        } catch (error: any) {
+            console.error('Error fetching user data:', error);
+
+            // Handle specific timeout errors
+            if (error?.message?.includes('timeout') || error?.code === 'PGRST301') {
+                console.error('Database timeout - this suggests RLS performance issues');
+                // Could trigger a retry or show user message
+            }
+
+            // Create profile if it doesn't exist (fallback)
+            if (error?.code === 'PGRST116') {
+                try {
+                    const { error: insertError } = await supabase
+                        .from('user_profiles')
+                        .insert({ user_id: userId, plan_type: 'free' });
+
+                    if (!insertError) {
+                        // Retry fetching after creating profile
+                        setTimeout(() => fetchUserData(userId), 1000);
                     }
                 } catch (insertError) {
                     console.error('Error creating user profile:', insertError);
@@ -99,7 +125,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             (event, session) => {
                 setUser(session?.user ?? null);
                 setIsLoading(false);
-                
+
                 // Use setTimeout to avoid deadlock when calling other Supabase functions
                 if (session?.user) {
                     setTimeout(async () => {
@@ -131,13 +157,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             email,
             password
         });
-        
+
         if (error) throw error;
     };
 
     const signUp = async (email: string, password: string) => {
         const redirectUrl = `${window.location.origin}/modal-canvas-flow/`;
-        
+
         const { error } = await supabase.auth.signUp({
             email,
             password,
@@ -145,7 +171,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 emailRedirectTo: redirectUrl
             }
         });
-        
+
         if (error) throw error;
     };
 
@@ -156,21 +182,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const togglePremium = async () => {
         if (!user || !userData?.profile) return;
-        
+
         const newPlanType = userData.profile.plan_type === 'free' ? 'premium' : 'free';
         const subscriptionDate = newPlanType === 'premium' ? new Date().toISOString() : null;
-        
+
         try {
             const { error } = await supabase
                 .from('user_profiles')
-                .update({ 
+                .update({
                     plan_type: newPlanType,
                     subscription_date: subscriptionDate
                 })
                 .eq('user_id', user.id);
 
             if (error) throw error;
-            
+
             // Update local state
             setUserData(prev => prev ? {
                 ...prev,
