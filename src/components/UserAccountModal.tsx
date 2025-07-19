@@ -1,4 +1,3 @@
-
 import React from 'react';
 import {
   Dialog,
@@ -7,7 +6,11 @@ import {
   DialogTitle,
 } from './ui/dialog';
 import { Button } from './ui/button';
+import { Badge } from './ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { useAuth } from '../contexts/AuthContext';
+import { Switch } from './ui/switch';
+import { toast } from 'sonner';
 
 interface UserAccountModalProps {
   isOpen: boolean;
@@ -16,23 +19,17 @@ interface UserAccountModalProps {
 }
 
 const UserAccountModal: React.FC<UserAccountModalProps> = ({ isOpen, onClose, onSignOut }) => {
-  const { user, userData, isPremium, isLoading } = useAuth();
-
-  const handleLoadPlan = (planId: string) => {
-    console.log(`Loading plan ${planId}`);
-    // TODO: Implement plan loading logic
-    onClose();
-  };
+  const { user, userData, isLoading, isPremium, togglePremium } = useAuth();
 
   if (isLoading) {
     return (
       <Dialog open={isOpen} onOpenChange={onClose}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>User Account</DialogTitle>
+            <DialogTitle>Loading...</DialogTitle>
           </DialogHeader>
           <div className="flex items-center justify-center p-8">
-            <div className="text-sm text-gray-500">Loading account data...</div>
+            <div className="text-sm">Loading user data...</div>
           </div>
         </DialogContent>
       </Dialog>
@@ -44,95 +41,98 @@ const UserAccountModal: React.FC<UserAccountModalProps> = ({ isOpen, onClose, on
       <Dialog open={isOpen} onOpenChange={onClose}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>User Account</DialogTitle>
+            <DialogTitle>Not Signed In</DialogTitle>
           </DialogHeader>
           <div className="flex items-center justify-center p-8">
-            <div className="text-sm text-gray-500">Please sign in to view account information.</div>
+            <div className="text-sm">Please sign in to view your account.</div>
           </div>
         </DialogContent>
       </Dialog>
     );
   }
 
+  const handleLoadPlan = (planId: string) => {
+    // TODO: Implement plan loading functionality
+    console.log('Loading plan:', planId);
+  };
+
+  const handleTogglePremium = async () => {
+    try {
+      await togglePremium();
+      toast.success('Plan type updated successfully!');
+    } catch (error) {
+      toast.error('Failed to update plan type. Please try again.');
+    }
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-lg max-h-[80vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>User Account</DialogTitle>
         </DialogHeader>
         
-        <div className="space-y-6">
-          {/* User Information */}
+        <div className="space-y-4">
           <div>
-            <h3 className="text-lg font-medium text-gray-900 mb-3">Account Information</h3>
-            <div className="bg-gray-50 p-4 rounded-lg space-y-2">
-              <div className="flex justify-between">
-                <span className="text-gray-600">Email:</span>
-                <span className="font-medium">{user?.email || 'Not available'}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">Plan:</span>
-                <span className={`font-medium ${isPremium ? 'text-primary' : 'text-green-600'}`}>
-                  {userData?.plan_type === 'premium' ? 'Premium' : 'Free'}
-                </span>
-              </div>
-              {userData?.subscription_date && (
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Member since:</span>
-                  <span className="font-medium">
-                    {new Date(userData.subscription_date).toLocaleDateString()}
-                  </span>
+            <h3 className="text-lg font-semibold mb-2">Account Information</h3>
+            <div className="space-y-2">
+              <p><strong>Email:</strong> {user.email}</p>
+              <div className="flex items-center justify-between">
+                <p>
+                  <strong>Plan:</strong> 
+                  <Badge variant={isPremium ? "default" : "secondary"} className="ml-2">
+                    {userData?.profile?.plan_type || 'free'}
+                  </Badge>
+                </p>
+                <div className="flex items-center space-x-2">
+                  <label htmlFor="premium-toggle" className="text-sm">Premium</label>
+                  <Switch
+                    id="premium-toggle"
+                    checked={isPremium}
+                    onCheckedChange={handleTogglePremium}
+                  />
                 </div>
+              </div>
+              {userData?.profile?.subscription_date && (
+                <p><strong>Member since:</strong> {new Date(userData.profile.subscription_date).toLocaleDateString()}</p>
               )}
             </div>
           </div>
 
-          {/* Saved Plans */}
-          <div>
-            <h3 className="text-lg font-medium text-gray-900 mb-3">
-              Saved Financial Plans ({userData?.plans?.length || 0})
-            </h3>
-            {userData?.plans && userData.plans.length > 0 ? (
-              <div className="space-y-2">
-                {userData.plans.map((plan) => {
-                  let planData;
-                  try {
-                    planData = JSON.parse(plan.plan_data);
-                  } catch {
-                    planData = { title: 'Untitled Plan' };
-                  }
-
-                  return (
-                    <div
-                      key={plan.id}
-                      className="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer"
-                      onClick={() => handleLoadPlan(plan.id)}
-                    >
-                      <div>
-                        <p className="font-medium text-gray-900">{planData.title || 'Untitled Plan'}</p>
-                        <p className="text-sm text-gray-500">Plan ID: {plan.id.slice(0, 8)}...</p>
-                      </div>
-                      <Button variant="outline" size="sm">
-                        Load
-                      </Button>
-                    </div>
-                  );
-                })}
+          {userData?.plans && userData.plans.length > 0 && (
+            <div>
+              <h3 className="text-lg font-semibold mb-2">Saved Plans ({userData.plans.length})</h3>
+              <div className="space-y-2 max-h-60 overflow-y-auto">
+                {userData.plans.map((plan) => (
+                  <Card key={plan.id} className="cursor-pointer hover:bg-accent" onClick={() => handleLoadPlan(plan.id)}>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm">{plan.plan_name}</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-xs text-muted-foreground">Created: {new Date(plan.created_at).toLocaleDateString()}</p>
+                      <p className="text-xs text-muted-foreground">Updated: {new Date(plan.updated_at).toLocaleDateString()}</p>
+                    </CardContent>
+                  </Card>
+                ))}
               </div>
-            ) : (
-              <p className="text-gray-500 text-center py-4">No saved plans yet. Create and save your first financial plan!</p>
-            )}
-          </div>
-          
-          <div className="border-t pt-4">
-            <Button 
-              onClick={onSignOut}
-              variant="outline" 
-              className="w-full"
-            >
-              Sign Out
-            </Button>
-          </div>
+            </div>
+          )}
+
+          {(!userData?.plans || userData.plans.length === 0) && (
+            <div className="text-center p-4 text-muted-foreground">
+              <p>No saved plans yet.</p>
+              <p className="text-sm">Save your financial plan to see it here!</p>
+            </div>
+          )}
+        </div>
+
+        <div className="flex gap-3 pt-4">
+          <Button variant="outline" onClick={onClose} className="flex-1">
+            Close
+          </Button>
+          <Button variant="destructive" onClick={onSignOut} className="flex-1">
+            Sign Out
+          </Button>
         </div>
       </DialogContent>
     </Dialog>

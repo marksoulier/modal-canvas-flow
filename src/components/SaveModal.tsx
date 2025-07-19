@@ -32,15 +32,35 @@ const SaveModal: React.FC<SaveModalProps> = ({ isOpen, onClose, onShowAuth }) =>
 
     setIsSaving(true);
     try {
-      const { error } = await supabase
+      // First check if user has a plan already
+      const { data: existingPlans } = await supabase
         .from('plans')
-        .upsert({
-          user_id: user.id,
-          plan_data: plan,
-          updated_at: new Date().toISOString(),
-        });
+        .select('id')
+        .eq('user_id', user.id)
+        .limit(1);
 
-      if (error) throw error;
+      if (existingPlans && existingPlans.length > 0) {
+        // Update existing plan
+        const { error } = await supabase
+          .from('plans')
+          .update({
+            plan_data: plan,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('user_id', user.id);
+
+        if (error) throw error;
+      } else {
+        // Insert new plan
+        const { error } = await supabase
+          .from('plans')
+          .insert({
+            user_id: user.id,
+            plan_data: plan,
+          });
+
+        if (error) throw error;
+      }
       
       toast.success('Plan saved to cloud successfully!');
       onClose();

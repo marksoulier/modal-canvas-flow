@@ -3,24 +3,36 @@ import { supabase } from '@/integrations/supabase/client';
 import type { User } from '@supabase/supabase-js';
 
 interface Plan {
-    id: string;
-    plan_data: string; //jsonb
+  id: string;
+  plan_name: string;
+  plan_data: any;
+  created_at: string;
+  updated_at: string;
+}
+
+interface UserProfile {
+  id: string;
+  user_id: string;
+  plan_type: 'free' | 'premium';
+  subscription_date: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 interface UserData {
-    plan_type: 'free' | 'premium';
-    subscription_date: string | null;
-    plans: Plan[];
+  profile: UserProfile | null;
+  plans: Plan[];
 }
 
 interface AuthContextType {
-    user: User | null;
-    userData: UserData | null;
-    isLoading: boolean;
-    isPremium: boolean;
-    signIn: (email: string, password: string) => Promise<void>;
-    signUp: (email: string, password: string) => Promise<void>;
-    signOut: () => Promise<void>;
+  user: User | null;
+  userData: UserData | null;
+  isLoading: boolean;
+  isPremium: boolean;
+  signIn: (email: string, password: string) => Promise<void>;
+  signUp: (email: string, password: string) => Promise<void>;
+  signOut: () => Promise<void>;
+  togglePremium: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -43,32 +55,40 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         try {
             const { data: profile, error: profileError } = await supabase
                 .from('user_profiles')
-                .select('plan_type, subscription_date')
+                .select('*')
                 .eq('user_id', userId)
                 .single();
 
-            if (profileError && profileError.code !== 'PGRST116') {
-                console.error('Error fetching profile:', profileError);
-                return;
-            }
+            if (profileError) throw profileError;
 
             const { data: plans, error: plansError } = await supabase
-                .from('user_plans')
-                .select('id, plan_data')
+                .from('plans')
+                .select('*')
                 .eq('user_id', userId);
 
-            if (plansError) {
-                console.error('Error fetching plans:', plansError);
-                return;
-            }
+            if (plansError) throw plansError;
 
             setUserData({
-                plan_type: profile?.plan_type || 'free',
-                subscription_date: profile?.subscription_date || null,
-                plans: plans || []
+                profile: profile || null,
+                plans: plans || [],
             });
         } catch (error) {
-            console.error('Error in fetchUserData:', error);
+            console.error('Error fetching user data:', error);
+            // Create profile if it doesn't exist
+            if (error.code === 'PGRST116') {
+                try {
+                    const { error: insertError } = await supabase
+                        .from('user_profiles')
+                        .insert({ user_id: userId, plan_type: 'free' });
+                    
+                    if (!insertError) {
+                        // Retry fetching after creating profile
+                        fetchUserData(userId);
+                    }
+                } catch (insertError) {
+                    console.error('Error creating user profile:', insertError);
+                }
+            }
         }
     };
 
@@ -102,6 +122,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return () => subscription.unsubscribe();
     }, []);
 
+    const isPremium = userData?.profile?.plan_type === 'premium';
+
     const signIn = async (email: string, password: string) => {
         const { error } = await supabase.auth.signInWithPassword({
             email,
@@ -130,14 +152,47 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (error) throw error;
     };
 
+    const togglePremium = async () => {
+        if (!user || !userData?.profile) return;
+        
+        const newPlanType = userData.profile.plan_type === 'free' ? 'premium' : 'free';
+        const subscriptionDate = newPlanType === 'premium' ? new Date().toISOString() : null;
+        
+        try {
+            const { error } = await supabase
+                .from('user_profiles')
+                .update({ 
+                    plan_type: newPlanType,
+                    subscription_date: subscriptionDate
+                })
+                .eq('user_id', user.id);
+
+            if (error) throw error;
+            
+            // Update local state
+            setUserData(prev => prev ? {
+                ...prev,
+                profile: prev.profile ? {
+                    ...prev.profile,
+                    plan_type: newPlanType,
+                    subscription_date: subscriptionDate
+                } : null
+            } : null);
+        } catch (error) {
+            console.error('Error toggling premium status:', error);
+            throw error;
+        }
+    };
+
     const value = {
         user,
         userData,
         isLoading,
-        isPremium: userData?.plan_type === 'premium',
+        isPremium,
         signIn,
         signUp,
         signOut,
+        togglePremium,
     };
 
     return (
@@ -145,4 +200,4 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             {children}
         </AuthContext.Provider>
     );
-} 
+}
