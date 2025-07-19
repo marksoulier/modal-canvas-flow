@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Search, Calendar } from 'lucide-react';
+import { X, Search, Calendar, Plus } from 'lucide-react';
 import { iconMap } from '../contexts/PlanContext';
 import * as LucideIcons from 'lucide-react';
 import { usePlan } from '../contexts/PlanContext';
@@ -131,14 +131,26 @@ const EventLibraryModal: React.FC<EventLibraryModalProps> = ({ isOpen, onClose, 
                   const disclaimer = getEventDisclaimer(event.type);
                   return (
                     <div className="space-y-6">
-                      <div>
-                        <div className="flex items-center gap-3 mb-3">
-                          <span className="text-[#03c6fc]">{getIconComponent(event.icon)}</span>
-                          <h3 className="text-2xl font-semibold text-gray-900">{getEventDisplayType(event.type)}</h3>
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <div className="flex items-center gap-3 mb-3">
+                            <span className="text-[#03c6fc]">{getIconComponent(event.icon)}</span>
+                            <h3 className="text-2xl font-semibold text-gray-900">{getEventDisplayType(event.type)}</h3>
+                          </div>
+                          <span className="inline-block px-2 py-1 bg-gray-100 text-gray-700 font-medium text-[0.95rem] rounded-md">
+                            {event.category}
+                          </span>
                         </div>
-                        <span className="inline-block px-2 py-1 bg-gray-100 text-gray-700 font-medium text-[0.95rem] rounded-md">
-                          {event.category}
-                        </span>
+
+                        {/* Add Event Button - Top Right */}
+                        <button
+                          onClick={handleAddEvent}
+                          className="px-4 py-2 rounded-lg transition-all font-medium flex items-center justify-center gap-2 text-sm bg-[#03c6fc]/10 backdrop-blur-sm hover:bg-[#03c6fc]/20 text-slate-700 shadow-sm border border-[#03c6fc]/20 hover:border-[#03c6fc]/40 flex-shrink-0"
+                          style={{ boxShadow: '0 2px 8px rgba(3,198,252,0.04)' }}
+                        >
+                          <Plus size={16} />
+                          Add Event
+                        </button>
                       </div>
 
                       {/* Disclaimer Box */}
@@ -160,15 +172,6 @@ const EventLibraryModal: React.FC<EventLibraryModalProps> = ({ isOpen, onClose, 
                           </div>
                         ))}
                       </div>
-
-                      {/* Add Event Button - More Subtle and Higher Up */}
-                      <button
-                        onClick={handleAddEvent}
-                        className="w-full py-3 rounded-lg transition-all font-medium flex items-center justify-center gap-2 text-sm mt-4 bg-[#03c6fc]/10 backdrop-blur-sm hover:bg-[#03c6fc]/20 text-slate-700 shadow-sm border border-[#03c6fc]/20 hover:border-[#03c6fc]/40"
-                        style={{ boxShadow: '0 2px 8px rgba(3,198,252,0.04)' }}
-                      >
-                        Add Event
-                      </button>
                     </div>
                   );
                 })()}

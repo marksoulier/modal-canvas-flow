@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { format, addDays } from 'date-fns';
+import { format, addDays, differenceInDays } from 'date-fns';
 import { CalendarIcon, ChevronDownIcon } from 'lucide-react';
 import { Button } from './ui/button';
 import { Calendar } from './ui/calendar';
@@ -31,7 +31,7 @@ const DatePicker: React.FC<DatePickerProps> = ({
     // viewMonth is the calendar's current view, independent of the selected value
     const [viewMonth, setViewMonth] = useState<Date>(() => {
         if (birthDate && value !== undefined && value !== null) {
-            const birth = new Date(birthDate);
+            const birth = new Date(birthDate + 'T00:00:00');
             const daysSinceBirth = Number(value);
             return addDays(birth, daysSinceBirth);
         }
@@ -40,7 +40,8 @@ const DatePicker: React.FC<DatePickerProps> = ({
 
     const getDisplayDate = (): Date | undefined => {
         if (!birthDate || value === undefined || value === null) return undefined;
-        const birth = new Date(birthDate);
+        // Parse birth date as local date to avoid timezone issues
+        const birth = new Date(birthDate + 'T00:00:00');
         const daysSinceBirth = Number(value);
         return addDays(birth, daysSinceBirth);
     };
@@ -50,8 +51,9 @@ const DatePicker: React.FC<DatePickerProps> = ({
         if (!newDate) return;
 
         if (!birthDate) return;
-        const birth = new Date(birthDate);
-        const daysDiff = Math.floor((newDate.getTime() - birth.getTime()) / (1000 * 60 * 60 * 24));
+        // Parse birth date as local date to avoid timezone issues
+        const birth = new Date(birthDate + 'T00:00:00');
+        const daysDiff = differenceInDays(newDate, birth);
         onChange(Number(daysDiff));
         setViewMonth(newDate);
     };
@@ -76,7 +78,7 @@ const DatePicker: React.FC<DatePickerProps> = ({
     // reset the viewMonth to the selected date (so popover always opens to the right month)
     useEffect(() => {
         if (birthDate && value !== undefined && value !== null) {
-            const birth = new Date(birthDate);
+            const birth = new Date(birthDate + 'T00:00:00');
             const daysSinceBirth = Number(value);
             setViewMonth(addDays(birth, daysSinceBirth));
         }

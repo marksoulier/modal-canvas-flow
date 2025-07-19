@@ -90,13 +90,16 @@
         "date",
         "envelope",
         "days",
+        "hours",
+        "years",
+        "number_per_year",
         "percentage",
         "enum"
     ],
     "events": [
         {
             "type": "inflow",
-            "display_type": "Inflow (Debit)",
+            "display_type": "Inflow",
             "display_event": true,
             "weight": 1,
             "category": "System",
@@ -128,7 +131,7 @@
         },
         {
             "type": "outflow",
-            "display_type": "Outflow (Credit)",
+            "display_type": "Outflow",
             "display_event": true,
             "weight": 2,
             "category": "System",
@@ -155,6 +158,95 @@
                     "parameter_units": "envelope",
                     "description": "Envelope from which the money is withdrawn",
                     "default": "Other (Cash)"
+                }
+            ]
+        },
+        {
+            "type": "declare_accounts",
+            "display_type": "Declare Accounts",
+            "display_event": true,
+            "weight": 100,
+            "category": "System",
+            "description": "Declare the initial balances of up to five financial accounts (envelopes) at a specific time.",
+            "icon": "list",
+            "disclaimer": "This event is used to set the starting balances for up to five envelopes. Use this on todays date to set the account balance for your envelopes.",
+            "parameters": [
+                {
+                    "type": "start_time",
+                    "display_name": "Declaration Date",
+                    "parameter_units": "date",
+                    "description": "When the account balances are declared",
+                    "default": 0
+                },
+                {
+                    "type": "amount1",
+                    "display_name": "Amount 1",
+                    "parameter_units": "usd",
+                    "description": "Initial balance for Envelope 1.",
+                    "default": 0
+                },
+                {
+                    "type": "envelope1",
+                    "display_name": "Envelope 1",
+                    "parameter_units": "envelope",
+                    "description": "First envelope/account name.",
+                    "default": "Other (Cash)"
+                },
+                {
+                    "type": "amount2",
+                    "display_name": "Amount 2",
+                    "parameter_units": "usd",
+                    "description": "Initial balance for Envelope 2.",
+                    "default": 0
+                },
+                {
+                    "type": "envelope2",
+                    "display_name": "Envelope 2",
+                    "parameter_units": "envelope",
+                    "description": "Second envelope/account name.",
+                    "default": "Other (Savings)"
+                },
+                {
+                    "type": "amount3",
+                    "display_name": "Amount 3",
+                    "parameter_units": "usd",
+                    "description": "Initial balance for Envelope 3.",
+                    "default": 0
+                },
+                {
+                    "type": "envelope3",
+                    "display_name": "Envelope 3",
+                    "parameter_units": "envelope",
+                    "description": "Third envelope/account name.",
+                    "default": "Other (Investments)"
+                },
+                {
+                    "type": "amount4",
+                    "display_name": "Amount 4",
+                    "parameter_units": "usd",
+                    "description": "Initial balance for Envelope 4.",
+                    "default": 0
+                },
+                {
+                    "type": "envelope4",
+                    "display_name": "Envelope 4",
+                    "parameter_units": "envelope",
+                    "description": "Fourth envelope/account name.",
+                    "default": "Other (Retirement)"
+                },
+                {
+                    "type": "amount5",
+                    "display_name": "Amount 5",
+                    "parameter_units": "usd",
+                    "description": "Initial balance for Envelope 5.",
+                    "default": 0
+                },
+                {
+                    "type": "envelope5",
+                    "display_name": "Envelope 5",
+                    "parameter_units": "envelope",
+                    "description": "Fifth envelope/account name.",
+                    "default": "Other (Debt)"
                 }
             ]
         },
@@ -500,95 +592,6 @@
             ]
         },
         {
-            "type": "declare_accounts",
-            "display_type": "Declare Accounts",
-            "display_event": true,
-            "weight": 100,
-            "category": "System",
-            "description": "Declare the initial balances of up to five financial accounts (envelopes) at a specific time.",
-            "icon": "list",
-            "disclaimer": "This event is used to set the starting balances for up to five envelopes. Use this on todays date to set the account balance for your envelopes.",
-            "parameters": [
-                {
-                    "type": "start_time",
-                    "display_name": "Declaration Date",
-                    "parameter_units": "date",
-                    "description": "When the account balances are declared",
-                    "default": 0
-                },
-                {
-                    "type": "amount1",
-                    "display_name": "Amount 1",
-                    "parameter_units": "usd",
-                    "description": "Initial balance for Envelope 1.",
-                    "default": 0
-                },
-                {
-                    "type": "envelope1",
-                    "display_name": "Envelope 1",
-                    "parameter_units": "envelope",
-                    "description": "First envelope/account name.",
-                    "default": "Other (Cash)"
-                },
-                {
-                    "type": "amount2",
-                    "display_name": "Amount 2",
-                    "parameter_units": "usd",
-                    "description": "Initial balance for Envelope 2.",
-                    "default": 0
-                },
-                {
-                    "type": "envelope2",
-                    "display_name": "Envelope 2",
-                    "parameter_units": "envelope",
-                    "description": "Second envelope/account name.",
-                    "default": "Other (Savings)"
-                },
-                {
-                    "type": "amount3",
-                    "display_name": "Amount 3",
-                    "parameter_units": "usd",
-                    "description": "Initial balance for Envelope 3.",
-                    "default": 0
-                },
-                {
-                    "type": "envelope3",
-                    "display_name": "Envelope 3",
-                    "parameter_units": "envelope",
-                    "description": "Third envelope/account name.",
-                    "default": "Other (Investments)"
-                },
-                {
-                    "type": "amount4",
-                    "display_name": "Amount 4",
-                    "parameter_units": "usd",
-                    "description": "Initial balance for Envelope 4.",
-                    "default": 0
-                },
-                {
-                    "type": "envelope4",
-                    "display_name": "Envelope 4",
-                    "parameter_units": "envelope",
-                    "description": "Fourth envelope/account name.",
-                    "default": "Other (Retirement)"
-                },
-                {
-                    "type": "amount5",
-                    "display_name": "Amount 5",
-                    "parameter_units": "usd",
-                    "description": "Initial balance for Envelope 5.",
-                    "default": 0
-                },
-                {
-                    "type": "envelope5",
-                    "display_name": "Envelope 5",
-                    "parameter_units": "envelope",
-                    "description": "Fifth envelope/account name.",
-                    "default": "Other (Debt)"
-                }
-            ]
-        },
-        {
             "type": "loan_amortization",
             "display_type": "Loan Amortization",
             "display_event": false,
@@ -730,7 +733,7 @@
                     "display_name": "End Date",
                     "parameter_units": "date",
                     "description": "When the monthly budgeting ends.",
-                    "default": 99999
+                    "default": 29200
                 },
                 {
                     "type": "frequency_days",
@@ -845,7 +848,7 @@
                 {
                     "type": "pay_period",
                     "display_name": "Pay Periods per Year",
-                    "parameter_units": "days",
+                    "parameter_units": "number_per_year",
                     "description": "Number of pay periods per year.",
                     "default": 26
                 },
@@ -1012,14 +1015,14 @@
                 {
                     "type": "hours_per_week",
                     "display_name": "Hours per Week",
-                    "parameter_units": "days",
+                    "parameter_units": "hours",
                     "description": "Number of hours worked per week.",
                     "default": 40
                 },
                 {
                     "type": "pay_period",
                     "display_name": "Pay Periods per Year",
-                    "parameter_units": "days",
+                    "parameter_units": "number_per_year",
                     "description": "Number of pay periods per year.",
                     "default": 26
                 },
@@ -1114,7 +1117,7 @@
                         {
                             "type": "new_hours",
                             "display_name": "New Hours per Week",
-                            "parameter_units": "days",
+                            "parameter_units": "hours",
                             "description": "New number of hours per week.",
                             "default": 35
                         }
@@ -1299,7 +1302,7 @@
                     "display_name": "End Date",
                     "parameter_units": "date",
                     "description": "When retirement ends",
-                    "default": 36500
+                    "default": 29200
                 },
                 {
                     "type": "amount",
@@ -1365,7 +1368,7 @@
                 {
                     "type": "loan_term_years",
                     "display_name": "Loan Term",
-                    "parameter_units": "days",
+                    "parameter_units": "years",
                     "description": "Length of mortgage in years.",
                     "default": 30
                 },
@@ -1719,7 +1722,7 @@
                 {
                     "type": "loan_term_years",
                     "display_name": "Loan Term",
-                    "parameter_units": "days",
+                    "parameter_units": "years",
                     "description": "Length of car loan in years.",
                     "default": 5
                 },
@@ -2164,7 +2167,7 @@
                 {
                     "type": "term_years",
                     "display_name": "Term Length",
-                    "parameter_units": "days",
+                    "parameter_units": "years",
                     "description": "Duration of the term policy in years.",
                     "default": 20
                 },
@@ -2520,7 +2523,7 @@
                     "display_name": "End Date",
                     "parameter_units": "date",
                     "description": "When the expense stops recurring.",
-                    "default": 99999
+                    "default": 29200
                 }
             ],
             "updating_events": []
@@ -2547,7 +2550,7 @@
                     "display_name": "End Date",
                     "parameter_units": "date",
                     "description": "When the contribution ends.",
-                    "default": 99999
+                    "default": 29200
                 },
                 {
                     "type": "frequency_days",
@@ -2601,13 +2604,13 @@
                     "display_name": "Tax Year End",
                     "parameter_units": "date",
                     "description": "End of the tax year.",
-                    "default": 99999
+                    "default": 29200
                 },
                 {
-                    "type": "salary",
-                    "display_name": "Annual Salary",
+                    "type": "yearly_income",
+                    "display_name": "Taxable yearly income",
                     "parameter_units": "usd",
-                    "description": "Total annual salary income.",
+                    "description": "Total taxable income.",
                     "default": 60000
                 },
                 {

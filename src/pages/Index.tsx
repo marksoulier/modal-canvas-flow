@@ -31,7 +31,7 @@ const Index = () => {
   const [eventLibraryOpen, setEventLibraryOpen] = useState(false);
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [planPreferencesModalOpen, setPlanPreferencesModalOpen] = useState(false);
-  const [subscriptionModalOpen, setSubscriptionModalOpen] = useState(true);
+  const [subscriptionModalOpen, setSubscriptionModalOpen] = useState(false);
   const [userAccountModalOpen, setUserAccountModalOpen] = useState(false);
   const [eventParametersOpen, setEventParametersOpen] = useState(false);
   const [addEnvelopeModalOpen, setAddEnvelopeModalOpen] = useState(false);

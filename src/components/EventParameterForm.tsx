@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Trash2 } from 'lucide-react';
+import { Trash2, HelpCircle } from 'lucide-react';
 import {
     Dialog,
     DialogContent,
@@ -18,6 +18,12 @@ import {
     SelectTrigger,
     SelectValue,
 } from './ui/select';
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from './ui/tooltip';
 import { usePlan, findEventOrUpdatingEventById, getEventDefinition } from '../contexts/PlanContext';
 import type { Plan, Event, Parameter, Schema, SchemaEvent, UpdatingEvent } from '../contexts/PlanContext';
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from './ui/accordion';
@@ -335,6 +341,20 @@ const EventParametersForm: React.FC<EventParametersFormProps> = ({
                             />
                             Use Today's Value
                         </label>
+                        <TooltipProvider>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <HelpCircle className="h-3 w-3 text-gray-400 hover:text-gray-600 cursor-help" />
+                                </TooltipTrigger>
+                                <TooltipContent side="top" className="max-w-xs">
+                                    <p className="text-sm">
+                                        When enabled, you can enter the dollar amount in today's purchasing power.
+                                        The system will automatically adjust it for inflation to calculate the equivalent
+                                        value on the event date.
+                                    </p>
+                                </TooltipContent>
+                            </Tooltip>
+                        </TooltipProvider>
                     </div>
                     <div className="relative flex items-center">
                         <Input
@@ -492,6 +512,152 @@ const EventParametersForm: React.FC<EventParametersFormProps> = ({
                             />
                             <div className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
                                 days
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        }
+
+        if (paramUnits === 'hours') {
+            const placeholder = defaultValue ? String(defaultValue) : '';
+            return (
+                <div className="relative">
+                    <Input
+                        type="text"
+                        value={String(value)}
+                        placeholder={placeholder}
+                        onChange={(e) => {
+                            // Allow raw input (including decimal numbers)
+                            handleInputChange(event.id, param.id, e.target.value);
+                        }}
+                        onBlur={(e) => {
+                            const val = e.target.value;
+                            if (val === '' || val === '-') {
+                                handleInputBlur(param.id, '', event.id);
+                            } else {
+                                const parsed = parseFloat(val);
+                                handleInputBlur(param.id, isNaN(parsed) ? '' : parsed, event.id);
+                            }
+                        }}
+                        step="0.1"
+                        className="w-full pr-12 placeholder:text-muted-foreground"
+                    />
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                        hours
+                    </div>
+                </div>
+            );
+        }
+
+        if (paramUnits === 'years') {
+            const placeholder = defaultValue ? String(defaultValue) : '';
+            return (
+                <div className="relative">
+                    <Input
+                        type="text"
+                        value={String(value)}
+                        placeholder={placeholder}
+                        onChange={(e) => {
+                            // Allow raw input (including decimal numbers)
+                            handleInputChange(event.id, param.id, e.target.value);
+                        }}
+                        onBlur={(e) => {
+                            const val = e.target.value;
+                            if (val === '' || val === '-') {
+                                handleInputBlur(param.id, '', event.id);
+                            } else {
+                                const parsed = parseFloat(val);
+                                handleInputBlur(param.id, isNaN(parsed) ? '' : parsed, event.id);
+                            }
+                        }}
+                        step="0.1"
+                        className="w-full pr-12 placeholder:text-muted-foreground"
+                    />
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                        years
+                    </div>
+                </div>
+            );
+        }
+
+        if (paramUnits === 'number_per_year') {
+            const placeholder = defaultValue ? String(defaultValue) : '';
+
+            // Define pay frequency options with their annual counts
+            const payFrequencyOptions = [
+                { label: 'Weekly', value: 52 },
+                { label: 'Biweekly', value: 26 },
+                { label: 'Semi-monthly', value: 24 },
+                { label: 'Monthly', value: 12 },
+                { label: 'Quarterly', value: 4 },
+                { label: 'Custom', value: 'custom' }
+            ];
+
+            // Find if current value matches any predefined option
+            const currentValue = Number(value);
+            const matchingOption = payFrequencyOptions.find(option =>
+                typeof option.value === 'number' && option.value === currentValue
+            );
+            const isCustomMode = customDaysMode[param.id] || !matchingOption;
+            const selectedValue = isCustomMode ? 'Custom' : (matchingOption ? matchingOption.label : 'Custom');
+
+            return (
+                <div className="space-y-2">
+                    <Select
+                        value={selectedValue}
+                        onValueChange={(newValue) => {
+                            const option = payFrequencyOptions.find(opt => opt.label === newValue);
+                            if (option && typeof option.value === 'number') {
+                                setCustomDaysMode(prev => ({ ...prev, [param.id]: false }));
+                                handleInputChange(event.id, param.id, option.value);
+                                handleInputBlur(param.id, option.value, event.id);
+                            } else if (newValue === 'Custom') {
+                                setCustomDaysMode(prev => ({ ...prev, [param.id]: true }));
+                            }
+                        }}
+                    >
+                        <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Select pay frequency" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {payFrequencyOptions.map((option) => (
+                                <SelectItem key={option.label} value={option.label}>
+                                    {option.label}
+                                    {typeof option.value === 'number' && (
+                                        <span className="text-xs text-muted-foreground ml-2">
+                                            ({option.value} per year)
+                                        </span>
+                                    )}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+
+                    {isCustomMode && (
+                        <div className="relative">
+                            <Input
+                                type="text"
+                                value={String(value)}
+                                placeholder={placeholder}
+                                onChange={(e) => {
+                                    // Allow raw input (including decimal numbers)
+                                    handleInputChange(event.id, param.id, e.target.value);
+                                }}
+                                onBlur={(e) => {
+                                    const val = e.target.value;
+                                    if (val === '' || val === '-') {
+                                        handleInputBlur(param.id, '', event.id);
+                                    } else {
+                                        const parsed = parseFloat(val);
+                                        handleInputBlur(param.id, isNaN(parsed) ? '' : parsed, event.id);
+                                    }
+                                }}
+                                step="1"
+                                className="w-full pr-20 placeholder:text-muted-foreground"
+                            />
+                            <div className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                                per year
                             </div>
                         </div>
                     )}

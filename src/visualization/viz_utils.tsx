@@ -32,7 +32,8 @@ export const getDaysFromAge = (age: number): number => {
 
 // Convert days since birth to actual date
 export const daysToDate = (daysSinceBirth: number, birthDate: Date): Date => {
-    const result = new Date(birthDate);
+    // Create a new date object to avoid mutating the original
+    const result = new Date(birthDate.getTime());
     result.setDate(result.getDate() + daysSinceBirth);
     return result;
 };
@@ -131,12 +132,12 @@ export const generateEnvelopeColors = (categories: string[]): Record<string, { a
 
 // Assign a base color to each category (can be customized as needed)
 const CATEGORY_BASE_COLORS: Record<string, string> = {
-    'Savings': '#2196F3', // Blue
-    'Investments': '#4CAF50', // Green
+    'Savings': '#FFC107', // Yellow
+    'Investments': '#00BCD4', // Cyan
     'Income': '#FF9800', // Orange
     'Retirement': '#9C27B0', // Purple
     'Debt': '#F44336', // Red
-    'Cash': '#00BCD4', // Cyan
+    'Cash': '#4CAF50', // Green
     'Assets': '#888888', // Grey
 };
 
@@ -230,7 +231,7 @@ export const Legend = ({ envelopes, envelopeColors, currentValues, getCategory, 
         return null;
     }
     return (
-        <div className="absolute right-4 bottom-12 bg-white p-4 rounded-lg shadow-lg">
+        <div className="absolute right-4 bottom-12 bg-white p-4 rounded-lg shadow-lg" style={{ pointerEvents: 'none' }}>
             <h3 className="text-sm font-semibold mb-2">Envelopes</h3>
             <div className="space-y-3">
                 {Object.entries(categoryMap).map(([category, envs]) => {

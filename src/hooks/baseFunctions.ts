@@ -326,7 +326,7 @@ export const manual_correction = (event: any, envelopes: Record<string, any>) =>
 // Estimate taxes owed based on simplified parameters
 export const estimate_taxes = (params: Record<string, any>): number => {
     // Basic taxable income: salary + capital gains - deductions - retirement contributions - (dependents * 2000 credit)
-    const salary = params.salary || 0;
+    const yearly_income = params.yearly_income || 0;
     const capital_gains = params.capital_gains || 0;
     const retirement_contributions = params.retirement_contributions || 0;
     const itemized_deductions = params.itemized_deductions || 0;
@@ -338,7 +338,7 @@ export const estimate_taxes = (params: Record<string, any>): number => {
     const state_income_tax_withheld = params.state_income_tax_withheld || 0;
 
     // Taxable income
-    let taxable_income = salary + capital_gains - retirement_contributions - itemized_deductions;
+    let taxable_income = yearly_income + capital_gains - retirement_contributions - itemized_deductions;
     if (taxable_income < 0) taxable_income = 0;
 
     // Estimate total tax before credits

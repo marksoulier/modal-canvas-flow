@@ -198,7 +198,8 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
 
         // Set birth date from plan
         if (plan.birth_date) {
-          const birthDateObj = new Date(plan.birth_date);
+          // Parse birth date as local date to avoid timezone issues
+          const birthDateObj = new Date(plan.birth_date + 'T00:00:00');
           setBirthDate(birthDateObj);
         }
 
