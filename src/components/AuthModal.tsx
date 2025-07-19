@@ -36,16 +36,18 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSignIn, onUpgr
         await signIn(email, password);
       }
 
-      console.log('Authentication completed, calling onSignIn');
+      console.log('Authentication completed');
+      // Clear loading first
+      setIsLoading(false);
+      // Clear form
+      setEmail('');
+      setPassword('');
+      // Then call onSignIn to close modal
       onSignIn();
     } catch (err) {
       console.error('Authentication error:', err);
       setError(err instanceof Error ? err.message : 'An error occurred');
-    } finally {
-      console.log('Authentication process finished, setting loading to false');
       setIsLoading(false);
-      setEmail('');
-      setPassword('');
     }
   };
 

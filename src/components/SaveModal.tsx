@@ -117,8 +117,7 @@ const SaveModal: React.FC<SaveModalProps> = ({ isOpen, onClose, onShowAuth }) =>
               key={option.id}
               onClick={option.onClick}
               disabled={isSaving}
-              className={`w-full flex items-center gap-3 p-4 text-left border rounded-lg transition-colors 
-                ${selectedOption === option.id ? 'border-primary bg-accent' : 'hover:bg-accent'}
+              className={`w-full flex items-center gap-3 p-4 text-left border rounded-lg transition-colors hover:bg-accent
                 ${!user && option.id === 'cloud' ? 'opacity-75' : ''}`}
             >
               <option.icon size={20} className={option.color} />
@@ -133,12 +132,6 @@ const SaveModal: React.FC<SaveModalProps> = ({ isOpen, onClose, onShowAuth }) =>
         <div className="flex gap-3 pt-4">
           <Button variant="outline" onClick={onClose} className="flex-1">
             Cancel
-          </Button>
-          <Button
-            disabled={!selectedOption || isSaving}
-            className="flex-1"
-          >
-            {isSaving ? 'Saving...' : 'Save'}
           </Button>
         </div>
       </DialogContent>
