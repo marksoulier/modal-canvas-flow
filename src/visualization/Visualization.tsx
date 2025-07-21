@@ -850,13 +850,14 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
                 {visibleData.map((point, index) => {
                   const canvasX = xScale(point.date) * zoom.transformMatrix.scaleX + zoom.transformMatrix.translateX;
                   const canvasY = visibleYScale(point.value) * zoom.transformMatrix.scaleY + zoom.transformMatrix.translateY;
+                  const isClosestPoint = closestPoint && point.date === closestPoint.date;
                   return (
                     <circle
                       key={`point-${index}`}
                       cx={canvasX}
                       cy={canvasY}
                       r={basePointRadius}
-                      fill="#335966"
+                      fill={isClosestPoint ? "#03c6fc" : "#335966"}
                       stroke="#fff"
                       strokeWidth={baseLineWidth}
                     />
