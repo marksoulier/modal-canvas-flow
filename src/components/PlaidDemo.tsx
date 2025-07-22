@@ -50,8 +50,8 @@ const PlaidDemo: React.FC<PlaidDemoProps> = ({ isOpen, onClose }) => {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    client_id: '687fb92af661c10022bb19bc', // Your Plaid Client ID - get from dashboard
-                    secret: '5ae2f20dfbd66774e701d270239a1f', // Your Plaid Sandbox Secret - REPLACE THIS
+                    client_id: import.meta.env.VITE_PLAID_CLIENT_ID, // Use environment variable
+                    secret: import.meta.env.VITE_PLAID_SECRET, // Use environment variable
                     client_name: 'Retirement Planning Tool',
                     country_codes: ['US'],
                     language: 'en',
@@ -78,7 +78,7 @@ const PlaidDemo: React.FC<PlaidDemoProps> = ({ isOpen, onClose }) => {
 
     const { open, ready } = usePlaidLink({
         token: linkToken,
-        onSuccess: async (public_token) => {
+        onSuccess: async (public_token: string) => { // Explicitly type public_token
             setLoading(true);
             setError('');
 
@@ -99,7 +99,7 @@ const PlaidDemo: React.FC<PlaidDemoProps> = ({ isOpen, onClose }) => {
                 setLoading(false);
             }
         },
-        onExit: (err) => {
+        onExit: (err: Error | null) => { // Explicitly type err
             if (err) {
                 console.log('Plaid Link exit with error:', err);
             }

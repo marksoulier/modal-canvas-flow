@@ -2,13 +2,14 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
-const SUPABASE_URL = "https://apxkjjrretikisblkdnw.supabase.co";
-const SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFweGtqanJyZXRpa2lzYmxrZG53Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI4NzU5NTQsImV4cCI6MjA2ODQ1MTk1NH0.HJWgkxyjIi3JW9iVMalWGQ6RNsddQKwMJ2k372aJKOk";
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
 
-export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+// Create typed Supabase client
+export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: {
     storage: localStorage,
     persistSession: true,
@@ -16,23 +17,22 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
   }
 });
 
-
 // Function to call Supabase Edge Functions with proper auth
 export const callSupabaseFunction = async (functionName: string, body: any, authToken?: string) => {
   const response = await fetch(`${SUPABASE_URL}/functions/v1/${functionName}`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'apikey': SUPABASE_PUBLISHABLE_KEY,
-      'Authorization': `Bearer ${authToken || SUPABASE_PUBLISHABLE_KEY}`,
+      'apikey': SUPABASE_ANON_KEY,
+      'Authorization': `Bearer ${authToken || SUPABASE_ANON_KEY}`,
     },
     body: JSON.stringify(body),
-  })
+  });
 
   if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}))
-    throw new Error(errorData.error || `HTTP ${response.status}`)
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || `HTTP ${response.status}`);
   }
 
-  return await response.json()
+  return await response.json();
 }
