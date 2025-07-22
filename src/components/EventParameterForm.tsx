@@ -47,7 +47,7 @@ const EventParametersForm: React.FC<EventParametersFormProps> = ({
     onSelectEvent,
     onOpenEnvelopeModal
 }) => {
-    const { plan, schema, getEventIcon, updateParameter, deleteEvent, getParameterDisplayName, getParameterUnits, getEventDisplayType, addUpdatingEvent, getParameterDescription, updateEventDescription, getParameterOptions, currentDay } = usePlan();
+    const { plan, schema, getEventIcon, updateParameter, deleteEvent, getParameterDisplayName, getParameterUnits, getEventDisplayType, addUpdatingEvent, getParameterDescription, updateEventDescription, canEventBeRecurring, updateEventRecurring, getParameterOptions, currentDay } = usePlan();
     // State for local parameter editing (now supports main and updating events)
     const [parameters, setParameters] = useState<Record<number, Record<number, { type: string; value: string | number }>>>({});
     const [loading, setLoading] = useState(false);
@@ -63,6 +63,7 @@ const EventParametersForm: React.FC<EventParametersFormProps> = ({
     const [usdTodayMode, setUsdTodayMode] = useState<Record<number, boolean>>({});
     const [usdTodayValues, setUsdTodayValues] = useState<Record<number, string>>({});
     const [customDaysMode, setCustomDaysMode] = useState<Record<number, boolean>>({});
+    const [isRepeating, setIsRepeating] = useState<boolean>(false);
 
     // Helper to get eventType and paramType for any eventId and paramId (main or updating)
     function getEventTypeAndParamType(eventId: number, paramId: number): { eventType: string, paramType: string } | null {
@@ -131,6 +132,12 @@ const EventParametersForm: React.FC<EventParametersFormProps> = ({
         }
         setDescription(desc);
         setUpdatingDescriptions(updatingDescs);
+
+        // Set the isRepeating state based on the event's is_recurring property
+        const { event: foundEventForState, parentEvent: foundParentEventForState } = findEventOrUpdatingEventById(plan, eventId);
+        if (foundEventForState) {
+            setIsRepeating((foundEventForState as any).is_recurring || false);
+        }
     }, [plan, eventId]);
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -200,6 +207,21 @@ const EventParametersForm: React.FC<EventParametersFormProps> = ({
                 }
             }
         }));
+    };
+
+    // Handler for repeat toggle change
+    const handleRepeatToggle = (checked: boolean) => {
+        setIsRepeating(checked);
+        updateEventRecurring(eventId, checked);
+    };
+
+    // Helper to filter parameters based on repeat settings
+    const shouldShowParameter = (paramType: string): boolean => {
+        const recurringOnlyParams = ['end_time', 'frequency_days'];
+        if (recurringOnlyParams.includes(paramType)) {
+            return isRepeating;
+        }
+        return true;
     };
 
     const renderDatePicker = (param: Parameter, event: (Event | UpdatingEvent)) => {
@@ -745,7 +767,7 @@ const EventParametersForm: React.FC<EventParametersFormProps> = ({
 
 
                 <form onSubmit={handleSubmit} className="space-y-6">
-                    {currentEvent && currentEvent.parameters && currentEvent.parameters.map((param) => (
+                    {currentEvent && currentEvent.parameters && currentEvent.parameters.filter((param) => shouldShowParameter(param.type)).map((param) => (
                         <div key={param.id} className="space-y-2">
                             <div className="space-y-1">
                                 <Label htmlFor={param.id.toString()} className="text-sm font-medium">
@@ -759,7 +781,7 @@ const EventParametersForm: React.FC<EventParametersFormProps> = ({
                         </div>
                     ))}
                     {currentUpdatingEvent && currentUpdatingEvent.parameters &&
-                        currentUpdatingEvent.parameters.map((param) => (
+                        currentUpdatingEvent.parameters.filter((param) => shouldShowParameter(param.type)).map((param) => (
                             <div key={param.id} className="space-y-2">
                                 <div className="space-y-1">
                                     <Label htmlFor={param.id.toString()} className="text-sm font-medium">
@@ -772,6 +794,35 @@ const EventParametersForm: React.FC<EventParametersFormProps> = ({
                                 {currentUpdatingEvent && renderInput(param, currentUpdatingEvent as any)}
                             </div>
                         ))}
+
+                    {/* Repeat Event Toggle */}
+                    {canEventBeRecurring(eventId) && (
+                        <div className="flex items-center gap-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                            <label className="flex items-center gap-2 text-sm font-medium cursor-pointer">
+                                <input
+                                    type="checkbox"
+                                    checked={isRepeating}
+                                    onChange={(e) => handleRepeatToggle(e.target.checked)}
+                                    className="form-checkbox h-4 w-4 text-blue-500 border-gray-300 rounded"
+                                    style={{ accentColor: '#3b82f6' }}
+                                />
+                                Repeat Event
+                            </label>
+                            <TooltipProvider>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <HelpCircle className="h-4 w-4 text-blue-400 hover:text-blue-600 cursor-help" />
+                                    </TooltipTrigger>
+                                    <TooltipContent side="top" className="max-w-xs">
+                                        <p className="text-sm">
+                                            Enable this to make the event repeat over time. When enabled, you can set
+                                            the end date and frequency for the recurring event.
+                                        </p>
+                                    </TooltipContent>
+                                </Tooltip>
+                            </TooltipProvider>
+                        </div>
+                    )}
 
                     {/* Main Event Description Edit Box (before Updating Events) */}
                     <div className="mt-2">
@@ -867,7 +918,51 @@ const EventParametersForm: React.FC<EventParametersFormProps> = ({
                                             </AccordionTrigger>
                                             <AccordionContent>
                                                 <div className="space-y-4">
-                                                    {ue.parameters.map(param => (
+                                                    {/* Repeat Event Toggle for Updating Event */}
+                                                    {(() => {
+                                                        const mainSchemaEvent = schema?.events.find(e => e.type === mainEvent.type);
+                                                        const updatingSchemaEvent = mainSchemaEvent?.updating_events?.find(ue_schema => ue_schema.type === ue.type);
+                                                        const canBeRecurring = (updatingSchemaEvent as any)?.can_be_reocurring === true;
+                                                        const isRecurring = (ue as any).is_recurring || false;
+
+                                                        return canBeRecurring && (
+                                                            <div className="flex items-center gap-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                                                                <label className="flex items-center gap-2 text-sm font-medium cursor-pointer">
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        checked={isRecurring}
+                                                                        onChange={(e) => {
+                                                                            updateEventRecurring(ue.id, e.target.checked);
+                                                                        }}
+                                                                        className="form-checkbox h-4 w-4 text-blue-500 border-gray-300 rounded"
+                                                                        style={{ accentColor: '#3b82f6' }}
+                                                                    />
+                                                                    Repeat Event
+                                                                </label>
+                                                                <TooltipProvider>
+                                                                    <Tooltip>
+                                                                        <TooltipTrigger asChild>
+                                                                            <HelpCircle className="h-4 w-4 text-blue-400 hover:text-blue-600 cursor-help" />
+                                                                        </TooltipTrigger>
+                                                                        <TooltipContent side="top" className="max-w-xs">
+                                                                            <p className="text-sm">
+                                                                                Enable this to make the event repeat over time. When enabled, you can set
+                                                                                the end date and frequency for the recurring event.
+                                                                            </p>
+                                                                        </TooltipContent>
+                                                                    </Tooltip>
+                                                                </TooltipProvider>
+                                                            </div>
+                                                        );
+                                                    })()}
+
+                                                    {ue.parameters.filter(param => {
+                                                        const recurringOnlyParams = ['end_time', 'frequency_days'];
+                                                        if (recurringOnlyParams.includes(param.type)) {
+                                                            return (ue as any).is_recurring || false;
+                                                        }
+                                                        return true;
+                                                    }).map(param => (
                                                         <div key={param.id} className="space-y-1">
                                                             <Label className="text-sm font-medium">
                                                                 {getParameterDisplayName(ue.type, param.type)}

@@ -6,7 +6,7 @@ import { localPoint } from '@visx/event';
 import { AxisLeft, AxisBottom } from '@visx/axis';
 import TimelineAnnotation from '../components/TimelineAnnotation';
 import { AreaClosed } from '@visx/shape';
-import { curveLinear } from '@visx/curve';
+import { curveLinear, curveStepAfter } from '@visx/curve';
 import { LinearGradient } from '@visx/gradient';
 import { TooltipWithBounds, defaultStyles } from '@visx/tooltip';
 import { runSimulation } from '../hooks/simulationRunner';
@@ -36,6 +36,64 @@ import type {
 } from './viz_utils';
 import { getAllEventsByDate } from './Events';
 import type { Plan } from '../contexts/PlanContext';
+
+// Helper function to normalize -0 to 0 and small values near zero
+const normalizeZero = (value: number): number => {
+  const threshold = 1e-10; // Very small threshold for floating point precision
+  return Math.abs(value) < threshold ? 0 : value;
+};
+
+// Helper function to detect if a transition is from/to zero (manhattan style needed)
+const isZeroTransition = (prevValue: number, currentValue: number): boolean => {
+  const prev = normalizeZero(prevValue);
+  const curr = normalizeZero(currentValue);
+  // True if going from 0 to value OR from value to 0
+  return (prev === 0 && curr !== 0) || (prev !== 0 && curr === 0);
+};
+
+// Helper function to split data into segments based on 0-to-value transitions
+const splitDataForMixedCurves = (data: any[], getValueFn: (d: any) => number) => {
+  if (data.length < 2) return { stepSegments: [], linearSegments: [data] };
+
+  const stepSegments: any[][] = [];
+  const linearSegments: any[][] = [];
+  let currentSegment: any[] = [data[0]];
+  let isCurrentSegmentStep = false;
+
+  for (let i = 1; i < data.length; i++) {
+    const prevValue = getValueFn(data[i - 1]);
+    const currentValue = getValueFn(data[i]);
+    const isStepTransition = isZeroTransition(prevValue, currentValue);
+
+    if (isStepTransition && !isCurrentSegmentStep) {
+      // Start a new step segment
+      if (currentSegment.length > 1) {
+        linearSegments.push(currentSegment);
+      }
+      currentSegment = [data[i - 1], data[i]];
+      isCurrentSegmentStep = true;
+    } else if (!isStepTransition && isCurrentSegmentStep) {
+      // End step segment, start linear segment
+      stepSegments.push(currentSegment);
+      currentSegment = [data[i - 1], data[i]];
+      isCurrentSegmentStep = false;
+    } else {
+      // Continue current segment
+      currentSegment.push(data[i]);
+    }
+  }
+
+  // Add the final segment
+  if (currentSegment.length > 1) {
+    if (isCurrentSegmentStep) {
+      stepSegments.push(currentSegment);
+    } else {
+      linearSegments.push(currentSegment);
+    }
+  }
+
+  return { stepSegments, linearSegments };
+};
 
 interface DraggingAnnotation {
   index: number; // the day/data point
@@ -239,7 +297,7 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
       const stackedParts: { [key: string]: { y0: number, y1: number } } = {};
 
       partKeys.forEach(key => {
-        const value = d.parts[key] || 0;
+        const value = normalizeZero(d.parts[key] || 0);
         if (value >= 0) {
           stackedParts[key] = { y0: posSum, y1: posSum + value };
           posSum += value;
@@ -251,6 +309,10 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
 
       return {
         ...d,
+        value: normalizeZero(d.value),
+        parts: Object.fromEntries(
+          Object.entries(d.parts).map(([key, val]) => [key, normalizeZero(val)])
+        ),
         stackedParts
       };
     });
@@ -489,8 +551,8 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
           const visibleYScale = useMemo(() => {
             if (!visibleData.length && !visibleLockedNetWorthData.length) return scaleLinear({ domain: [0, 1], range: [height, 0] });
             const allYValues = [
-              ...visibleData.flatMap((d: any) => [d.value, ...Object.values(d.parts)]),
-              ...visibleLockedNetWorthData.map(d => d.value)
+              ...visibleData.flatMap((d: any) => [normalizeZero(d.value), ...Object.values(d.parts).map((v: any) => normalizeZero(v))]),
+              ...visibleLockedNetWorthData.map(d => normalizeZero(d.value))
             ];
             const minY = Math.min(...allYValues);
             const adjustedMinY = minY > 0 ? 0 : minY;
@@ -752,41 +814,93 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
 
                 {/* Main content with zoom transform */}
                 <g transform={`translate(${zoom.transformMatrix.translateX},${zoom.transformMatrix.translateY}) scale(${zoom.transformMatrix.scaleX},${zoom.transformMatrix.scaleY})`}>
-                  {/* Add stacked areas */}
+                  {/* Add stacked areas with mixed curves */}
                   {Object.keys(netWorthData[0]?.parts || {}).map((partKey) => {
                     const category = getEnvelopeCategory(plan, partKey) || 'Uncategorized';
                     const color = categoryColors[category] || { area: '#ccc', line: '#888' };
+
+                    // Split data for this envelope part
+                    const { stepSegments, linearSegments } = splitDataForMixedCurves(
+                      stackedData,
+                      (d) => d.stackedParts[partKey].y1 - d.stackedParts[partKey].y0
+                    );
+
                     return (
-                      <AreaClosed
-                        key={`area-${partKey}`}
-                        data={stackedData}
-                        x={(d) => xScale(d.date)}
-                        y0={(d) => visibleYScale(d.stackedParts[partKey].y0)}
-                        y1={(d) => visibleYScale(d.stackedParts[partKey].y1)}
-                        yScale={visibleYScale}
-                        stroke="none"
-                        fill={color.area}
-                        fillOpacity={0.8}
-                        curve={curveLinear}
-                      />
+                      <g key={`area-group-${partKey}`}>
+                        {/* Render linear segments */}
+                        {linearSegments.map((segment, segIndex) => (
+                          <AreaClosed
+                            key={`area-linear-${partKey}-${segIndex}`}
+                            data={segment}
+                            x={(d) => xScale(d.date)}
+                            y0={(d) => visibleYScale(d.stackedParts[partKey].y0)}
+                            y1={(d) => visibleYScale(d.stackedParts[partKey].y1)}
+                            yScale={visibleYScale}
+                            stroke="none"
+                            fill={color.area}
+                            fillOpacity={0.8}
+                            curve={curveLinear}
+                          />
+                        ))}
+                        {/* Render step segments for 0↔value transitions */}
+                        {stepSegments.map((segment, segIndex) => (
+                          <AreaClosed
+                            key={`area-step-${partKey}-${segIndex}`}
+                            data={segment}
+                            x={(d) => xScale(d.date)}
+                            y0={(d) => visibleYScale(d.stackedParts[partKey].y0)}
+                            y1={(d) => visibleYScale(d.stackedParts[partKey].y1)}
+                            yScale={visibleYScale}
+                            stroke="none"
+                            fill={color.area}
+                            fillOpacity={0.8}
+                            curve={curveStepAfter}
+                          />
+                        ))}
+                      </g>
                     );
                   })}
 
-                  {/* Add top/bottom lines for each part */}
+                  {/* Add top/bottom lines for each part with mixed curves */}
                   {[...Object.keys(netWorthData[0]?.parts || {})].reverse().map((partKey) => {
                     const category = getEnvelopeCategory(plan, partKey) || 'Uncategorized';
                     const color = categoryColors[category] || { area: '#ccc', line: '#888' };
+
+                    // Split data for this envelope part
+                    const { stepSegments, linearSegments } = splitDataForMixedCurves(
+                      stackedData,
+                      (d) => d.stackedParts[partKey].y1 - d.stackedParts[partKey].y0
+                    );
+
                     return (
-                      <LinePath
-                        key={`line-${partKey}-edge`}
-                        data={stackedData}
-                        x={(d) => xScale(d.date)}
-                        y={(d) => visibleYScale(d.stackedParts[partKey].y1)}
-                        stroke={color.line}
-                        strokeWidth={1 / globalZoom}
-                        strokeOpacity={1}
-                        curve={curveLinear}
-                      />
+                      <g key={`line-group-${partKey}`}>
+                        {/* Render linear segments */}
+                        {linearSegments.map((segment, segIndex) => (
+                          <LinePath
+                            key={`line-linear-${partKey}-${segIndex}`}
+                            data={segment}
+                            x={(d) => xScale(d.date)}
+                            y={(d) => visibleYScale(d.stackedParts[partKey].y1)}
+                            stroke={color.line}
+                            strokeWidth={1 / globalZoom}
+                            strokeOpacity={1}
+                            curve={curveLinear}
+                          />
+                        ))}
+                        {/* Render step segments for 0↔value transitions */}
+                        {stepSegments.map((segment, segIndex) => (
+                          <LinePath
+                            key={`line-step-${partKey}-${segIndex}`}
+                            data={segment}
+                            x={(d) => xScale(d.date)}
+                            y={(d) => visibleYScale(d.stackedParts[partKey].y1)}
+                            stroke={color.line}
+                            strokeWidth={1 / globalZoom}
+                            strokeOpacity={1}
+                            curve={curveStepAfter}
+                          />
+                        ))}
+                      </g>
                     );
                   })}
 
@@ -941,6 +1055,7 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
                                   icon={getEventIcon(event.type)}
                                   label={event.description}
                                   highlighted={isHighlighted}
+                                  isRecurring={event.is_recurring}
                                   onClick={() => {
                                     if (!hasDragged) {
                                       onAnnotationClick?.(event.id);
@@ -1098,7 +1213,7 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
                   }}
                 >
                   <div style={{ fontSize: '12px' }}>
-                    <div>{formatNumber({ valueOf: () => tooltipData.value })}</div>
+                    <div>{formatNumber({ valueOf: () => normalizeZero(tooltipData.value) })}</div>
                     {/* {Object.entries(tooltipData.parts).map(([key, value]) => (
                       <div key={key} style={{ color: partColors[key] }}>
                         {key}: {formatNumber({ valueOf: () => value })}

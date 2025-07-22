@@ -6,10 +6,11 @@ import {
     buy_health_insurance, buy_life_insurance,
     receive_government_aid, invest_money,
     high_yield_savings_account, pay_taxes, buy_groceries, manual_correction,
-    get_wage_job, transfer_money, reoccuring_income, reoccuring_spending, reoccuring_transfer, reoccuring_income_changing_parameters,
+    get_wage_job, transfer_money, income_with_changing_parameters,
     declare_accounts, purchase,
     monthly_budgeting, roth_ira_contribution, tax_payment_estimated,
-    reoccuring_spending_inflation_adjusted, loan_amortization
+    reoccuring_spending_inflation_adjusted, loan_amortization,
+    federal_subsidized_loan, federal_unsubsidized_loan, private_student_loan
 } from './baseFunctions';
 import { evaluateResults } from './resultsEvaluation';
 import type { Plan, Schema } from '../contexts/PlanContext';
@@ -25,6 +26,7 @@ interface Datum {
 export function initializeEnvelopes(plan: Plan): Record<string, { functions: ((t: number) => number)[], growth_type: string, growth_rate: number, days_of_usefulness?: number, inflation_rate?: number }> {
     const envelopes: Record<string, { functions: ((t: number) => number)[], growth_type: string, growth_rate: number, days_of_usefulness?: number, inflation_rate?: number }> = {};
 
+    console.log("plan.envelopes", plan.envelopes);
     for (const env of plan.envelopes) {
         const name = env.name;
         const growth_type = env.growth || "None";
@@ -64,7 +66,7 @@ export async function runSimulation(
         const declareAccountsEvents: any[] = [];
 
         for (const event of parsedEvents) {
-            //console.log("Event: ", event.type)
+            //console.log("Event: ", event)
 
             // Skip manual_correction events during the first pass
             if (event.type === 'manual_correction') {
@@ -100,16 +102,16 @@ export async function runSimulation(
                 case 'pay_taxes': pay_taxes(event, envelopes); break;
                 case 'buy_groceries': buy_groceries(event, envelopes); break;
                 case 'transfer_money': transfer_money(event, envelopes); break;
-                case 'reoccuring_income': reoccuring_income(event, envelopes); break;
-                case 'reoccuring_income_changing_parameters': reoccuring_income_changing_parameters(event, envelopes); break;
-                case 'reoccuring_spending': reoccuring_spending(event, envelopes); break;
+                case 'income_with_changing_parameters': income_with_changing_parameters(event, envelopes); break;
                 case 'reoccuring_spending_inflation_adjusted': reoccuring_spending_inflation_adjusted(event, envelopes); break;
-                case 'reoccuring_transfer': reoccuring_transfer(event, envelopes); break;
                 case 'pass_away': pass_away(event, envelopes); break;
                 case 'monthly_budgeting': monthly_budgeting(event, envelopes); break;
                 case 'roth_ira_contribution': roth_ira_contribution(event, envelopes); break;
                 case 'tax_payment_estimated': tax_payment_estimated(event, envelopes); break;
                 case 'loan_amortization': loan_amortization(event, envelopes); break;
+                case 'federal_subsidized_loan': federal_subsidized_loan(event, envelopes); break;
+                case 'federal_unsubsidized_loan': federal_unsubsidized_loan(event, envelopes); break;
+                case 'private_student_loan': private_student_loan(event, envelopes); break;
                 default:
                     console.warn(`⚠️ Unhandled event type: ${event.type}`);
             }

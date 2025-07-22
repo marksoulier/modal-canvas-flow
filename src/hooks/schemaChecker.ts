@@ -160,6 +160,7 @@ export function parseEvents(problem: any) {
         id: event.id,
         type: event.type,
         description: event.description || "",
+        is_recurring: event.is_recurring || false,
         parameters: Object.fromEntries(event.parameters.map((p: any) => [p.type, p.value])),
         updating_events: (event.updating_events || []).map((upd: any) => ({
             id: upd.id,

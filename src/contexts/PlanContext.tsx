@@ -53,6 +53,7 @@ export const iconMap: Record<string, string> = {
     'arrow-right': 'ArrowRight', // Lucide: ArrowRight
     'arrow-left': 'ArrowLeft', // Lucide: ArrowLeft
     'arrow-right-left': 'ArrowRightLeft', // Lucide: ArrowRightLeft
+    'credit-card': 'CreditCard', // Lucide: CreditCard
 };
 
 // Types for the plan data structure
@@ -66,6 +67,7 @@ export interface UpdatingEvent {
     id: number;
     type: string;
     description: string;
+    is_recurring: boolean;
     parameters: Parameter[];
 }
 
@@ -73,6 +75,7 @@ export interface Event {
     id: number;
     type: string;
     description: string;
+    is_recurring: boolean;
     parameters: Parameter[];
     updating_events?: UpdatingEvent[];
 }
@@ -83,6 +86,7 @@ export interface Envelope {
     growth: string;
     rate?: number;
     days_of_usefulness?: number;
+    account_type: string;
 }
 
 export interface Plan {
@@ -111,6 +115,8 @@ export interface SchemaUpdatingEvent {
     description: string;
     parameters: SchemaParameter[];
     display_event?: boolean;
+    is_recurring?: boolean; // defualt to what reoccuring nature should start as when added to the plan.
+    can_be_reocurring?: boolean; // Schema parameter seeing if this event can be reoccuring or not
 }
 
 export interface SchemaEvent {
@@ -124,6 +130,7 @@ export interface SchemaEvent {
     updating_events?: SchemaUpdatingEvent[];
     disclaimer?: string;
     display_event?: boolean;
+    is_recurring?: boolean;
 }
 
 export interface Schema {
@@ -163,6 +170,8 @@ interface PlanContextType {
     updatePlanInflationRate: (newRate: number) => void; // <-- add this
     lockPlan: () => void; // <-- add this
     updateRetirementGoal: (newGoal: number) => void; // <-- add this
+    canEventBeRecurring: (eventId: number) => boolean; // <-- add this
+    updateEventRecurring: (eventId: number, isRecurring: boolean) => void; // <-- add this
 }
 
 // Schema and default data are now imported directly
@@ -445,7 +454,7 @@ export function PlanProvider({ children }: PlanProviderProps) {
 
         // For the start_time and end_time parameters add the current day value
         parameters.forEach(param => {
-            if (param.type === 'start_time' || param.type === 'end_time') {
+            if (param.type === 'start_time' || param.type === 'end_time' || param.type === 'graduation_date') {
                 param.value = Number(param.value) + currentDay;
             }
         });
@@ -455,6 +464,7 @@ export function PlanProvider({ children }: PlanProviderProps) {
             id: newId,
             type: eventType,
             description: eventSchema.description,
+            is_recurring: eventSchema.is_recurring || false,
             parameters: parameters,
             updating_events: []
         };
@@ -518,6 +528,7 @@ export function PlanProvider({ children }: PlanProviderProps) {
             id: newId,
             type: updatingEventType,
             description: updatingEventSchema.description,
+            is_recurring: updatingEventSchema.is_recurring || false,
             parameters: parameters
         };
 
@@ -764,6 +775,57 @@ export function PlanProvider({ children }: PlanProviderProps) {
         return parameter?.options || [];
     }, [schema]);
 
+    // Helper to check if the current event can be recurring based on schema
+    const canEventBeRecurring = useCallback((eventId: number): boolean => {
+        if (!schema || !plan) return false;
+        const { event, parentEvent } = findEventOrUpdatingEventById(plan, eventId);
+        if (!event) return false;
+
+        if (parentEvent) {
+            // This is an updating event, check in updating_events schema
+            const mainSchemaEvent = schema.events.find(e => e.type === (parentEvent as any).type);
+            const updatingSchemaEvent = mainSchemaEvent?.updating_events?.find(ue => ue.type === (event as any).type);
+            return (updatingSchemaEvent as any)?.can_be_reocurring === true;
+        } else {
+            // This is a main event
+            const schemaEvent = schema.events.find(e => e.type === (event as any).type);
+            return (schemaEvent as any)?.can_be_reocurring === true;
+        }
+    }, [schema, plan]);
+
+    // Function to update event recurring status
+    const updateEventRecurring = useCallback((eventId: number, isRecurring: boolean) => {
+        if (!plan) {
+            throw new Error('No plan data available');
+        }
+
+        setPlan(prevPlan => {
+            if (!prevPlan) return null;
+
+            const updatedEvents = prevPlan.events.map(event => {
+                // Check if this is the main event we're looking for
+                if (event.id === eventId) {
+                    return { ...event, is_recurring: isRecurring };
+                }
+
+                // Check updating_events if they exist
+                if (event.updating_events) {
+                    const updatedUpdatingEvents = event.updating_events.map(updatingEvent => {
+                        if (updatingEvent.id === eventId) {
+                            return { ...updatingEvent, is_recurring: isRecurring };
+                        }
+                        return updatingEvent;
+                    });
+                    return { ...event, updating_events: updatedUpdatingEvents };
+                }
+
+                return event;
+            });
+
+            return { ...prevPlan, events: updatedEvents };
+        });
+    }, [plan]);
+
     const value = {
         plan,
         plan_locked, // <-- add to context value
@@ -791,6 +853,8 @@ export function PlanProvider({ children }: PlanProviderProps) {
         updatePlanInflationRate, // <-- add to context value
         lockPlan, // <-- add to context value
         updateRetirementGoal, // <-- add to context value
+        canEventBeRecurring, // <-- add to context value
+        updateEventRecurring, // <-- add to context value
     };
 
     // Don't render children until we've attempted to load the default plan and schema

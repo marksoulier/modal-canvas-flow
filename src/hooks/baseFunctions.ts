@@ -265,17 +265,34 @@ export const outflow = (event: any, envelopes: Record<string, any>) => {
 
     // Get growth parameters for source envelope
     const [theta_growth_source] = get_growth_parameters(envelopes, params.from_key);
-    // Create a one-time outflow function for the purchase
-    const purchase_func = T(
-        { t_k: params.start_time },
-        f_out,
-        P({ b: params.amount }),
-        theta_growth_source
-    );
 
-    // Add the purchase function to the specified envelope
-    const from_key = params.from_key;
-    envelopes[from_key].functions.push(purchase_func);
+    //See if event is reoccuring or not
+    const is_recurring = event.is_recurring;
+    if (is_recurring) {
+        // Create a recurring outflow function for the purchase
+        const outflow_func = R(
+            { t0: params.start_time, dt: params.frequency_days, tf: params.end_time },
+            f_out,
+            P({ b: params.amount }),
+            theta_growth_source
+        );
+        // Add the purchase function to the specified envelope
+        envelopes[params.from_key].functions.push(outflow_func);
+    } else {
+        // Create a one-time outflow function for the purchase
+
+        // Create a one-time outflow function for the purchase
+        const purchase_func = T(
+            { t_k: params.start_time },
+            f_out,
+            P({ b: params.amount }),
+            theta_growth_source
+        );
+
+        // Add the purchase function to the specified envelope
+        const from_key = params.from_key;
+        envelopes[from_key].functions.push(purchase_func);
+    }
 };
 
 export const inflow = (event: any, envelopes: Record<string, any>) => {
@@ -284,18 +301,31 @@ export const inflow = (event: any, envelopes: Record<string, any>) => {
     // Get growth parameters for source envelope
     const [theta_growth_dest] = get_growth_parameters(envelopes, params.to_key);
 
-    // Create a one-time inflow function for the purchase
-    const purchase_func = T(
-        { t_k: params.start_time },
-        f_in,
-        P({ a: params.amount }),
-        theta_growth_dest
-    );
-    // Add the purchase function to the specified envelope
-    envelopes[params.to_key].functions.push(purchase_func);
-}
+    //See if event is reoccuring or not
+    const is_recurring = event.is_recurring;
+    if (is_recurring) {
+        // Create a recurring inflow function for the purchase
+        const inflow_func = R(
+            { t0: params.start_time, dt: params.frequency_days, tf: params.end_time },
+            f_in,
+            P({ a: params.amount }),
+            theta_growth_dest
+        );
+        // Add the purchase function to the specified envelope
+        envelopes[params.to_key].functions.push(inflow_func);
+    } else {
+        // Create a one-time inflow function for the purchase
+        const inflow_func = T(
+            { t_k: params.start_time },
+            f_in,
+            P({ a: params.amount }),
+            theta_growth_dest
+        );
 
-// f_get_wage_job: recurring wage payments - REMOVED (no longer used)
+        // Add the purchase function to the specified envelope
+        envelopes[params.to_key].functions.push(inflow_func);
+    }
+}
 
 export const manual_correction = (event: any, envelopes: Record<string, any>) => {
     const params = event.parameters;
@@ -393,43 +423,48 @@ export const transfer_money = (event: any, envelopes: Record<string, any>) => {
         envelopes, params.from_key, params.to_key
     );
 
-    // Create outflow function for source envelope
-    const outflow_func = T(
-        { t_k: params.start_time },
-        f_out,
-        P({ b: params.amount }),
-        theta_growth_source
-    );
-    envelopes[params.from_key].functions.push(outflow_func);
+    //See if event is recurring or not
+    const is_recurring = event.is_recurring;
+    if (is_recurring) {
+        // Create recurring outflow function for source envelope
+        const outflow_func = R(
+            { t0: params.start_time, dt: params.frequency_days, tf: params.end_time },
+            f_out,
+            P({ b: params.amount }),
+            theta_growth_source
+        );
+        envelopes[params.from_key].functions.push(outflow_func);
 
-    // Create inflow function for destination envelope with growth
-    const inflow_func = T(
-        { t_k: params.start_time },
-        f_in,
-        P({ a: params.amount }),
-        theta_growth_dest
-    );
-    envelopes[params.to_key].functions.push(inflow_func);
+        // Create recurring inflow function for destination envelope
+        const inflow_func = R(
+            { t0: params.start_time, dt: params.frequency_days, tf: params.end_time },
+            f_in,
+            P({ a: params.amount }),
+            theta_growth_dest
+        );
+        envelopes[params.to_key].functions.push(inflow_func);
+    } else {
+        // Create one-time outflow function for source envelope
+        const outflow_func = T(
+            { t_k: params.start_time },
+            f_out,
+            P({ b: params.amount }),
+            theta_growth_source
+        );
+        envelopes[params.from_key].functions.push(outflow_func);
+
+        // Create one-time inflow function for destination envelope
+        const inflow_func = T(
+            { t_k: params.start_time },
+            f_in,
+            P({ a: params.amount }),
+            theta_growth_dest
+        );
+        envelopes[params.to_key].functions.push(inflow_func);
+    }
 };
 
-export const reoccuring_income = (event: any, envelopes: Record<string, any>) => {
-    const params = event.parameters;
-
-    // Get growth parameters for destination envelope
-    const [_, theta_growth_dest] = get_growth_parameters(envelopes, undefined, params.to_key);
-
-    // Create recurring income function
-    const income_func = R(
-        { t0: params.start_time, dt: params.frequency_days, tf: params.end_time },
-        f_in,
-        P({ a: params.amount }),
-        theta_growth_dest
-    );
-
-    envelopes[params.to_key].functions.push(income_func);
-};
-
-export const reoccuring_income_changing_parameters = (event: any, envelopes: Record<string, any>) => {
+export const income_with_changing_parameters = (event: any, envelopes: Record<string, any>) => {
     const params = event.parameters;
 
     // Get growth parameters for destination envelope
@@ -519,68 +554,35 @@ export const loan_amortization = (event: any, envelopes: Record<string, any>) =>
     envelopes[params.from_key].functions.push(payments_func);
 };
 
-export const reoccuring_spending = (event: any, envelopes: Record<string, any>) => {
-    const params = event.parameters;
-
-    // Get growth parameters for source envelope
-    const [theta_growth_source, _] = get_growth_parameters(envelopes, params.from_key);
-
-    // Create recurring spending function
-    const spending_func = R(
-        { t0: params.start_time, dt: params.frequency_days, tf: params.end_time },
-        f_out,
-        P({ b: params.amount }),
-        theta_growth_source
-    );
-
-    envelopes[params.from_key].functions.push(spending_func);
-};
-
-export const reoccuring_transfer = (event: any, envelopes: Record<string, any>) => {
-    const params = event.parameters;
-
-    // Get growth parameters for both envelopes
-    const [theta_growth_source, theta_growth_dest] = get_growth_parameters(
-        envelopes, params.from_key, params.to_key
-    );
-
-    // Outflow from source envelope
-    const outflow_func = R(
-        { t0: params.start_time, dt: params.frequency_days, tf: params.end_time },
-        f_out,
-        P({ b: params.amount }),
-        theta_growth_source
-    );
-
-    envelopes[params.from_key].functions.push(outflow_func);
-
-    // Inflow to destination envelope
-    const inflow_func = R(
-        { t0: params.start_time, dt: params.frequency_days, tf: params.end_time },
-        f_in,
-        P({ a: params.amount }),
-        theta_growth_dest
-    );
-    envelopes[params.to_key].functions.push(inflow_func);
-};
-
 export const purchase = (event: any, envelopes: Record<string, any>) => {
     const params = event.parameters;
 
     // Get growth parameters for source envelope
     const [theta_growth_source, _] = get_growth_parameters(envelopes, params.from_key);
 
-    // Create a one-time outflow function for the purchase
-    const purchase_func = T(
-        { t_k: params.start_time },
-        f_out,
-        P({ b: params.money }),
-        theta_growth_source
-    );
-
-    // Add the purchase function to the specified envelope
-    const from_key = params.from_key;
-    envelopes[from_key].functions.push(purchase_func);
+    //See if event is recurring or not
+    const is_recurring = event.is_recurring;
+    if (is_recurring) {
+        // Create a recurring outflow function for the purchase
+        const purchase_func = R(
+            { t0: params.start_time, dt: params.frequency_days, tf: params.end_time },
+            f_out,
+            P({ b: params.money }),
+            theta_growth_source
+        );
+        // Add the purchase function to the specified envelope
+        envelopes[params.from_key].functions.push(purchase_func);
+    } else {
+        // Create a one-time outflow function for the purchase
+        const purchase_func = T(
+            { t_k: params.start_time },
+            f_out,
+            P({ b: params.money }),
+            theta_growth_source
+        );
+        // Add the purchase function to the specified envelope
+        envelopes[params.from_key].functions.push(purchase_func);
+    }
 };
 
 
@@ -590,9 +592,29 @@ export const gift = (event: any, envelopes: Record<string, any>) => {
     // Get growth parameters from destination envelope
     const [_, theta_growth_dest] = get_growth_parameters(envelopes, undefined, params.to_key);
 
-    envelopes[params.to_key].functions.push(
-        T({ t_k: params.start_time }, f_in, P({ a: params.money }), theta_growth_dest)
-    );
+    //See if event is recurring or not
+    const is_recurring = event.is_recurring;
+    if (is_recurring) {
+        // Create a recurring gift function
+        const gift_func = R(
+            { t0: params.start_time, dt: params.frequency_days, tf: params.end_time },
+            f_in,
+            P({ a: params.money }),
+            theta_growth_dest
+        );
+        // Add the gift function to the specified envelope
+        envelopes[params.to_key].functions.push(gift_func);
+    } else {
+        // Create a one-time gift function
+        const gift_func = T(
+            { t_k: params.start_time },
+            f_in,
+            P({ a: params.money }),
+            theta_growth_dest
+        );
+        // Add the gift function to the specified envelope
+        envelopes[params.to_key].functions.push(gift_func);
+    }
 };
 
 
@@ -1104,21 +1126,32 @@ export const buy_home_insurance = (event: any, envelopes: Record<string, any>) =
 
 export const have_kid = (event: any, envelopes: Record<string, any>) => {
     const params = event.parameters;
+    const from_key = params.from_key;
 
     // Get growth parameters for source envelope
     const [theta_growth_source, _] = get_growth_parameters(envelopes, params.from_key);
 
-    // Handle initial costs (outflow)
-    const initial_costs = T(
-        { t_k: params.start_time },
-        f_out,
-        P({ b: params.initial_costs }),
-        theta_growth_source
-    );
-
-    // Add initial costs to source envelope
-    const from_key = params.from_key;
-    envelopes[from_key].functions.push(initial_costs);
+    //See if event is recurring or not
+    const is_recurring = event.is_recurring;
+    if (is_recurring) {
+        // Create a recurring initial costs function
+        const initial_costs = R(
+            { t0: params.start_time, dt: params.frequency_days, tf: params.end_time },
+            f_out,
+            P({ b: params.initial_costs }),
+            theta_growth_source
+        );
+        envelopes[from_key].functions.push(initial_costs);
+    } else {
+        // Handle initial costs (one-time outflow)
+        const initial_costs = T(
+            { t_k: params.start_time },
+            f_out,
+            P({ b: params.initial_costs }),
+            theta_growth_source
+        );
+        envelopes[from_key].functions.push(initial_costs);
+    }
 
     // Handle updating events
     for (const upd of event.updating_events || []) {
@@ -1337,35 +1370,53 @@ export const receive_government_aid = (event: any, envelopes: Record<string, any
 
 export const invest_money = (event: any, envelopes: Record<string, any>) => {
     const params = event.parameters;
+    const from_key = params.from_key;
+    const to_key = params.to_key;
 
     // Get growth parameters for both envelopes
     const [theta_growth_source, theta_growth_dest] = get_growth_parameters(
         envelopes, params.from_key, params.to_key
     );
 
-    // Handle initial investment (outflow)
-    const initial_investment = T(
-        { t_k: params.start_time },
-        f_out,
-        P({ b: params.amount }),
-        theta_growth_source
-    );
+    //See if event is recurring or not
+    const is_recurring = event.is_recurring;
+    if (is_recurring) {
+        // Create recurring investment functions
+        const initial_investment = R(
+            { t0: params.start_time, dt: params.frequency_days, tf: params.end_time },
+            f_out,
+            P({ b: params.amount }),
+            theta_growth_source
+        );
+        envelopes[from_key].functions.push(initial_investment);
 
-    // Add initial investment to source envelope
-    const from_key = params.from_key;
-    envelopes[from_key].functions.push(initial_investment);
+        // Create recurring investment growth function
+        const investment_func = R(
+            { t0: params.start_time, dt: params.frequency_days, tf: params.end_time },
+            f_in,
+            P({ a: params.amount }),
+            theta_growth_dest
+        );
+        envelopes[to_key].functions.push(investment_func);
+    } else {
+        // Handle one-time investment (original logic)
+        const initial_investment = T(
+            { t_k: params.start_time },
+            f_out,
+            P({ b: params.amount }),
+            theta_growth_source
+        );
+        envelopes[from_key].functions.push(initial_investment);
 
-    // Create investment growth function
-    const investment_func = T(
-        { t_k: params.start_time },
-        f_in,
-        P({ a: params.amount }),
-        theta_growth_dest
-    );
-
-    // Add investment growth to target envelope
-    const to_key = params.to_key;
-    envelopes[to_key].functions.push(investment_func);
+        // Create investment growth function
+        const investment_func = T(
+            { t_k: params.start_time },
+            f_in,
+            P({ a: params.amount }),
+            theta_growth_dest
+        );
+        envelopes[to_key].functions.push(investment_func);
+    }
 
     // Handle updating events
     for (const upd of event.updating_events || []) {
@@ -1406,55 +1457,83 @@ export const invest_money = (event: any, envelopes: Record<string, any>) => {
 
 export const high_yield_savings_account = (event: any, envelopes: Record<string, any>) => {
     const params = event.parameters;
+    const from_key = params.from_key;
+    const to_key = params.to_key;
 
     // Get growth parameters for both envelopes
     const [theta_growth_source, theta_growth_dest] = get_growth_parameters(
         envelopes, params.from_key, params.to_key
     );
 
-    // Handle initial deposit (outflow)
-    const initial_deposit = T(
-        { t_k: params.start_time },
-        f_out,
-        P({ b: params.amount }),
-        theta_growth_source
-    );
+    //See if event is recurring or not
+    const is_recurring = event.is_recurring;
+    if (is_recurring) {
+        // Create recurring deposits to savings account
+        const initial_deposit = R(
+            { t0: params.start_time, dt: params.frequency_days || 30, tf: params.end_time || params.start_time + 3650 },
+            f_out,
+            P({ b: params.amount }),
+            theta_growth_source
+        );
+        envelopes[from_key].functions.push(initial_deposit);
 
-    // Add initial deposit to source envelope
-    const from_key = params.from_key;
-    envelopes[from_key].functions.push(initial_deposit);
+        // Create recurring savings growth function
+        const savings_func = R(
+            { t0: params.start_time, dt: params.frequency_days || 30, tf: params.end_time || params.start_time + 3650 },
+            f_in,
+            P({ a: params.amount }),
+            theta_growth_dest
+        );
+        envelopes[to_key].functions.push(savings_func);
+    } else {
+        // Handle one-time account opening and initial deposit
+        const initial_deposit = T(
+            { t_k: params.start_time },
+            f_out,
+            P({ b: params.amount }),
+            theta_growth_source
+        );
+        envelopes[from_key].functions.push(initial_deposit);
 
-    // Create savings growth function with daily compounding
-    const savings_func = T(
-        { t_k: params.start_time },
-        f_in,
-        P({ a: params.amount }),
-        theta_growth_dest
-    );
-
-    // Add savings growth to target envelope
-    const to_key = params.to_key;
-    envelopes[to_key].functions.push(savings_func);
+        // Create one-time savings growth function
+        const savings_func = T(
+            { t_k: params.start_time },
+            f_in,
+            P({ a: params.amount }),
+            theta_growth_dest
+        );
+        envelopes[to_key].functions.push(savings_func);
+    }
 };
 
 export const buy_groceries = (event: any, envelopes: Record<string, any>) => {
     const params = event.parameters;
+    const from_key = params.from_key;
 
     // Get growth parameters for source envelope
     const [theta_growth_source, _] = get_growth_parameters(envelopes, params.from_key);
 
-    // Create recurring monthly grocery payment function
-    const grocery_func = R(
-        { t0: params.start_time, dt: 30, tf: params.start_time + params.end_time },
-        f_out,
-        P({ b: params.monthly_amount }),
-        theta_growth_source
-    );
-
-    // Add grocery payments to source envelope
-    const from_key = params.from_key;
-    envelopes[from_key].functions.push(grocery_func);
-
+    //See if event is recurring or not
+    const is_recurring = event.is_recurring;
+    if (is_recurring) {
+        // Create recurring monthly grocery payment function
+        const grocery_func = R(
+            { t0: params.start_time, dt: 30, tf: params.start_time + params.end_time },
+            f_out,
+            P({ b: params.monthly_amount }),
+            theta_growth_source
+        );
+        envelopes[from_key].functions.push(grocery_func);
+    } else {
+        // Create one-time grocery purchase function
+        const grocery_func = T(
+            { t_k: params.start_time },
+            f_out,
+            P({ b: params.monthly_amount }),
+            theta_growth_source
+        );
+        envelopes[from_key].functions.push(grocery_func);
+    }
 };
 export const roth_ira_contribution = (event: any, envelopes: Record<string, any>) => {
     const params = event.parameters;
@@ -1467,23 +1546,45 @@ export const roth_ira_contribution = (event: any, envelopes: Record<string, any>
     // Get growth parameters for both envelopes
     const [theta_growth_source, theta_growth_dest] = get_growth_parameters(envelopes, from_key, to_key);
 
-    // Recurring outflow from source envelope
-    const outflow_func = R(
-        { t0: start_time, dt: params.frequency_days, tf: end_time },
-        f_out,
-        P({ b: amount }),
-        theta_growth_source
-    );
-    envelopes[from_key].functions.push(outflow_func);
+    //See if event is recurring or not
+    const is_recurring = event.is_recurring;
+    if (is_recurring) {
+        // Recurring outflow from source envelope
+        const outflow_func = R(
+            { t0: start_time, dt: params.frequency_days, tf: end_time },
+            f_out,
+            P({ b: amount }),
+            theta_growth_source
+        );
+        envelopes[from_key].functions.push(outflow_func);
 
-    // Recurring inflow to Roth IRA envelope
-    const inflow_func = R(
-        { t0: start_time, dt: params.frequency_days, tf: end_time },
-        f_in,
-        P({ a: amount }),
-        theta_growth_dest
-    );
-    envelopes[to_key].functions.push(inflow_func);
+        // Recurring inflow to Roth IRA envelope
+        const inflow_func = R(
+            { t0: start_time, dt: params.frequency_days, tf: end_time },
+            f_in,
+            P({ a: amount }),
+            theta_growth_dest
+        );
+        envelopes[to_key].functions.push(inflow_func);
+    } else {
+        // One-time outflow from source envelope
+        const outflow_func = T(
+            { t_k: start_time },
+            f_out,
+            P({ b: amount }),
+            theta_growth_source
+        );
+        envelopes[from_key].functions.push(outflow_func);
+
+        // One-time inflow to Roth IRA envelope
+        const inflow_func = T(
+            { t_k: start_time },
+            f_in,
+            P({ a: amount }),
+            theta_growth_dest
+        );
+        envelopes[to_key].functions.push(inflow_func);
+    }
 };
 
 export const tax_payment_estimated = (event: any, envelopes: Record<string, any>) => {
@@ -1491,18 +1592,227 @@ export const tax_payment_estimated = (event: any, envelopes: Record<string, any>
     const from_key = params.from_key;
     const start_time = params.start_time;
     const end_time = params.end_time;
+
     // Estimate taxes owed
     const estimated_tax = estimate_taxes(params);
 
     // Get growth parameters for source envelope
     const [theta_growth_source, _] = get_growth_parameters(envelopes, from_key);
 
-    // Create a recurring outflow for the estimated tax
-    const outflow_func = T(
-        { t_k: start_time },
+    //See if event is recurring or not
+    const is_recurring = event.is_recurring;
+    if (is_recurring) {
+        // Create a recurring outflow for the estimated tax
+        const outflow_func = R(
+            { t0: start_time, dt: params.frequency_days || 365, tf: end_time },
+            f_out,
+            P({ b: estimated_tax }),
+            theta_growth_source
+        );
+        envelopes[from_key].functions.push(outflow_func);
+    } else {
+        // Create a one-time outflow for the estimated tax
+        const outflow_func = T(
+            { t_k: start_time },
+            f_out,
+            P({ b: estimated_tax }),
+            theta_growth_source
+        );
+        envelopes[from_key].functions.push(outflow_func);
+    }
+};
+
+// Helper function to calculate daily compound interest for student loans
+const calculateAccumulatedDebt = (principal: number, annualRate: number, timeInDays: number): number => {
+    // Daily compound interest formula: A = P(1 + r/365)^days
+    return principal * Math.pow(1 + annualRate / 365, timeInDays);
+};
+
+export const federal_subsidized_loan = (event: any, envelopes: Record<string, any>) => {
+    const params = event.parameters;
+
+    // Get growth parameters for source and destination envelopes
+    const [theta_growth_source, theta_growth_dest] = get_growth_parameters(
+        envelopes, params.from_key, params.to_key
+    );
+
+    //loan going straight to school.
+
+    // Add debt to student loans envelope (negative balance)
+    const loan_debt = T(
+        { t_k: params.start_time },
         f_out,
-        P({ b: estimated_tax }),
+        P({ b: params.amount }),
+        theta_growth_dest
+    );
+    envelopes[params.to_key].functions.push(loan_debt);
+
+    // Calculate when payments begin: graduation_date + 6 months (180 days)
+    const payment_start_time = params.graduation_date + 180;
+
+    // For subsidized loans, no interest accrues during school, so debt amount remains the same
+    const accumulated_debt_amount = params.amount;
+
+    // Standard 10-year repayment schedule
+    const loan_term_years = params.loan_term_years;
+    const payment_end_time = payment_start_time + loan_term_years * 365 - 30;
+
+    // Get interest rate from the Student Loans envelope
+    const interest_rate = envelopes[params.to_key].growth_rate || 0.055; // Default 5.5% if not specified
+
+    // Monthly payments from cash (includes both principal and interest)
+    const monthly_payments = R(
+        { t0: payment_start_time, dt: 365 / 12, tf: payment_end_time },
+        f_monthly_payment,
+        P({ P: accumulated_debt_amount, r: interest_rate, y: loan_term_years }),
         theta_growth_source
     );
-    envelopes[from_key].functions.push(outflow_func);
+    envelopes[params.from_key].functions.push(monthly_payments);
+
+    // Monthly principal payments to reduce debt (positive payments to debt envelope)
+    const principal_payments = R(
+        { t0: payment_start_time, dt: 365 / 12, tf: payment_end_time },
+        f_principal_payment,
+        P({ P: accumulated_debt_amount, r: interest_rate, y: loan_term_years }),
+        theta_growth_dest
+    );
+    envelopes[params.to_key].functions.push(principal_payments);
+};
+
+export const federal_unsubsidized_loan = (event: any, envelopes: Record<string, any>) => {
+    const params = event.parameters;
+
+    // Get growth parameters for source, during-school, and after-school envelopes
+    const [theta_growth_source, theta_growth_during, theta_growth_after] = get_growth_parameters(
+        envelopes, params.from_key, params.to_key, params.after_school_key
+    );
+
+    // Add debt to student loans during-school envelope (negative balance) - interest accrues during school
+    const loan_debt = T(
+        { t_k: params.start_time },
+        f_out,
+        P({ b: params.amount }),
+        theta_growth_during
+    );
+    envelopes[params.to_key].functions.push(loan_debt);
+
+    // Calculate when payments begin: graduation_date + 6 months (180 days)
+    const payment_start_time = params.graduation_date + 180;
+    console.log("To_key envelope", envelopes[params.to_key]);
+    // Calculate accumulated debt using daily compound interest
+    const interest_accrual_days = payment_start_time - params.start_time;
+    const during_school_rate = envelopes[params.to_key].growth_rate; // Get rate from during-school envelope
+    const accumulated_debt_amount = calculateAccumulatedDebt(params.amount, during_school_rate, interest_accrual_days);
+
+    // Transfer debt out of during-school envelope
+    const debt_transfer_out = T(
+        { t_k: payment_start_time },
+        f_in, // Positive to remove the negative debt balance
+        P({ a: accumulated_debt_amount }),
+        theta_growth_during
+    );
+    envelopes[params.to_key].functions.push(debt_transfer_out);
+
+    // Transfer accumulated debt into after-school envelope
+    const debt_transfer_in = T(
+        { t_k: payment_start_time },
+        f_out, // Negative to create debt balance
+        P({ b: accumulated_debt_amount }),
+        theta_growth_after
+    );
+    envelopes[params.after_school_key].functions.push(debt_transfer_in);
+
+    // Standard 10-year repayment schedule starting after transfer
+    const loan_term_years = params.loan_term_years;
+    const payment_end_time = payment_start_time + loan_term_years * 365 - 30;
+
+    // Get interest rate from the after-school Student Loans envelope
+    const interest_rate = envelopes[params.to_key].growth_rate; // Default 6.5% for unsubsidized
+
+    // Monthly payments from cash (includes both principal and interest)
+    const monthly_payments = R(
+        { t0: payment_start_time, dt: 365 / 12, tf: payment_end_time },
+        f_monthly_payment,
+        P({ P: accumulated_debt_amount, r: interest_rate, y: loan_term_years }),
+        theta_growth_source
+    );
+    envelopes[params.from_key].functions.push(monthly_payments);
+
+    // Monthly principal payments to reduce debt in after-school envelope
+    const principal_payments = R(
+        { t0: payment_start_time, dt: 365 / 12, tf: payment_end_time },
+        f_principal_payment,
+        P({ P: accumulated_debt_amount, r: interest_rate, y: loan_term_years }),
+        theta_growth_after
+    );
+    envelopes[params.after_school_key].functions.push(principal_payments);
+};
+
+export const private_student_loan = (event: any, envelopes: Record<string, any>) => {
+    const params = event.parameters;
+
+    // Get growth parameters for source, during-school, and after-school envelopes
+    const [theta_growth_source, theta_growth_during, theta_growth_after] = get_growth_parameters(
+        envelopes, params.from_key, params.to_key, params.after_school_key
+    );
+
+    // Add debt to student loans during-school envelope (negative balance) - interest accrues during school
+    const loan_debt = T(
+        { t_k: params.start_time },
+        f_out,
+        P({ b: params.amount }),
+        theta_growth_during
+    );
+    envelopes[params.to_key].functions.push(loan_debt);
+
+    // Calculate when payments begin: graduation_date + 6 months (180 days)
+    const payment_start_time = params.graduation_date + 180;
+
+    // Calculate accumulated debt using daily compound interest
+    const interest_accrual_days = payment_start_time - params.start_time;
+    const during_school_rate = envelopes[params.to_key].growth_rate; // Get rate from during-school envelope (higher for private)
+    const accumulated_debt_amount = calculateAccumulatedDebt(params.amount, during_school_rate, interest_accrual_days);
+
+    // Transfer debt out of during-school envelope
+    const debt_transfer_out = T(
+        { t_k: payment_start_time },
+        f_in, // Positive to remove the negative debt balance
+        P({ a: accumulated_debt_amount }),
+        theta_growth_during
+    );
+    envelopes[params.to_key].functions.push(debt_transfer_out);
+
+    // Transfer accumulated debt into after-school envelope
+    const debt_transfer_in = T(
+        { t_k: payment_start_time },
+        f_out, // Negative to create debt balance
+        P({ b: accumulated_debt_amount }),
+        theta_growth_after
+    );
+    envelopes[params.after_school_key].functions.push(debt_transfer_in);
+
+    // Standard 10-year repayment schedule starting after transfer
+    const loan_term_years = params.loan_term_years;
+    const payment_end_time = payment_start_time + loan_term_years * 365 - 30;
+
+    // Get interest rate from the during-school envelope (private loans typically have higher rates)
+    const interest_rate = envelopes[params.to_key].growth_rate; // Default 6.5% for private loans
+
+    // Monthly payments from cash (includes both principal and interest)
+    const monthly_payments = R(
+        { t0: payment_start_time, dt: 365 / 12, tf: payment_end_time },
+        f_monthly_payment,
+        P({ P: accumulated_debt_amount, r: interest_rate, y: loan_term_years }),
+        theta_growth_source
+    );
+    envelopes[params.from_key].functions.push(monthly_payments);
+
+    // Monthly principal payments to reduce debt in after-school envelope
+    const principal_payments = R(
+        { t0: payment_start_time, dt: 365 / 12, tf: payment_end_time },
+        f_principal_payment,
+        P({ P: accumulated_debt_amount, r: interest_rate, y: loan_term_years }),
+        theta_growth_after
+    );
+    envelopes[params.after_school_key].functions.push(principal_payments);
 }; 
