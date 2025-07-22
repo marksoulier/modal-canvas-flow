@@ -15,6 +15,7 @@ import EventLibraryModal from '../components/EventLibraryModal';
 import AuthModal from '../components/AuthModal';
 import SubscriptionModal from '../components/SubscriptionModal';
 import UserAccountModal from '../components/UserAccountModal';
+import PlaidDemo from '../components/PlaidDemo';
 import EventParameterForm from '../components/EventParameterForm';
 import EditEnvelopeModal from '../components/EditEnvelopeModal';
 import EnvelopeManagerModal from '../components/EnvelopeManagerModal';
@@ -33,6 +34,7 @@ const Index = () => {
   const [planPreferencesModalOpen, setPlanPreferencesModalOpen] = useState(false);
   const [subscriptionModalOpen, setSubscriptionModalOpen] = useState(false);
   const [userAccountModalOpen, setUserAccountModalOpen] = useState(false);
+  const [plaidDemoOpen, setPlaidDemoOpen] = useState(true); // Open by default
   const [eventParametersOpen, setEventParametersOpen] = useState(false);
   const [addEnvelopeModalOpen, setAddEnvelopeModalOpen] = useState(false);
   const [envelopeManagerModalOpen, setEnvelopeManagerModalOpen] = useState(false);
@@ -401,6 +403,10 @@ const Index = () => {
           setPlanPreferencesModalOpen(false);
           setEnvelopeManagerModalOpen(true);
         }}
+      />
+      <PlaidDemo
+        isOpen={plaidDemoOpen}
+        onClose={() => setPlaidDemoOpen(false)}
       />
     </div>
   );

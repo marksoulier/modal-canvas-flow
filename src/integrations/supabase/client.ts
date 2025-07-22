@@ -15,3 +15,24 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
     autoRefreshToken: true,
   }
 });
+
+
+// Function to call Supabase Edge Functions with proper auth
+export const callSupabaseFunction = async (functionName: string, body: any, authToken?: string) => {
+  const response = await fetch(`${SUPABASE_URL}/functions/v1/${functionName}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'apikey': SUPABASE_PUBLISHABLE_KEY,
+      'Authorization': `Bearer ${authToken || SUPABASE_PUBLISHABLE_KEY}`,
+    },
+    body: JSON.stringify(body),
+  })
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}))
+    throw new Error(errorData.error || `HTTP ${response.status}`)
+  }
+
+  return await response.json()
+}
