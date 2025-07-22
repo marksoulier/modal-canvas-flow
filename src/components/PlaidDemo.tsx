@@ -46,28 +46,13 @@ const PlaidDemo: React.FC<PlaidDemoProps> = ({ isOpen, onClose }) => {
         setError('');
 
         try {
-            const response = await fetch('https://sandbox.plaid.com/link_token/create', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    client_id: import.meta.env.VITE_PLAID_CLIENT_ID, // Use environment variable
-                    secret: import.meta.env.VITE_PLAID_SECRET, // Use environment variable
-                    client_name: 'Retirement Planning Tool',
-                    country_codes: ['US'],
-                    language: 'en',
-                    user: {
-                        client_user_id: user.id,
-                    },
-                    products: ['accounts'],
-                }),
-            });
+            const authToken = await getAuthToken();
+            const response = await callSupabaseFunction('create-link-token', {}, authToken);
 
-            const data = await response.json();
-
-            if (data.link_token) {
-                setLinkToken(data.link_token);
+            if (response.link_token) {
+                setLinkToken(response.link_token);
             } else {
-                setError('Failed to get link token: ' + (data.error_message || 'Unknown error'));
+                setError('Failed to get link token: ' + (response.error || 'Unknown error'));
             }
         } catch (err) {
             setError('Error getting link token: ' + (err as Error).message);
