@@ -177,7 +177,7 @@ const DatePicker: React.FC<DatePickerProps> = ({
                 disabled={disabled}
                 style={{ minWidth: 0 }}
             />
-            <span className="text-xs text-muted-foreground">yrs</span>
+            <span className="text-xs text-muted-foreground">age</span>
         </div>
     );
 };

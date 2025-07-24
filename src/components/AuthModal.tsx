@@ -171,11 +171,8 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSignIn, onUpgr
     setIsLoading(true);
 
     try {
-      const { error } = await supabase.auth.signInWithOAuth({
+      const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
-        options: {
-          redirectTo: `${window.location.origin}/modal-canvas-flow/`
-        }
       });
       if (error) throw error;
       onClose();

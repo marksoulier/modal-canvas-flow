@@ -27,7 +27,14 @@
             "name": "Other (Savings)",
             "category": "Savings",
             "growth": "Daily Compound",
-            "rate": 0.04,
+            "rate": 0.001,
+            "account_type": "regular"
+        },
+        {
+            "name": "High Yield Savings",
+            "category": "Savings",
+            "growth": "Daily Compound",
+            "rate": 0.02,
             "account_type": "regular"
         },
         {
@@ -42,7 +49,7 @@
             "category": "Retirement",
             "growth": "Yearly Compound",
             "rate": 0.06,
-            "account_type": "regular"
+            "account_type": "401k"
         },
         {
             "name": "House",
@@ -56,7 +63,7 @@
             "category": "Retirement",
             "growth": "Yearly Compound",
             "rate": 0.07,
-            "account_type": "regular"
+            "account_type": "rothira"
         },
         {
             "name": "Car",
@@ -106,7 +113,34 @@
             "growth": "None",
             "rate": 0.0,
             "account_type": "regular"
+        },
+        {
+            "name": "Taxable Income",
+            "category": "Debt",
+            "growth": "None",
+            "rate": 0.0,
+            "account_type": "non-networth-account"
+        },
+        {
+            "name": "401K Penalty",
+            "category": "Debt",
+            "growth": "None",
+            "rate": 0.0,
+            "account_type": "regular"
+        },
+        {
+            "name": "401K Taxes",
+            "category": "Debt",
+            "growth": "None",
+            "rate": 0.0,
+            "account_type": "regular"
         }
+    ],
+    "account_types": [
+        "regular",
+        "rothira",
+        "401k",
+        "non-networth-account"
     ],
     "birth_date": "2001-09-11",
     "categories": [
@@ -534,9 +568,9 @@
             "can_be_reocurring": true,
             "weight": 10,
             "category": "Debt",
-            "description": "Amortize a loan over a specified period.",
+            "description": "Take a personal loan over a specified period. Payed back in monthly payments.",
             "icon": "credit-card",
-            "disclaimer": "This event simulates loan amortization, calculating monthly payments and interest. It does not account for missed payments, prepayments, or changes in interest rates.",
+            "disclaimer": "This event uses loan amortization, calculating monthly payments and interest. It does not account for missed payments, prepayments, or changes in interest rates.",
             "parameters": [
                 {
                     "type": "start_time",
@@ -585,14 +619,14 @@
                     "display_name": "To Envelope",
                     "parameter_units": "envelope",
                     "description": "Envelope where the loan is deposited",
-                    "default": "Other (Debt)"
+                    "default": "Other (Cash)"
                 },
                 {
                     "type": "from_key",
                     "display_name": "From Envelope",
                     "parameter_units": "envelope",
-                    "description": "Envelope where the loan is deducted from",
-                    "default": "Other (Cash)"
+                    "description": "Debt Envelope for tracking debt",
+                    "default": "Other (Debt)"
                 }
             ]
         },
@@ -900,6 +934,13 @@
                     "parameter_units": "envelope",
                     "description": "Envelope where 401k contributions are tracked",
                     "default": "Other (Retirement)"
+                },
+                {
+                    "type": "taxable_income_key",
+                    "display_name": "Taxable Income Envelope",
+                    "parameter_units": "envelope",
+                    "description": "Envelope where taxable income is tracked",
+                    "default": "Taxable Income"
                 }
             ],
             "updating_events": [
@@ -1306,9 +1347,9 @@
             "can_be_reocurring": false,
             "weight": 70,
             "category": "Income & Employment",
-            "description": "Transition from employment to retirement with withdrawals.",
+            "description": "Transition from employment to retirement with recurring transfers from 401K to cash, including taxable income tracking.",
             "icon": "moon",
-            "disclaimer": "This event simulates regular withdrawals from a retirement envelope. It does not account for taxes, investment growth, or required minimum distributions.",
+            "disclaimer": "This event simulates regular transfers from a 401K retirement envelope to cash, with corresponding taxable income tracking. It does not account for complex tax implications or required minimum distributions.",
             "parameters": [
                 {
                     "type": "start_time",
@@ -1326,31 +1367,38 @@
                 },
                 {
                     "type": "amount",
-                    "display_name": "Withdrawal Amount",
+                    "display_name": "Transfer Amount",
                     "parameter_units": "usd",
-                    "description": "When retirement begins",
-                    "default": 0
+                    "description": "Amount transferred from 401K to cash each period",
+                    "default": 3000
                 },
                 {
                     "type": "frequency_days",
-                    "display_name": "Withdrawal Frequency",
+                    "display_name": "Transfer Frequency",
                     "parameter_units": "days",
-                    "description": "How often withdraws happen",
+                    "description": "How often transfers happen",
                     "default": 30
                 },
                 {
-                    "type": "from_key",
-                    "display_name": "From Envelope",
+                    "type": "p_401k_key",
+                    "display_name": "401K Envelope",
                     "parameter_units": "envelope",
-                    "description": "Envelope to withdraw from (e.g., Retirement).",
+                    "description": "401K envelope to transfer from",
                     "default": "Other (Retirement)"
                 },
                 {
                     "type": "to_key",
                     "display_name": "To Envelope",
                     "parameter_units": "envelope",
-                    "description": "Envelope where withdrawals are deposited",
+                    "description": "Envelope where transfers are deposited",
                     "default": "Other (Cash)"
+                },
+                {
+                    "type": "taxable_income_key",
+                    "display_name": "Taxable Income Envelope",
+                    "parameter_units": "envelope",
+                    "description": "Envelope where taxable income from 401K withdrawals is tracked",
+                    "default": "Taxable Income"
                 }
             ]
         },
@@ -3006,6 +3054,68 @@
                     "parameter_units": "envelope",
                     "description": "Envelope where loan balance is tracked after school",
                     "default": "Student Loans"
+                }
+            ]
+        },
+        {
+            "type": "usa_tax_system",
+            "display_type": "USA Tax System",
+            "display_event": true,
+            "is_recurring": false,
+            "can_be_reocurring": false,
+            "weight": 50,
+            "category": "Tax",
+            "description": "Manage USA tax-related envelopes including taxable income, 401K penalties, and taxes.",
+            "icon": "dollar-sign",
+            "parameters": [
+                {
+                    "type": "start_time",
+                    "display_name": "Start Date",
+                    "parameter_units": "date",
+                    "description": "When the tax system starts",
+                    "default": 0
+                },
+                {
+                    "type": "taxable_income_key",
+                    "display_name": "Taxable Income Envelope",
+                    "parameter_units": "envelope",
+                    "description": "Envelope where taxable income is tracked",
+                    "default": "Taxable Income"
+                },
+                {
+                    "type": "penalty_401k_key",
+                    "display_name": "401K Penalty Envelope",
+                    "parameter_units": "envelope",
+                    "description": "Envelope where 401K penalties are tracked",
+                    "default": "401K Penalty"
+                },
+                {
+                    "type": "taxes_401k_key",
+                    "display_name": "401K Taxes Envelope",
+                    "parameter_units": "envelope",
+                    "description": "Envelope where 401K taxes are tracked",
+                    "default": "401K Taxes"
+                },
+                {
+                    "type": "roth_key",
+                    "display_name": "ROTH Envelope",
+                    "parameter_units": "envelope",
+                    "description": "Envelope where ROTH contributions are tracked",
+                    "default": "RothIRA"
+                },
+                {
+                    "type": "p_401k_key",
+                    "display_name": "401K Envelope",
+                    "parameter_units": "envelope",
+                    "description": "Envelope where 401K contributions are tracked",
+                    "default": "Other (Retirement)"
+                },
+                {
+                    "type": "taxable_home_value_key",
+                    "display_name": "Taxable Home Value Envelope",
+                    "parameter_units": "envelope",
+                    "description": "Envelope where taxable home value is tracked",
+                    "default": "House"
                 }
             ]
         }

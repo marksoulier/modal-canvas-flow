@@ -10,7 +10,8 @@ import {
     declare_accounts, purchase,
     monthly_budgeting, roth_ira_contribution, tax_payment_estimated,
     reoccuring_spending_inflation_adjusted, loan_amortization,
-    federal_subsidized_loan, federal_unsubsidized_loan, private_student_loan
+    federal_subsidized_loan, federal_unsubsidized_loan, private_student_loan,
+    usa_tax_system
 } from './baseFunctions';
 import { evaluateResults } from './resultsEvaluation';
 import type { Plan, Schema } from '../contexts/PlanContext';
@@ -23,8 +24,8 @@ interface Datum {
     };
 }
 
-export function initializeEnvelopes(plan: Plan): Record<string, { functions: ((t: number) => number)[], growth_type: string, growth_rate: number, days_of_usefulness?: number, inflation_rate?: number }> {
-    const envelopes: Record<string, { functions: ((t: number) => number)[], growth_type: string, growth_rate: number, days_of_usefulness?: number, inflation_rate?: number }> = {};
+export function initializeEnvelopes(plan: Plan, simulation_settings: any): Record<string, any> {
+    const envelopes: Record<string, any> = {};
 
     console.log("plan.envelopes", plan.envelopes);
     for (const env of plan.envelopes) {
@@ -33,8 +34,12 @@ export function initializeEnvelopes(plan: Plan): Record<string, { functions: ((t
         const rate = env.rate || 0.0;
         const days_of_usefulness = env.days_of_usefulness;
         const inflation_rate = plan.inflation_rate;
-        envelopes[name] = { functions: [], growth_type, growth_rate: rate, days_of_usefulness: days_of_usefulness, inflation_rate: inflation_rate };
+        const account_type = env.account_type;
+        envelopes[name] = { functions: [], growth_type, growth_rate: rate, days_of_usefulness, inflation_rate, account_type };
     }
+
+    // Add simulation settings to envelopes
+    envelopes.simulation_settings = simulation_settings;
 
     return envelopes;
 }
@@ -45,7 +50,8 @@ export async function runSimulation(
     startDate: number = 0,
     endDate: number = 30 * 365,
     interval: number = 365,
-    currentDay?: number
+    currentDay?: number,
+    birthDate?: Date
 ): Promise<Datum[]> {
     try {
         const schemaMap = extractSchema(schema);
@@ -57,8 +63,16 @@ export async function runSimulation(
             return [];
         }
 
+        const simulation_settings = {
+            inflation_rate: plan.inflation_rate,
+            birthDate: birthDate,
+            interval: interval,
+            start_time: startDate,
+            end_time: endDate
+        };
+
         const parsedEvents = parseEvents(plan);
-        const envelopes = initializeEnvelopes(plan);
+        const envelopes = initializeEnvelopes(plan, simulation_settings);
         //console.log('Initialized envelopes:', envelopes);
         // Collect manual_correction events to process at the end
         const manualCorrectionEvents: any[] = [];
@@ -117,6 +131,7 @@ export async function runSimulation(
             }
         }
 
+
         // Process all manual_correction events at the end
         //console.log(`Processing ${manualCorrectionEvents.length} manual correction events at the end`);
         for (const event of manualCorrectionEvents) {
@@ -131,44 +146,66 @@ export async function runSimulation(
             declare_accounts(event, envelopes);
         }
 
+        // Process usa_tax_system events at the end
+        for (const event of parsedEvents) {
+            console.log("Event: ", event);
+            if (event.type === 'usa_tax_system') {
+                usa_tax_system(event, envelopes);
+            }
+        }
+
+
         //console.log(envelopes)
 
-        // Determine if we should adjust for inflation
-        let results;
+        // Remove simulation_settings from envelopes for evaluation
+        const allEvalEnvelopes = Object.fromEntries(
+            Object.entries(envelopes)
+                .filter(([key, env]) => key !== 'simulation_settings')
+        );
+
+        let allResults;
         if (plan.adjust_for_inflation) {
-            // Use inflation rate from plan
             const inflationRate = plan.inflation_rate;
-            results = evaluateResults(envelopes, startDate, endDate, interval, currentDay, inflationRate);
+            allResults = evaluateResults(allEvalEnvelopes, startDate, endDate, interval, currentDay, inflationRate);
         } else {
-            results = evaluateResults(envelopes, startDate, endDate, interval);
+            allResults = evaluateResults(allEvalEnvelopes, startDate, endDate, interval);
         }
+
+        // Now split the results into networth and non-networth for visualization
+        const envelopeKeys = Object.keys(allResults);
         const timePoints = Array.from({ length: Math.ceil(endDate / interval) }, (_, i) => i * interval);
 
-        // Get all envelope keys from the results
-        const envelopeKeys = Object.keys(results);
+        const networthKeys = envelopeKeys.filter(key => envelopes[key]?.account_type !== 'non-networth-account');
+        const nonNetworthKeys = envelopeKeys.filter(key => envelopes[key]?.account_type === 'non-networth-account');
 
         // Filter out envelopes that have zero values in all intervals
-        const nonZeroEnvelopeKeys = envelopeKeys.filter(key => {
-            const allValues = results[key];
-            return allValues.some(value => value !== 0);
-        });
+        const nonZeroNetworthKeys = networthKeys.filter(key => allResults[key].some(value => value !== 0));
+        const nonZeroNonNetworthKeys = nonNetworthKeys.filter(key => allResults[key].some(value => value !== 0));
 
         // Create a single array of Datum objects where each Datum contains all non-zero envelope values as parts
         return timePoints.map((date, i) => {
             const parts: { [key: string]: number } = {};
+            const nonNetworthParts: { [key: string]: number } = {};
             let totalValue = 0;
 
             // Populate parts with values from each non-zero envelope
-            nonZeroEnvelopeKeys.forEach(key => {
-                const value = results[key][i];
+            nonZeroNetworthKeys.forEach(key => {
+                const value = allResults[key][i];
                 parts[key] = value;
                 totalValue += value;
+            });
+
+            // Populate non-networth parts (these don't contribute to total value)
+            nonZeroNonNetworthKeys.forEach(key => {
+                const value = allResults[key][i];
+                nonNetworthParts[key] = value;
             });
 
             return {
                 date,
                 value: totalValue,
-                parts
+                parts,
+                nonNetworthParts
             };
         });
     } catch (error) {

@@ -30,7 +30,7 @@
       "name": "Other (Savings)",
       "category": "Savings",
       "growth": "Daily Compound",
-      "rate": 0.04,
+      "rate": 0.001,
       "account_type": "regular"
     },
     {

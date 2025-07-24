@@ -37,6 +37,8 @@ import type {
 import { getAllEventsByDate } from './Events';
 import type { Plan } from '../contexts/PlanContext';
 
+const DEBUG = true;
+
 // Helper function to normalize -0 to 0 and small values near zero
 const normalizeZero = (value: number): number => {
   const threshold = 1e-10; // Very small threshold for floating point precision
@@ -177,6 +179,7 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
     displayType: string;
     description: string;
   } | null>(null);
+  const [autoZoomTrigger, setAutoZoomTrigger] = useState<{ years?: number; months?: number; days?: number } | null>(null);
 
   // State for locked plan simulation results
   const [lockedNetWorthData, setLockedNetWorthData] = useState<{ date: number, value: number }[]>([]);
@@ -224,7 +227,8 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
           startDate,
           endDate,
           getIntervalInDays(timeInterval),
-          currentDay
+          currentDay,
+          birthDate,
         );
         // Only keep {date, value}
         setLockedNetWorthData(result.map(({ date, value }) => ({ date, value })));
@@ -260,7 +264,6 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
           const birthDateObj = new Date(plan.birth_date + 'T00:00:00');
           setBirthDate(birthDateObj);
         }
-
         // Run simulation with plan and schema from context
         const result = await runSimulation(
           plan,
@@ -268,7 +271,8 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
           startDate,
           endDate,
           getIntervalInDays(timeInterval),
-          currentDay // pass current day
+          currentDay,
+          birthDate
         );
         //console.log('Loaded Financial Results:', result);
         setNetWorthData(result);
@@ -340,15 +344,17 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
 
   // Make sure categoryColors is defined before render logic
   const envelopeKeys = useMemo(() => Object.keys(netWorthData[0]?.parts || {}), [netWorthData]);
-  const categoryMap = useMemo(() => groupEnvelopesByCategory(plan, envelopeKeys), [plan, envelopeKeys]);
+  const nonNetworthEnvelopeKeys = useMemo(() => Object.keys(netWorthData[0]?.nonNetworthParts || {}), [netWorthData]);
+  const allEnvelopeKeys = useMemo(() => [...envelopeKeys, ...nonNetworthEnvelopeKeys], [envelopeKeys, nonNetworthEnvelopeKeys]);
+  const categoryMap = useMemo(() => groupEnvelopesByCategory(plan, allEnvelopeKeys), [plan, allEnvelopeKeys]);
   // Use new color generator
   const { envelopeColors, categoryColors } = useMemo(() => {
     if (!plan || !schema) return { envelopeColors: {}, categoryColors: {} };
     return getEnvelopeAndCategoryColors(
-      envelopeKeys.map(name => ({ name, category: getEnvelopeCategory(plan, name) || 'Uncategorized' })),
+      allEnvelopeKeys.map(name => ({ name, category: getEnvelopeCategory(plan, name) || 'Uncategorized' })),
       Object.keys(categoryMap)
     );
-  }, [plan, schema, envelopeKeys, categoryMap]);
+  }, [plan, schema, allEnvelopeKeys, categoryMap]);
 
   return (
     <div className="relative w-full h-full">
@@ -579,24 +585,43 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
             if (!firstDayAboveGoal) return null;
             return getNetWorthAndLockedOnDay(netWorthData, lockedNetWorthData, firstDayAboveGoal);
           }, [netWorthData, lockedNetWorthData, firstDayAboveGoal]);
-
-          // Move handleZoomToYears here so it's in scope for the buttons
-          const handleZoomToYears = (years: number) => {
+          const handleZoomToWindow = ({
+            years = 0,
+            months = 0,
+            days = 0,
+          }: { years?: number; months?: number; days?: number }) => {
             const daysPerYear = 365;
-            const xmin = currentDay - 20 * years - 20; // aproximate padding on side
-            const xmax = currentDay + years * daysPerYear;
+            const daysPerMonth = 30; // Approximate
+            const windowStart = currentDay;
+            const windowEnd =
+              currentDay +
+              (years * daysPerYear) +
+              (months * daysPerMonth) +
+              days;
             const maxDate = Math.max(...netWorthData.map(d => d.date));
-            const clampedXmax = Math.min(xmax, maxDate);
-            const regionWidth = clampedXmax - xmin;
-            if (regionWidth <= 0) return;
-            const scaleX = width / (xScale(clampedXmax) - xScale(xmin));
-            const translateX = -xScale(xmin) * scaleX;
+            const clampedEnd = Math.min(windowEnd, maxDate);
+
+            const windowWidth = clampedEnd - windowStart;
+            if (windowWidth <= 0) return;
+            const scaleX = width / (xScale(clampedEnd) - xScale(windowStart));
+            const translateX = -xScale(windowStart) * scaleX + 80;
+
             zoom.setTransformMatrix({
               ...zoom.transformMatrix,
               scaleX,
               translateX,
             });
           };
+          // Auto-trigger second zoom after component rerenders
+          useEffect(() => {
+            if (autoZoomTrigger !== null) {
+              const timer = setTimeout(() => {
+                handleZoomToWindow(autoZoomTrigger);
+                setAutoZoomTrigger(null);
+              }, 250); // Small delay to ensure render completes
+              return () => clearTimeout(timer);
+            }
+          }, [autoZoomTrigger, netWorthData]); // Trigger when netWorthData changes (after rerender)
 
           return (
             <>
@@ -626,7 +651,31 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
                     cursor: 'pointer',
                     boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
                   }}
-                  onClick={() => handleZoomToYears(1)}
+                  onClick={() => {
+                    handleZoomToWindow({ months: 3 });
+                    setAutoZoomTrigger({ months: 3 });
+                  }}
+                >
+                  3m
+                </button>
+                <button
+                  style={{
+                    background: 'rgba(51, 89, 102, 0.06)',
+                    color: '#335966',
+                    border: '1px solid #e5e7eb',
+                    borderRadius: 6,
+                    padding: '4px 12px',
+                    fontSize: 13,
+                    fontWeight: 500,
+                    opacity: 0.85,
+                    transition: 'background 0.2s',
+                    cursor: 'pointer',
+                    boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
+                  }}
+                  onClick={() => {
+                    handleZoomToWindow({ years: 1 });
+                    setAutoZoomTrigger({ years: 1 });
+                  }}
                 >
                   1yr
                 </button>
@@ -644,7 +693,10 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
                     cursor: 'pointer',
                     boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
                   }}
-                  onClick={() => handleZoomToYears(5)}
+                  onClick={() => {
+                    handleZoomToWindow({ years: 5 });
+                    setAutoZoomTrigger({ years: 5 });
+                  }}
                 >
                   5yr
                 </button>
@@ -662,7 +714,10 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
                     cursor: 'pointer',
                     boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
                   }}
-                  onClick={() => handleZoomToYears(10)}
+                  onClick={() => {
+                    handleZoomToWindow({ years: 10 });
+                    setAutoZoomTrigger({ years: 10 });
+                  }}
                 >
                   10yr
                 </button>
@@ -897,6 +952,51 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
                             stroke={color.line}
                             strokeWidth={1 / globalZoom}
                             strokeOpacity={1}
+                            curve={curveStepAfter}
+                          />
+                        ))}
+                      </g>
+                    );
+                  })}
+
+                  {/* Render non-networth parts as separate lines (debugging) */}
+                  {DEBUG && Object.keys(netWorthData[0]?.nonNetworthParts || {}).map((partKey) => {
+                    const category = getEnvelopeCategory(plan, partKey) || 'Non-Networth';
+                    const color = categoryColors[category] || { area: '#ff6b6b', line: '#ff4757' };
+
+                    // Split data for this non-networth envelope part
+                    const { stepSegments, linearSegments } = splitDataForMixedCurves(
+                      netWorthData,
+                      (d) => d.nonNetworthParts?.[partKey] || 0
+                    );
+
+                    return (
+                      <g key={`non-networth-line-group-${partKey}`}>
+                        {/* Render linear segments */}
+                        {linearSegments.map((segment, segIndex) => (
+                          <LinePath
+                            key={`non-networth-line-linear-${partKey}-${segIndex}`}
+                            data={segment}
+                            x={(d) => xScale(d.date)}
+                            y={(d) => visibleYScale(d.nonNetworthParts?.[partKey] || 0)}
+                            stroke={color.line}
+                            strokeWidth={2 / globalZoom}
+                            strokeOpacity={0.7}
+                            strokeDasharray="5,3"
+                            curve={curveLinear}
+                          />
+                        ))}
+                        {/* Render step segments for 0↔value transitions */}
+                        {stepSegments.map((segment, segIndex) => (
+                          <LinePath
+                            key={`non-networth-line-step-${partKey}-${segIndex}`}
+                            data={segment}
+                            x={(d) => xScale(d.date)}
+                            y={(d) => visibleYScale(d.nonNetworthParts?.[partKey] || 0)}
+                            stroke={color.line}
+                            strokeWidth={2 / globalZoom}
+                            strokeOpacity={0.7}
+                            strokeDasharray="5,3"
                             curve={curveStepAfter}
                           />
                         ))}
@@ -1194,6 +1294,8 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
                   currentValues={closestPoint ? closestPoint.parts : netWorthData[netWorthData.length - 1].parts}
                   getCategory={(envelope) => getEnvelopeCategory(plan, envelope)}
                   categoryColors={categoryColors}
+                  nonNetworthEnvelopes={DEBUG ? Object.keys(netWorthData[0].nonNetworthParts || {}) : undefined}
+                  nonNetworthCurrentValues={DEBUG ? (closestPoint ? closestPoint.nonNetworthParts : netWorthData[netWorthData.length - 1].nonNetworthParts) : undefined}
                 />
               )}
 
