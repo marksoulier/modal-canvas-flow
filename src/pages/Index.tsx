@@ -293,6 +293,13 @@ const Index = () => {
                 Help
               </DropdownMenuItem> */}
               <DropdownMenuItem
+                onClick={() => setOnboardingOpen(true)}
+                className="cursor-pointer"
+              >
+                <HelpCircle className="mr-2 h-4 w-4" />
+                Onboarding
+              </DropdownMenuItem>
+              <DropdownMenuItem
                 onClick={handleAccount}
                 className="cursor-pointer"
               >
@@ -404,7 +411,7 @@ const Index = () => {
           setEnvelopeManagerModalOpen(true);
         }}
       />
-      
+
       {/* Onboarding Flow */}
       <OnboardingFlow
         isOpen={onboardingOpen}

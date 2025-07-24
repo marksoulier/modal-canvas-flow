@@ -21,9 +21,21 @@ interface OnboardingData {
   name: string;
   birthDate: string;
   location: string;
+  education: string;
+  educationField: string;
   budgetCategories: Record<string, number>;
   accounts: Record<string, number>;
 }
+
+const CATEGORY_BASE_COLORS: Record<string, string> = {
+  'Savings': '#FFC107', // Yellow
+  'Investments': '#00BCD4', // Cyan
+  'Income': '#FF9800', // Orange
+  'Retirement': '#9C27B0', // Purple
+  'Debt': '#F44336', // Red
+  'Cash': '#4CAF50', // Green
+  'Assets': '#888888', // Grey
+};
 
 const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ isOpen, onComplete, onAuthRequired }) => {
   const [currentStep, setCurrentStep] = useState(0);
@@ -33,6 +45,8 @@ const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ isOpen, onComplete, onA
     name: '',
     birthDate: '',
     location: '',
+    education: '',
+    educationField: '',
     budgetCategories: {
       housing: 0,
       food: 0,
@@ -112,24 +126,17 @@ const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ isOpen, onComplete, onA
       title: "Welcome to Lever Financial Planner",
       content: (
         <div className="relative">
-          {/* Elegant decorative elements */}
-          <div className="absolute top-0 right-8 opacity-20">
-            <Mountain className="w-24 h-24 text-primary" />
-          </div>
-          <div className="absolute bottom-0 left-8 opacity-10">
-            <Leaf className="w-16 h-16 text-primary" />
-          </div>
-          
+
           <div className="text-center space-y-8 relative z-10">
             <div className="mx-auto w-24 h-24 bg-gradient-to-br from-primary/20 to-primary/5 rounded-full flex items-center justify-center backdrop-blur-sm border border-primary/10">
               <TrendingUp className="w-12 h-12 text-primary" />
             </div>
-            
+
             <div className="space-y-6">
               <p className="text-lg text-muted-foreground font-light leading-relaxed max-w-2xl mx-auto">
                 A sophisticated tool designed for individuals to model and visualize their financial future with confidence and clarity.
               </p>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-3xl mx-auto">
                 <div className="bg-gradient-to-br from-background to-muted/30 p-6 rounded-xl border border-border/50 hover:border-primary/20 transition-all duration-300">
                   <div className="flex items-start gap-4">
@@ -142,7 +149,7 @@ const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ isOpen, onComplete, onA
                     </div>
                   </div>
                 </div>
-                
+
                 <div className="bg-gradient-to-br from-background to-muted/30 p-6 rounded-xl border border-border/50 hover:border-primary/20 transition-all duration-300">
                   <div className="flex items-start gap-4">
                     <div className="p-2 bg-primary/10 rounded-lg">
@@ -154,7 +161,7 @@ const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ isOpen, onComplete, onA
                     </div>
                   </div>
                 </div>
-                
+
                 <div className="bg-gradient-to-br from-background to-muted/30 p-6 rounded-xl border border-border/50 hover:border-primary/20 transition-all duration-300">
                   <div className="flex items-start gap-4">
                     <div className="p-2 bg-primary/10 rounded-lg">
@@ -166,7 +173,7 @@ const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ isOpen, onComplete, onA
                     </div>
                   </div>
                 </div>
-                
+
                 <div className="bg-gradient-to-br from-background to-muted/30 p-6 rounded-xl border border-border/50 hover:border-primary/20 transition-all duration-300">
                   <div className="flex items-start gap-4">
                     <div className="p-2 bg-primary/10 rounded-lg">
@@ -265,7 +272,7 @@ const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ isOpen, onComplete, onA
                 onChange={(e) => setData(prev => ({ ...prev, birthDate: e.target.value }))}
               />
               <p className="text-xs text-muted-foreground mt-1">
-                Used to calculate changes in net worth at age 59½
+                Used to calculate changes in net worth at age 59½ due to tax advantage accounts
               </p>
             </div>
             <div>
@@ -277,8 +284,43 @@ const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ isOpen, onComplete, onA
                 placeholder="e.g., San Francisco, CA"
               />
               <p className="text-xs text-muted-foreground mt-1">
-                Used for finding local financial metrics
+                Used for finding local financial metrics (cost of living, mortgage rates, etc.)
               </p>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="education">Education Level</Label>
+                <select
+                  id="education"
+                  value={data.education}
+                  onChange={e => setData(prev => ({ ...prev, education: e.target.value }))}
+                  className="w-full border border-gray-300 rounded px-3 py-2 mt-1 text-gray-700 focus:outline-none focus:ring-2 focus:ring-primary"
+                >
+                  <option value="">Select education level</option>
+                  <option value="High School">High School</option>
+                  <option value="Associate's">Associate's Degree</option>
+                  <option value="Bachelor's">Bachelor's Degree</option>
+                  <option value="Master's">Master's Degree</option>
+                  <option value="Doctorate">Doctorate (PhD, MD, etc.)</option>
+                  <option value="Other">Other</option>
+                </select>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Used to get estimates on salary and job reports.
+                </p>
+              </div>
+              <div>
+                <Label htmlFor="educationField">Degree or Field of Study</Label>
+                <Input
+                  id="educationField"
+                  value={data.educationField}
+                  onChange={e => setData(prev => ({ ...prev, educationField: e.target.value }))}
+                  placeholder="e.g., Computer Science, Business, Engineering"
+                  className="w-full mt-1"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Used to personalize job and salary estimates.
+                </p>
+              </div>
             </div>
           </div>
         </div>
@@ -292,45 +334,58 @@ const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ isOpen, onComplete, onA
           <p className="text-muted-foreground text-center mb-6">
             How much do you spend monthly in these categories?
           </p>
-          <div className="space-y-4">
-            {[
-              { key: 'housing', label: 'Housing (Rent/Mortgage)', icon: Home },
-              { key: 'food', label: 'Food & Groceries', icon: Coffee },
-              { key: 'transportation', label: 'Transportation', icon: Users },
-              { key: 'utilities', label: 'Utilities', icon: Building },
-              { key: 'entertainment', label: 'Entertainment', icon: Plane },
-              { key: 'healthcare', label: 'Healthcare', icon: Shield },
-              { key: 'other', label: 'Other Expenses', icon: DollarSign }
-            ].map(({ key, label, icon: Icon }) => (
-              <div key={key} className="flex items-center space-x-4 p-3 rounded-lg border border-border/30 hover:border-primary/20 transition-all">
-                <div className="p-2 bg-primary/10 rounded-lg">
-                  <Icon className="w-4 h-4 text-primary" />
+          <div className="flex flex-col" style={{ minHeight: '24rem', maxHeight: '32rem' }}>
+            <div className="flex-grow overflow-y-auto space-y-4 pr-2">
+              {[
+                { key: 'housing', label: 'Housing (Rent/Mortgage)', icon: Home, category: 'Assets' },
+                { key: 'food', label: 'Food & Groceries', icon: Coffee, category: 'Cash' },
+                { key: 'transportation', label: 'Transportation', icon: Users, category: 'Savings' },
+                { key: 'utilities', label: 'Utilities', icon: Building, category: 'Debt' },
+                { key: 'entertainment', label: 'Entertainment', icon: Plane, category: 'Investments' },
+                { key: 'healthcare', label: 'Healthcare', icon: Shield, category: 'Retirement' },
+                { key: 'other', label: 'Other Expenses', icon: DollarSign, category: 'Cash' }
+              ].map(({ key, label, icon: Icon, category }) => (
+                <div key={key} className="flex items-center space-x-4 p-3 rounded-lg border border-border/30 hover:border-primary/20 transition-all">
+                  <div
+                    className="p-2 rounded-lg"
+                    style={{
+                      backgroundColor: CATEGORY_BASE_COLORS[category] + '22', // light background (add alpha if you want)
+                      border: `2px solid ${CATEGORY_BASE_COLORS[category]}`,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      width: '2rem',
+                      height: '2rem',
+                    }}
+                  >
+                    <Icon className="w-4 h-4" />
+                  </div>
+                  <Label className="flex-1 font-medium">{label}</Label>
+                  <div className="flex items-center space-x-2">
+                    <span className="text-muted-foreground text-sm">$</span>
+                    <Input
+                      type="number"
+                      value={data.budgetCategories[key] || ''}
+                      onChange={(e) => updateBudgetCategory(key, parseFloat(e.target.value) || 0)}
+                      placeholder="0"
+                      className="w-28 text-right"
+                    />
+                  </div>
                 </div>
-                <Label className="flex-1 font-medium">{label}</Label>
-                <div className="flex items-center space-x-2">
-                  <span className="text-muted-foreground text-sm">$</span>
-                  <Input
-                    type="number"
-                    value={data.budgetCategories[key] || ''}
-                    onChange={(e) => updateBudgetCategory(key, parseFloat(e.target.value) || 0)}
-                    placeholder="0"
-                    className="w-28 text-right"
-                  />
+              ))}
+            </div>
+            <div className="border-t border-border/50 pt-4 bg-white">
+              <div className="flex items-center justify-between p-4 bg-gradient-to-r from-primary/5 to-primary/10 rounded-lg border border-primary/20">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-primary/20 rounded-lg">
+                    <Wallet className="w-5 h-5 text-primary" />
+                  </div>
+                  <span className="font-semibold text-foreground">Total Monthly Expenses</span>
                 </div>
+                <span className="text-xl font-bold text-primary">
+                  ${Object.values(data.budgetCategories).reduce((sum, val) => sum + (val || 0), 0).toLocaleString()}
+                </span>
               </div>
-            ))}
-          </div>
-          <div className="border-t border-border/50 pt-4">
-            <div className="flex items-center justify-between p-4 bg-gradient-to-r from-primary/5 to-primary/10 rounded-lg border border-primary/20">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-primary/20 rounded-lg">
-                  <Wallet className="w-5 h-5 text-primary" />
-                </div>
-                <span className="font-semibold text-foreground">Total Monthly Expenses</span>
-              </div>
-              <span className="text-xl font-bold text-primary">
-                ${Object.values(data.budgetCategories).reduce((sum, val) => sum + (val || 0), 0).toLocaleString()}
-              </span>
             </div>
           </div>
         </div>
@@ -344,84 +399,103 @@ const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ isOpen, onComplete, onA
           <p className="text-muted-foreground text-center mb-6">
             Enter your current account balances for each category
           </p>
-          <div className="space-y-4">
-            {[
-              { 
-                key: 'cash', 
-                label: 'Cash', 
-                icon: DollarSign,
-                description: 'Checking accounts, savings accounts, and physical cash'
-              },
-              { 
-                key: 'debt', 
-                label: 'Debt', 
-                icon: CreditCard,
-                description: 'Credit cards, loans, and other outstanding debts'
-              },
-              { 
-                key: 'assets', 
-                label: 'Assets', 
-                icon: Home,
-                description: 'Real estate, vehicles, and other valuable possessions'
-              },
-              { 
-                key: 'savings', 
-                label: 'Savings', 
-                icon: PiggyBank,
-                description: 'Emergency funds and short-term savings goals'
-              },
-              { 
-                key: 'investments', 
-                label: 'Investments', 
-                icon: TrendingUp,
-                description: 'Stocks, bonds, mutual funds, and other investments'
-              },
-              { 
-                key: 'retirement', 
-                label: 'Retirement', 
-                icon: Shield,
-                description: '401(k), IRA, and other retirement accounts'
-              }
-            ].map(({ key, label, icon: Icon, description }) => (
-              <Card key={key} className="border border-border/30 hover:border-primary/20 transition-all">
-                <CardContent className="p-4">
-                  <div className="flex items-start space-x-4">
-                    <div className="p-2 bg-primary/10 rounded-lg">
-                      <Icon className="w-4 h-4 text-primary" />
+          <div className="flex flex-col" style={{ minHeight: '24rem', maxHeight: '32rem' }}>
+            <div className="flex-grow overflow-y-auto space-y-4 pr-2">
+              {[
+                {
+                  key: 'cash',
+                  label: 'Cash',
+                  icon: DollarSign,
+                  description: 'Checking accounts, savings accounts, and physical cash',
+                  category: 'Cash'
+                },
+                {
+                  key: 'debt',
+                  label: 'Debt',
+                  icon: CreditCard,
+                  description: 'Credit cards, loans, and other outstanding debts',
+                  category: 'Debt'
+                },
+                {
+                  key: 'assets',
+                  label: 'Assets',
+                  icon: Home,
+                  description: 'Real estate, vehicles, and other valuable possessions',
+                  category: 'Assets'
+                },
+                {
+                  key: 'savings',
+                  label: 'Savings',
+                  icon: PiggyBank,
+                  description: 'Emergency funds and short-term savings goals',
+                  category: 'Savings'
+                },
+                {
+                  key: 'investments',
+                  label: 'Investments',
+                  icon: TrendingUp,
+                  description: 'Stocks, bonds, mutual funds, and other investments',
+                  category: 'Investments'
+                },
+                {
+                  key: 'retirement',
+                  label: 'Retirement',
+                  icon: Shield,
+                  description: '401(k), IRA, and other retirement accounts',
+                  category: 'Retirement'
+                }
+              ].map(({ key, label, icon: Icon, description, category }) => (
+                <Card key={key} className="border border-border/30 hover:border-primary/20 transition-all">
+                  <CardContent className="p-4">
+                    <div className="flex items-start space-x-4">
+                      <div
+                        className="p-2 rounded-lg"
+                        style={{
+                          backgroundColor: CATEGORY_BASE_COLORS[category] + '22',
+                          border: `2px solid ${CATEGORY_BASE_COLORS[category]}`,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          width: '2rem',
+                          height: '2rem',
+                        }}
+                      >
+                        <Icon className="w-4 h-4" />
+                      </div>
+                      <div className="flex-1">
+                        <Label className="font-medium">{label}</Label>
+                        <p className="text-xs text-muted-foreground mb-2">{description}</p>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <span className="text-muted-foreground text-sm">$</span>
+                        <Input
+                          type="number"
+                          value={data.accounts[key] || ''}
+                          onChange={(e) => updateAccount(key, parseFloat(e.target.value) || 0)}
+                          placeholder="0"
+                          className="w-32 text-right"
+                        />
+                      </div>
                     </div>
-                    <div className="flex-1">
-                      <Label className="font-medium">{label}</Label>
-                      <p className="text-xs text-muted-foreground mb-2">{description}</p>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <span className="text-muted-foreground text-sm">$</span>
-                      <Input
-                        type="number"
-                        value={data.accounts[key] || ''}
-                        onChange={(e) => updateAccount(key, parseFloat(e.target.value) || 0)}
-                        placeholder="0"
-                        className="w-32 text-right"
-                      />
-                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+            <div className="border-t border-border/50 pt-4 bg-white">
+              <div className="flex items-center justify-between p-4 bg-gradient-to-r from-primary/5 to-primary/10 rounded-lg border border-primary/20">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-primary/20 rounded-lg">
+                    <TrendingUp className="w-5 h-5 text-primary" />
                   </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-          <div className="border-t border-border/50 pt-4">
-            <div className="flex items-center justify-between p-4 bg-gradient-to-r from-primary/5 to-primary/10 rounded-lg border border-primary/20">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-primary/20 rounded-lg">
-                  <TrendingUp className="w-5 h-5 text-primary" />
+                  <span className="font-semibold text-foreground">Total Net Worth</span>
                 </div>
-                <span className="font-semibold text-foreground">Total Net Worth</span>
+                <span className="text-xl font-bold text-primary">
+                  ${(Object.entries(data.accounts).reduce((sum, [key, val]) => {
+                    // Debt is negative, everything else is positive
+                    return sum + (key === 'debt' ? -(val || 0) : (val || 0));
+                  }, 0)).toLocaleString()}
+                </span>
               </div>
-              <span className="text-xl font-bold text-primary">
-                ${(Object.entries(data.accounts).reduce((sum, [key, val]) => {
-                  // Debt is negative, everything else is positive
-                  return sum + (key === 'debt' ? -(val || 0) : (val || 0));
-                }, 0)).toLocaleString()}
-              </span>
             </div>
           </div>
         </div>
@@ -465,7 +539,7 @@ const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ isOpen, onComplete, onA
   const currentStepData = steps[currentStep];
 
   return (
-    <Dialog open={isOpen} onOpenChange={() => {}}>
+    <Dialog open={isOpen} onOpenChange={() => { }}>
       <DialogContent className="sm:max-w-2xl max-w-4xl mx-8">
         <DialogHeader className="space-y-6">
           <DialogTitle className="text-center text-2xl font-light">
@@ -476,23 +550,22 @@ const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ isOpen, onComplete, onA
               {Array.from({ length: totalSteps }).map((_, index) => (
                 <div
                   key={index}
-                  className={`w-3 h-3 rounded-full transition-all duration-300 ${
-                    index <= currentStep ? 'bg-primary shadow-lg' : 'bg-muted'
-                  }`}
+                  className={`w-3 h-3 rounded-full transition-all duration-300 ${index <= currentStep ? 'bg-primary shadow-lg' : 'bg-muted'
+                    }`}
                 />
               ))}
             </div>
           </div>
         </DialogHeader>
-        
+
         <div className="py-8 px-2">
           {currentStepData.content}
         </div>
 
         <div className="flex justify-between pt-6">
           {currentStep > 0 && (
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               onClick={handleBack}
               className="px-8"
             >
