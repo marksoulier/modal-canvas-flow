@@ -414,7 +414,10 @@ export function PlanProvider({ children }: PlanProviderProps) {
         });
     }, [plan]);
 
-    const addEvent = useCallback((eventType: string) => {
+    const addEvent = useCallback((
+        eventType: string,
+        parameterOverrides?: { [type: string]: any }
+    ) => {
         if (!plan || !schema) {
             throw new Error('No plan or schema data available');
         }
@@ -445,18 +448,24 @@ export function PlanProvider({ children }: PlanProviderProps) {
         // Generate a new unique ID
         const newId = getNextEventId(plan);
 
-        // Create parameters with default values from schema
-        const parameters = eventSchema.parameters.map((param, index) => ({
-            id: index,
-            type: param.type,
-            value: param.default
-        }));
-
-        // For the start_time and end_time parameters add the current day value
-        parameters.forEach(param => {
-            if (param.type === 'start_time' || param.type === 'end_time' || param.type === 'graduation_date') {
-                param.value = Number(param.value) + currentDay;
+        // Create parameters with default values from schema, overridden by parameterOverrides
+        const parameters = eventSchema.parameters.map((param, index) => {
+            let value = param.default;
+            if (parameterOverrides && parameterOverrides.hasOwnProperty(param.type)) {
+                value = parameterOverrides[param.type];
             }
+            // For the start_time and end_time parameters add the current day value
+            if (
+                (param.type === 'start_time' || param.type === 'end_time' || param.type === 'graduation_date') &&
+                typeof value === 'number'
+            ) {
+                value = value + currentDay;
+            }
+            return {
+                id: index,
+                type: param.type,
+                value
+            };
         });
 
         // Create the new event

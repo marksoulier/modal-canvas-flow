@@ -567,6 +567,33 @@ export const loan_amortization = (event: any, envelopes: Record<string, any>) =>
     );
 
     envelopes[params.to_key].functions.push(payments_func);
+
+    // --- Loan Envelope Correction at End of Payment Cycle ---
+    const loan_end_time = params.start_time + params.loan_term_years * 365;
+    const loanEnvelope = envelopes[params.to_key];
+    let loan_balance = 0.0;
+    for (const func of loanEnvelope.functions) {
+        loan_balance += func(loan_end_time);
+    }
+    if (Math.abs(loan_balance) > 1e-6) {
+        const [theta_growth_source, theta_growth_dest] = get_growth_parameters(
+            envelopes, params.from_key, params.to_key
+        );
+        const correction_inflow = T(
+            { t_k: loan_end_time },
+            f_in,
+            P({ a: Math.abs(loan_balance) }),
+            theta_growth_dest
+        );
+        loanEnvelope.functions.push(correction_inflow);
+        const correction_outflow = T(
+            { t_k: loan_end_time },
+            f_out,
+            P({ b: Math.abs(loan_balance) }),
+            theta_growth_source
+        );
+        envelopes[params.from_key].functions.push(correction_outflow);
+    }
 };
 
 export const purchase = (event: any, envelopes: Record<string, any>) => {
@@ -866,7 +893,7 @@ export const buy_house = (event: any, envelopes: Record<string, any>) => {
     }
 
     // --- Property Tax Logic (added for property tax payments) ---
-    // Only run if params.property_tax_rate and params.house_key are defined
+    // Only run if params.property_tax_rate and params.from_key are defined
     //Calcualte the house value at beginning of each year then calculate the property tax owed that year and the pay that in 6 month intervals.
     if (params.property_tax_rate && params.from_key) {
         const simulation_settings = envelopes.simulation_settings;
@@ -901,6 +928,37 @@ export const buy_house = (event: any, envelopes: Record<string, any>) => {
                 envelopes[params.from_key].functions.push(propertyTaxFunc);
             }
         });
+    }
+
+    // --- Mortgage Envelope Correction at End of Payment Cycle ---
+    // Evaluate the mortgage envelope at the end of the payment cycle and correct any remaining balance
+    const mortgage_end_time = params.start_time + params.loan_term_years * 365;
+    const mortgageEnvelope = envelopes[params.mortgage_envelope];
+    let mortgage_balance = 0.0;
+    for (const func of mortgageEnvelope.functions) {
+        mortgage_balance += func(mortgage_end_time);
+    }
+    if (Math.abs(mortgage_balance) > 1e-6) { // Only correct if not already zero (allowing for floating point error)
+        // Get growth parameters for both envelopes
+        const [theta_growth_source, theta_growth_mortgage] = get_growth_parameters(
+            envelopes, params.from_key, params.mortgage_envelope
+        );
+        // Create correction inflow to mortgage envelope
+        const correction_inflow = T(
+            { t_k: mortgage_end_time },
+            f_in,
+            P({ a: Math.abs(mortgage_balance) }),
+            theta_growth_mortgage
+        );
+        mortgageEnvelope.functions.push(correction_inflow);
+        // Create correction outflow from source envelope
+        const correction_outflow = T(
+            { t_k: mortgage_end_time },
+            f_out,
+            P({ b: Math.abs(mortgage_balance) }),
+            theta_growth_source
+        );
+        envelopes[params.from_key].functions.push(correction_outflow);
     }
 };
 
@@ -973,6 +1031,33 @@ export const buy_car = (event: any, envelopes: Record<string, any>) => {
         if (upd_type === "pay_loan_early") {
         } else if (upd_type === "car_repair") {
         }
+    }
+
+    // --- Car Loan Envelope Correction at End of Payment Cycle ---
+    const car_loan_end_time = params.start_time + params.loan_term_years * 365;
+    const carLoanEnvelope = envelopes[params.car_loan_envelope];
+    let car_loan_balance = 0.0;
+    for (const func of carLoanEnvelope.functions) {
+        car_loan_balance += func(car_loan_end_time);
+    }
+    if (Math.abs(car_loan_balance) > 1e-6) {
+        const [theta_growth_source, theta_growth_debt] = get_growth_parameters(
+            envelopes, params.from_key, params.car_loan_envelope
+        );
+        const correction_inflow = T(
+            { t_k: car_loan_end_time },
+            f_in,
+            P({ a: Math.abs(car_loan_balance) }),
+            theta_growth_debt
+        );
+        carLoanEnvelope.functions.push(correction_inflow);
+        const correction_outflow = T(
+            { t_k: car_loan_end_time },
+            f_out,
+            P({ b: Math.abs(car_loan_balance) }),
+            theta_growth_source
+        );
+        envelopes[params.from_key].functions.push(correction_outflow);
     }
 };
 
@@ -1757,6 +1842,33 @@ export const federal_subsidized_loan = (event: any, envelopes: Record<string, an
         theta_growth_dest
     );
     envelopes[params.to_key].functions.push(principal_payments);
+
+    // --- Student Loan Envelope Correction at End of Payment Cycle ---
+    const student_loan_end_time = payment_end_time;
+    const studentLoanEnvelope = envelopes[params.to_key];
+    let student_loan_balance = 0.0;
+    for (const func of studentLoanEnvelope.functions) {
+        student_loan_balance += func(student_loan_end_time);
+    }
+    if (Math.abs(student_loan_balance) > 1e-6) {
+        const [theta_growth_source, theta_growth_dest] = get_growth_parameters(
+            envelopes, params.from_key, params.to_key
+        );
+        const correction_inflow = T(
+            { t_k: student_loan_end_time },
+            f_in,
+            P({ a: Math.abs(student_loan_balance) }),
+            theta_growth_dest
+        );
+        studentLoanEnvelope.functions.push(correction_inflow);
+        const correction_outflow = T(
+            { t_k: student_loan_end_time },
+            f_out,
+            P({ b: Math.abs(student_loan_balance) }),
+            theta_growth_source
+        );
+        envelopes[params.from_key].functions.push(correction_outflow);
+    }
 };
 
 export const federal_unsubsidized_loan = (event: any, envelopes: Record<string, any>) => {
@@ -1826,6 +1938,33 @@ export const federal_unsubsidized_loan = (event: any, envelopes: Record<string, 
         theta_growth_after
     );
     envelopes[params.after_school_key].functions.push(principal_payments);
+
+    // --- Student Loan Envelope Correction at End of Payment Cycle ---
+    const student_loan_end_time = payment_end_time;
+    const studentLoanEnvelope = envelopes[params.after_school_key];
+    let student_loan_balance = 0.0;
+    for (const func of studentLoanEnvelope.functions) {
+        student_loan_balance += func(student_loan_end_time);
+    }
+    if (Math.abs(student_loan_balance) > 1e-6) {
+        const [theta_growth_source, theta_growth_after] = get_growth_parameters(
+            envelopes, params.from_key, params.after_school_key
+        );
+        const correction_inflow = T(
+            { t_k: student_loan_end_time },
+            f_in,
+            P({ a: Math.abs(student_loan_balance) }),
+            theta_growth_after
+        );
+        studentLoanEnvelope.functions.push(correction_inflow);
+        const correction_outflow = T(
+            { t_k: student_loan_end_time },
+            f_out,
+            P({ b: Math.abs(student_loan_balance) }),
+            theta_growth_source
+        );
+        envelopes[params.from_key].functions.push(correction_outflow);
+    }
 };
 
 export const private_student_loan = (event: any, envelopes: Record<string, any>) => {
@@ -1896,6 +2035,33 @@ export const private_student_loan = (event: any, envelopes: Record<string, any>)
         theta_growth_after
     );
     envelopes[params.after_school_key].functions.push(principal_payments);
+
+    // --- Student Loan Envelope Correction at End of Payment Cycle ---
+    const student_loan_end_time = payment_end_time;
+    const studentLoanEnvelope = envelopes[params.after_school_key];
+    let student_loan_balance = 0.0;
+    for (const func of studentLoanEnvelope.functions) {
+        student_loan_balance += func(student_loan_end_time);
+    }
+    if (Math.abs(student_loan_balance) > 1e-6) {
+        const [theta_growth_source, theta_growth_after] = get_growth_parameters(
+            envelopes, params.from_key, params.after_school_key
+        );
+        const correction_inflow = T(
+            { t_k: student_loan_end_time },
+            f_in,
+            P({ a: Math.abs(student_loan_balance) }),
+            theta_growth_after
+        );
+        studentLoanEnvelope.functions.push(correction_inflow);
+        const correction_outflow = T(
+            { t_k: student_loan_end_time },
+            f_out,
+            P({ b: Math.abs(student_loan_balance) }),
+            theta_growth_source
+        );
+        envelopes[params.from_key].functions.push(correction_outflow);
+    }
 };
 
 // Helper function to find year-end days based on birth date

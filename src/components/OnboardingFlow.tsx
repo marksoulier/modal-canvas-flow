@@ -8,11 +8,15 @@ import { Checkbox } from '@/components/ui/checkbox';
 // import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent } from '@/components/ui/card';
 import { DollarSign, Target, Home, Plane, Users, Coffee, TrendingUp, PiggyBank, Building, CreditCard, Wallet, Shield, Leaf, Mountain, Sparkles } from 'lucide-react';
+import { usePlan } from '../contexts/PlanContext';
+import EventParameterForm from './EventParameterForm'; // adjust path as needed
+import { useAuth } from '../contexts/AuthContext';
 
 interface OnboardingFlowProps {
   isOpen: boolean;
   onComplete: () => void;
   onAuthRequired: () => void;
+  onAddEventAndEditParams: (eventType: string) => void;
 }
 
 interface OnboardingData {
@@ -37,9 +41,9 @@ const CATEGORY_BASE_COLORS: Record<string, string> = {
   'Assets': '#888888', // Grey
 };
 
-const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ isOpen, onComplete, onAuthRequired }) => {
+const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ isOpen, onComplete, onAuthRequired, onAddEventAndEditParams }) => {
   const [currentStep, setCurrentStep] = useState(0);
-  const [data, setData] = useState<OnboardingData>({
+  const [data, setData] = useState<OnboardingData & { _currentStep?: number }>({
     goals: [],
     financialGoals: [],
     name: '',
@@ -63,12 +67,89 @@ const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ isOpen, onComplete, onA
       savings: 0,
       investments: 0,
       retirement: 0
-    }
+    },
+    _currentStep: 0,
   });
+  const [loading, setLoading] = useState(true);
+  const { upsertAnonymousOnboarding, fetchAnonymousOnboarding } = useAuth();
 
-  const totalSteps = 7;
+  // Fetch onboarding data on mount
+  React.useEffect(() => {
+    let mounted = true;
+    (async () => {
+      setLoading(true);
+      const anonData = await fetchAnonymousOnboarding();
+      if (anonData && mounted) {
+        setData((prev) => ({ ...prev, ...anonData }));
+        // If the fetched data has a _currentStep, set the step
+        if (typeof anonData._currentStep === 'number') {
+          setCurrentStep(anonData._currentStep);
+        }
+      }
+      setLoading(false);
+    })();
+    return () => { mounted = false; };
+  }, [fetchAnonymousOnboarding]);
+
+  // Save onboarding data on every change, including currentStep
+  React.useEffect(() => {
+    if (!loading) {
+      upsertAnonymousOnboarding({ ...data, _currentStep: currentStep });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data, currentStep]);
+
+  const { addEvent } = usePlan();
+
+  const handleAddInitialEvent = (eventType: string) => {
+    onAddEventAndEditParams(eventType);
+  };
+
+  const totalSteps = 8;
 
   const handleNext = () => {
+    // After monthly budget step (step 5, index 4)
+    if (currentStep === 4) {
+      const monthlyBudgetingParams = {
+        start_time: 0,
+        end_time: 29200,
+        frequency_days: 30,
+        from_key: "Other (Cash)",
+        groceries: data.budgetCategories.food,
+        utilities: data.budgetCategories.utilities,
+        rent: data.budgetCategories.housing,
+        transportation: data.budgetCategories.transportation,
+        insurance: 0,
+        healthcare: data.budgetCategories.healthcare,
+        dining_out: 0,
+        entertainment: data.budgetCategories.entertainment,
+        personal_care: 0,
+        miscellaneous: data.budgetCategories.other
+      };
+      addEvent("monthly_budgeting", monthlyBudgetingParams);
+    }
+
+    // After account balances step (step 6, index 5)
+    if (currentStep === 5) {
+      const declareAccountsParams = {
+        start_time: 0,
+        end_time: 3650,
+        frequency_days: 365,
+        amount1: data.accounts.cash,
+        envelope1: "Other (Cash)",
+        amount2: data.accounts.savings,
+        envelope2: "Other (Savings)",
+        amount3: data.accounts.investments,
+        envelope3: "Other (Investments)",
+        amount4: data.accounts.retirement,
+        envelope4: "Other (Retirement)",
+        amount5: data.accounts.debt,
+        envelope5: "Other (Debt)"
+      };
+      addEvent("declare_accounts", declareAccountsParams);
+    }
+
+    // Move to next step or finish
     if (currentStep < totalSteps - 1) {
       setCurrentStep(currentStep + 1);
     } else {
@@ -501,7 +582,56 @@ const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ isOpen, onComplete, onA
         </div>
       )
     },
-    // Step 7: Features Overview
+    // Step 7: Add Initial Events (NEW)
+    {
+      title: "Add Initial Events",
+      content: (
+        <div className="space-y-6">
+          <p className="text-muted-foreground text-center mb-6">
+            Add your first events to get started. You can edit their details after adding.
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <Card className="cursor-pointer hover:ring-2 hover:ring-primary transition-all">
+              <CardContent className="flex flex-col items-center p-6">
+                <button
+                  className="w-full flex flex-col items-center gap-2"
+                  onClick={() => handleAddInitialEvent('get_job')}
+                >
+                  <span className="font-semibold">Add Salary Employment</span>
+                  <span className="text-xs text-muted-foreground">Add a salaried job</span>
+                  <Button className="mt-2">Add Event</Button>
+                </button>
+              </CardContent>
+            </Card>
+            <Card className="cursor-pointer hover:ring-2 hover:ring-primary transition-all">
+              <CardContent className="flex flex-col items-center p-6">
+                <button
+                  className="w-full flex flex-col items-center gap-2"
+                  onClick={() => handleAddInitialEvent('get_wage_job')}
+                >
+                  <span className="font-semibold">Add Wage Employment</span>
+                  <span className="text-xs text-muted-foreground">Add an hourly job</span>
+                  <Button className="mt-2">Add Event</Button>
+                </button>
+              </CardContent>
+            </Card>
+            <Card className="cursor-pointer hover:ring-2 hover:ring-primary transition-all">
+              <CardContent className="flex flex-col items-center p-6">
+                <button
+                  className="w-full flex flex-col items-center gap-2"
+                  onClick={() => handleAddInitialEvent('buy_house')}
+                >
+                  <span className="font-semibold">Add House</span>
+                  <span className="text-xs text-muted-foreground">Add a home purchase</span>
+                  <Button className="mt-2">Add Event</Button>
+                </button>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      )
+    },
+    // Step 8: Explore Your Financial Future (ORIGINAL, just pass for now)
     {
       title: "Explore Your Financial Future",
       content: (
@@ -537,6 +667,16 @@ const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ isOpen, onComplete, onA
   ];
 
   const currentStepData = steps[currentStep];
+
+  if (loading) {
+    return (
+      <Dialog open={isOpen} onOpenChange={() => { }}>
+        <DialogContent className="sm:max-w-2xl max-w-4xl mx-8">
+          <div className="py-16 text-center text-lg">Loading your onboarding progress...</div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
 
   return (
     <Dialog open={isOpen} onOpenChange={() => { }}>

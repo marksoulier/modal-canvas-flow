@@ -47,6 +47,8 @@ interface AuthContextType {
     refreshUserData: () => Promise<void>;
     savePlanToCloud: (plan: PlanContextPlan) => Promise<{ success: boolean; requiresConfirmation?: boolean; existingPlanName?: string }>;
     confirmOverwritePlan: (plan: PlanContextPlan, planName: string) => Promise<boolean>;
+    upsertAnonymousOnboarding: (onboardingData: any) => Promise<boolean>;
+    fetchAnonymousOnboarding: () => Promise<any>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -57,6 +59,17 @@ export function useAuth() {
         throw new Error('useAuth must be used within an AuthProvider');
     }
     return context;
+}
+
+// Utility to get or create anon_id in localStorage
+function getOrCreateAnonId() {
+    let anonId = localStorage.getItem('anon_id');
+    if (!anonId) {
+        anonId = crypto.randomUUID();
+        localStorage.setItem('anon_id', anonId);
+    }
+    //console.log("anonId", anonId);
+    return anonId;
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -398,6 +411,80 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
     };
 
+    // Upsert onboarding data for anonymous user
+    const upsertAnonymousOnboarding = async (onboardingData: any) => {
+        const anonId = getOrCreateAnonId();
+        //console.log("anonId", anonId);
+        let extraData: Record<string, any> = {
+            user_agent: navigator.userAgent,
+            session_start: new Date().toISOString(),
+            referrer: document.referrer,
+            utm_source: new URLSearchParams(window.location.search).get('utm_source'),
+            screen_width: window.screen.width,
+            screen_height: window.screen.height,
+            device_pixel_ratio: window.devicePixelRatio,
+            browser_language: navigator.language,
+        };
+        // Fetch geolocation data from ipapi.co if in browser
+        if (typeof window !== 'undefined') {
+            try {
+                const geoRes = await fetch('https://ipapi.co/json/');
+                if (geoRes.ok) {
+                    const geo = await geoRes.json();
+                    extraData = {
+                        ...extraData,
+                        ip: geo.ip,
+                        city: geo.city,
+                        region: geo.region,
+                        country: geo.country_name,
+                        country_code: geo.country,
+                        postal: geo.postal,
+                        latitude: geo.latitude,
+                        longitude: geo.longitude,
+                        timezone: geo.timezone,
+                        org: geo.org,
+                    };
+                }
+            } catch (err) {
+                // Ignore geolocation errors
+                console.warn('Failed to fetch geolocation data', err);
+            }
+        }
+        const { error } = await supabase
+            .from('anonymous_users')
+            .upsert({
+                id: anonId,
+                onboarding_data: onboardingData,
+                extra_data: extraData, // Store all extra data
+            });
+        if (error) {
+            console.error('Error upserting anonymous onboarding:', error);
+            toast.error('Failed to save onboarding progress.');
+            return false;
+        }
+        return true;
+    };
+
+    // Fetch onboarding data for current anon_id
+    const fetchAnonymousOnboarding = async () => {
+        const anonId = localStorage.getItem('anon_id');
+        //console.log("anonId", anonId);
+        if (!anonId) return null;
+        const { data, error } = await supabase
+            .from('anonymous_users')
+            .select('onboarding_data, extra_data') // Select extra_data
+            .eq('id', anonId)
+            .single();
+        if (error) {
+            console.error('Error fetching anonymous onboarding:', error);
+            return null;
+        }
+        return {
+            onboarding_data: data?.onboarding_data ?? null,
+            extra_data: data?.extra_data ?? null
+        };
+    };
+
     const value = {
         user,
         userData,
@@ -410,6 +497,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         refreshUserData,
         savePlanToCloud,
         confirmOverwritePlan,
+        upsertAnonymousOnboarding, // <-- add to context
+        fetchAnonymousOnboarding,  // <-- add to context
     };
 
     return (

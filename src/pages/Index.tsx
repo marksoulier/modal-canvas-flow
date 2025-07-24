@@ -49,7 +49,7 @@ const Index = () => {
   // Use real authentication from AuthContext
   const { user, signOut: authSignOut } = useAuth();
 
-  const { plan, schema, loadPlanFromFile, savePlanToFile, updatePlanTitle, loadPlan, lockPlan } = usePlan();
+  const { plan, schema, loadPlanFromFile, savePlanToFile, updatePlanTitle, loadPlan, lockPlan, addEvent } = usePlan();
 
   const [errorOpen, setErrorOpen] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
@@ -423,6 +423,11 @@ const Index = () => {
           localStorage.setItem('onboarding-completed', 'true');
           setOnboardingOpen(false);
           setAuthModalOpen(true);
+        }}
+        onAddEventAndEditParams={(eventType) => {
+          const newId = addEvent(eventType);
+          setEditingEventId(newId);
+          setEventParametersOpen(true);
         }}
       />
     </div>
