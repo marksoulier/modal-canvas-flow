@@ -23,6 +23,7 @@ import { usePlan } from '../contexts/PlanContext';
 import { useAuth } from '../contexts/AuthContext';
 import ErrorToast from '../components/ErrorToast';
 import PlanPreferencesModal from '../components/PlanPreferencesModal';
+import OnboardingFlow from '../components/OnboardingFlow';
 import { extractSchema, validateProblem } from '../hooks/schemaChecker';
 
 const Index = () => {
@@ -36,6 +37,7 @@ const Index = () => {
   const [eventParametersOpen, setEventParametersOpen] = useState(false);
   const [addEnvelopeModalOpen, setAddEnvelopeModalOpen] = useState(false);
   const [envelopeManagerModalOpen, setEnvelopeManagerModalOpen] = useState(false);
+  const [onboardingOpen, setOnboardingOpen] = useState(!localStorage.getItem('onboarding-completed')); // Show onboarding on first visit
   const [editingEventId, setEditingEventId] = useState<number | null>(null);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [tempTitle, setTempTitle] = useState('');
@@ -400,6 +402,20 @@ const Index = () => {
         onManageEnvelopes={() => {
           setPlanPreferencesModalOpen(false);
           setEnvelopeManagerModalOpen(true);
+        }}
+      />
+      
+      {/* Onboarding Flow */}
+      <OnboardingFlow
+        isOpen={onboardingOpen}
+        onComplete={() => {
+          localStorage.setItem('onboarding-completed', 'true');
+          setOnboardingOpen(false);
+        }}
+        onAuthRequired={() => {
+          localStorage.setItem('onboarding-completed', 'true');
+          setOnboardingOpen(false);
+          setAuthModalOpen(true);
         }}
       />
     </div>
