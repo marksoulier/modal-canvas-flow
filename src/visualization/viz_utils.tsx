@@ -211,12 +211,22 @@ export function getEnvelopeAndCategoryColors(
 }
 
 // Legend component
-export const Legend = ({ envelopes, envelopeColors, currentValues, getCategory, categoryColors }: {
+export const Legend = ({
+    envelopes,
+    envelopeColors,
+    currentValues,
+    getCategory,
+    categoryColors,
+    nonNetworthEnvelopes,
+    nonNetworthCurrentValues
+}: {
     envelopes: string[];
     envelopeColors: Record<string, { area: string; line: string }>;
     currentValues: { [key: string]: number };
     getCategory: (envelope: string) => string | undefined;
     categoryColors: Record<string, { area: string; line: string }>;
+    nonNetworthEnvelopes?: string[];
+    nonNetworthCurrentValues?: { [key: string]: number };
 }) => {
     // Group envelopes by category
     const categoryMap: Record<string, string[]> = {};
@@ -227,12 +237,47 @@ export const Legend = ({ envelopes, envelopeColors, currentValues, getCategory, 
         categoryMap[category].push(envelope);
     });
 
+    // Group non-networth envelopes by category
+    const nonNetworthCategoryMap: Record<string, string[]> = {};
+    if (nonNetworthEnvelopes && nonNetworthCurrentValues) {
+        nonNetworthEnvelopes.forEach((envelope) => {
+            const category = getCategory(envelope) || 'Non-Networth';
+            if (!nonNetworthCategoryMap[category]) nonNetworthCategoryMap[category] = [];
+            nonNetworthCategoryMap[category].push(envelope);
+        });
+    }
+
     if (!envelopes || envelopes.length === 0) {
         return null;
     }
+    // Calculate net worth as the sum of all envelope values
+    const netWorth = envelopes.reduce((sum, env) => sum + (currentValues[env] || 0), 0);
+
+    // Choose a color for the net worth box (you can pick a unique color or reuse a category color)
+    const netWorthColor = { area: '#335966', line: '#03c6fc' }; // Example: blue/teal
+
     return (
         <div className="absolute right-4 bottom-12 bg-white p-4 rounded-lg shadow-lg" style={{ pointerEvents: 'none' }}>
-            <h3 className="text-sm font-semibold mb-2">Envelopes</h3>
+            <div
+                className="flex items-center justify-between space-x-4"
+                style={{ fontWeight: 600, color: '#222', fontSize: '1rem', marginBottom: 12 }}
+            >
+                <div className="flex items-center space-x-2">
+                    {/* <div
+                        className="w-4 h-4 rounded"
+                        style={{
+                            backgroundColor: netWorthColor.area,
+                            border: `2px solid ${netWorthColor.line}`,
+                        }}
+                    /> */}
+                    <span className="text-sm" style={{ fontWeight: 500 }}>
+                        Net Worth
+                    </span>
+                </div>
+                <span className="text-xs text-gray-800" style={{ fontWeight: 700 }}>
+                    {formatNumber({ valueOf: () => netWorth })}
+                </span>
+            </div>
             <div className="space-y-3">
                 {Object.entries(categoryMap).map(([category, envs]) => {
                     const catColor = categoryColors[category] || { area: '#ccc', line: '#888' };
@@ -271,6 +316,50 @@ export const Legend = ({ envelopes, envelopeColors, currentValues, getCategory, 
                         </div>
                     );
                 })}
+
+                {/* Render non-networth categories */}
+                {Object.entries(nonNetworthCategoryMap).map(([category, envs]) => {
+                    const catColor = categoryColors[category] || { area: '#ff6b6b', line: '#ff4757' };
+                    const categorySum = envs.reduce((sum, env) => sum + ((nonNetworthCurrentValues && nonNetworthCurrentValues[env]) || 0), 0);
+                    const showEnvelopes = envs.length > 1 || (envs.length === 1 && !/^other/i.test(envs[0]));
+                    return (
+                        <div key={`non-networth-${category}`} style={{ marginBottom: 12, opacity: 0.8 }}>
+                            <div className="flex items-center justify-between space-x-4" style={{ fontWeight: 600, color: '#222', fontSize: '1rem' }}>
+                                <div className="flex items-center space-x-2">
+                                    <div className="w-4 h-4 rounded" style={{
+                                        backgroundColor: 'transparent',
+                                        border: `2px dashed ${catColor.line}`,
+                                        borderRadius: '2px'
+                                    }} />
+                                    <span className="text-sm" style={{ fontWeight: 500, fontStyle: 'italic' }}>{category} (Debug)</span>
+                                </div>
+                                <span className="text-xs text-gray-500" style={{ fontWeight: 500 }}>{formatNumber({ valueOf: () => categorySum })}</span>
+                            </div>
+                            {showEnvelopes && nonNetworthCurrentValues && (
+                                <div style={{ marginLeft: 20, marginTop: 2 }} className="space-y-1">
+                                    {envs.map((envelope) => {
+                                        const envColor = envelopeColors[envelope] || catColor;
+                                        return (
+                                            <div key={envelope} className="flex items-center justify-between space-x-4">
+                                                <div className="flex items-center space-x-2">
+                                                    <div className="w-3 h-3 rounded" style={{
+                                                        backgroundColor: 'transparent',
+                                                        border: `2px dashed ${envColor.line}`,
+                                                        borderRadius: '2px'
+                                                    }} />
+                                                    <span className="text-xs" style={{ fontWeight: 500, color: '#444', fontStyle: 'italic' }}>{envelope}</span>
+                                                </div>
+                                                <span className="text-xs text-gray-400">
+                                                    {formatNumber({ valueOf: () => nonNetworthCurrentValues[envelope] || 0 })}
+                                                </span>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </div>
+                    );
+                })}
             </div>
         </div>
     );
@@ -281,6 +370,9 @@ export interface Datum {
     date: number;
     value: number;
     parts: {
+        [key: string]: number;
+    };
+    nonNetworthParts?: {
         [key: string]: number;
     };
 }

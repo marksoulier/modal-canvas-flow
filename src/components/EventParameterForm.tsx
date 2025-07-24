@@ -281,39 +281,58 @@ const EventParametersForm: React.FC<EventParametersFormProps> = ({
                 }
             });
 
+            const growthRate = plan?.envelopes.find(e => e.name === value)?.rate;
+            const growthType = plan?.envelopes.find(e => e.name === value)?.growth;
+            console.log('growthRate: ', growthRate);
             return (
-                <div className="flex items-center gap-1">
-                    <Select
-                        value={value as string}
-                        onValueChange={(newValue) => {
-                            handleInputChange(event.id, param.id, newValue);
-                            handleInputBlur(param.id, newValue, event.id);
-                        }}
-                    >
-                        <SelectTrigger className="w-full">
-                            <SelectValue placeholder={defaultValue || "Select an envelope"} />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {Object.entries(displayEnvelopeMap).map(([displayName, envelopeKey]) => (
-                                <SelectItem key={envelopeKey} value={envelopeKey}>
-                                    {displayName} <span style={{ color: '#888', fontSize: '0.8em' }}>({envelopeCategoryMap[envelopeKey]})</span>
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-                    {typeof onOpenEnvelopeModal === 'function' && (
-                        <Button
-                            type="button"
-                            size="icon"
-                            variant="ghost"
-                            className="ml-1 p-1 h-8 w-8 text-gray-400 hover:text-blue-500"
-                            tabIndex={-1}
-                            onClick={() => onOpenEnvelopeModal(String(value))}
-                            aria-label="Manage envelopes"
+                <div className="flex flex-col gap-1">
+                    <div className="flex items-center gap-1">
+                        <Select
+                            value={value as string}
+                            onValueChange={(newValue) => {
+                                handleInputChange(event.id, param.id, newValue);
+                                handleInputBlur(param.id, newValue, event.id);
+                            }}
                         >
-                            <Pencil className="w-4 h-4" />
-                        </Button>
-                    )}
+                            <SelectTrigger className="w-full">
+                                <SelectValue placeholder={defaultValue || "Select an envelope"} />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {Object.entries(displayEnvelopeMap).map(([displayName, envelopeKey]) => (
+                                    <SelectItem key={envelopeKey} value={envelopeKey}>
+                                        {displayName} <span style={{ color: '#888', fontSize: '0.8em' }}>({envelopeCategoryMap[envelopeKey]})</span>
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                        {typeof onOpenEnvelopeModal === 'function' && (
+                            <Button
+                                type="button"
+                                size="icon"
+                                variant="ghost"
+                                className="ml-1 p-1 h-8 w-8 text-gray-400 hover:text-blue-500"
+                                tabIndex={-1}
+                                onClick={() => onOpenEnvelopeModal(String(value))}
+                                aria-label="Manage envelopes"
+                            >
+                                <Pencil className="w-4 h-4" />
+                            </Button>
+                        )}
+                    </div>
+                    {/* Growth rate display */}
+                    {growthType === "None" ? (
+                        <div className="mt-1 text-xs text-gray-400 bg-gray-50 rounded px-2 py-1 border border-gray-100">
+                            <span className="font-mono">
+                                No growth over time
+                            </span>
+                        </div>
+                    ) : growthRate !== undefined && growthRate > 0 ? (
+                        <div className="mt-1 text-xs text-gray-400 bg-gray-50 rounded px-2 py-1 border border-gray-100">
+                            <span className="font-mono">
+                                {growthType}: {(growthRate * 100).toFixed(2)}%/yr
+                            </span>
+                        </div>
+                    ) : null}
                 </div>
             );
         }
@@ -361,7 +380,7 @@ const EventParametersForm: React.FC<EventParametersFormProps> = ({
                                 className="form-checkbox h-4 w-4 text-blue-500 border-gray-300 rounded"
                                 style={{ accentColor: '#3b82f6' }}
                             />
-                            Use Today's Value
+                            Use Inflation Adjusted Value
                         </label>
                         <TooltipProvider>
                             <Tooltip>
@@ -767,60 +786,67 @@ const EventParametersForm: React.FC<EventParametersFormProps> = ({
 
 
                 <form onSubmit={handleSubmit} className="space-y-6">
-                    {currentEvent && currentEvent.parameters && currentEvent.parameters.filter((param) => shouldShowParameter(param.type)).map((param) => (
-                        <div key={param.id} className="space-y-2">
-                            <div className="space-y-1">
-                                <Label htmlFor={param.id.toString()} className="text-sm font-medium">
-                                    {getParameterDisplayName((currentEvent as any).type, param.type)}
-                                </Label>
-                                <p className="text-xs text-muted-foreground">
-                                    {getEventDefinition(plan, schema, eventId)?.parameters.find((p: any) => p.type === param.type)?.description}
-                                </p>
-                            </div>
-                            {currentEvent && renderInput(param, currentEvent as any)}
-                        </div>
-                    ))}
-                    {currentUpdatingEvent && currentUpdatingEvent.parameters &&
-                        currentUpdatingEvent.parameters.filter((param) => shouldShowParameter(param.type)).map((param) => (
+                    {currentEvent && currentEvent.parameters && currentEvent.parameters
+                        .filter((param) => shouldShowParameter(param.type) && !['frequency_days', 'end_time'].includes(param.type))
+                        .map((param) => (
                             <div key={param.id} className="space-y-2">
                                 <div className="space-y-1">
                                     <Label htmlFor={param.id.toString()} className="text-sm font-medium">
-                                        {getParameterDisplayName((currentUpdatingEvent as any).type, param.type)}
+                                        {getParameterDisplayName((currentEvent as any).type, param.type)}
                                     </Label>
                                     <p className="text-xs text-muted-foreground">
                                         {getEventDefinition(plan, schema, eventId)?.parameters.find((p: any) => p.type === param.type)?.description}
                                     </p>
                                 </div>
-                                {currentUpdatingEvent && renderInput(param, currentUpdatingEvent as any)}
+                                {currentEvent && renderInput(param, currentEvent as any)}
                             </div>
                         ))}
-
-                    {/* Repeat Event Toggle */}
                     {canEventBeRecurring(eventId) && (
-                        <div className="flex items-center gap-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
-                            <label className="flex items-center gap-2 text-sm font-medium cursor-pointer">
-                                <input
-                                    type="checkbox"
-                                    checked={isRepeating}
-                                    onChange={(e) => handleRepeatToggle(e.target.checked)}
-                                    className="form-checkbox h-4 w-4 text-blue-500 border-gray-300 rounded"
-                                    style={{ accentColor: '#3b82f6' }}
-                                />
-                                Repeat Event
-                            </label>
-                            <TooltipProvider>
-                                <Tooltip>
-                                    <TooltipTrigger asChild>
-                                        <HelpCircle className="h-4 w-4 text-blue-400 hover:text-blue-600 cursor-help" />
-                                    </TooltipTrigger>
-                                    <TooltipContent side="top" className="max-w-xs">
-                                        <p className="text-sm">
-                                            Enable this to make the event repeat over time. When enabled, you can set
-                                            the end date and frequency for the recurring event.
-                                        </p>
-                                    </TooltipContent>
-                                </Tooltip>
-                            </TooltipProvider>
+                        <div className="flex flex-col gap-2 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                            <div className="flex items-center gap-3">
+                                <label className="flex items-center gap-2 text-sm font-medium cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        checked={isRepeating}
+                                        onChange={(e) => handleRepeatToggle(e.target.checked)}
+                                        className="form-checkbox h-4 w-4 text-blue-500 border-gray-300 rounded"
+                                        style={{ accentColor: '#3b82f6' }}
+                                    />
+                                    Repeat Event
+                                </label>
+                                <TooltipProvider>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <HelpCircle className="h-4 w-4 text-blue-400 hover:text-blue-600 cursor-help" />
+                                        </TooltipTrigger>
+                                        <TooltipContent side="top" className="max-w-xs">
+                                            <p className="text-sm">
+                                                Enable this to make the event repeat over time. When enabled, you can set
+                                                the end date and frequency for the recurring event.
+                                            </p>
+                                        </TooltipContent>
+                                    </Tooltip>
+                                </TooltipProvider>
+                            </div>
+                            {isRepeating && currentEvent && (
+                                <div className="flex flex-col gap-2 mt-2">
+                                    {['frequency_days', 'end_time'].map((type) =>
+                                        currentEvent.parameters
+                                            .filter(param => param.type === type)
+                                            .map(param => (
+                                                <div key={param.id} className="space-y-1">
+                                                    <Label htmlFor={param.id.toString()} className="text-sm font-medium">
+                                                        {getParameterDisplayName((currentEvent as any).type, param.type)}
+                                                    </Label>
+                                                    <p className="text-xs text-muted-foreground">
+                                                        {getEventDefinition(plan, schema, eventId)?.parameters.find((p: any) => p.type === param.type)?.description}
+                                                    </p>
+                                                    {renderInput(param, currentEvent as any)}
+                                                </div>
+                                            ))
+                                    )}
+                                </div>
+                            )}
                         </div>
                     )}
 

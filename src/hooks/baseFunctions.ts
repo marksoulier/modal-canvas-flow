@@ -3,6 +3,8 @@ import type { Theta, FuncWithTheta } from "./types";
 
 export const u = (t: number): number => (t >= 0 ? 1.0 : 0.0);
 
+export const impulse = (t: number): number => (t == 0 ? 1.0 : 0.0);
+
 // Update P to support hybrid (constant or function) parameters
 export const P = (params: Record<string, number | ((t: number) => number)>): Theta => {
     return (t: number) => {
@@ -26,6 +28,19 @@ export const T = (
     const params = theta(t_k); // θ = θ(t_k) - evaluate at t_k
 
     return (t: number) => f(params, t_k - t0) * u(t - t_k) * f_growth(theta_g, t - t_k);
+};
+
+export const impulse_T = (
+    theta_event: Record<string, number>,
+    f: (params: Record<string, any>, t: number) => number,
+    theta: Theta = P({}),
+    theta_g: Record<string, any>,
+    t0: number = 0 // time used for start of a reoccuring event. Only use in reoccuring events.
+): ((t: number) => number) => {
+    const t_k = theta_event.t_k;
+    const params = theta(t_k); // θ = θ(t_k) - evaluate at t_k
+
+    return (t: number) => f(params, t_k - t0) * impulse(t - t_k);
 };
 
 export const R = (
@@ -502,7 +517,7 @@ export const reoccuring_spending_inflation_adjusted = (event: any, envelopes: Re
     const spending_func = R(
         { t0: params.start_time, dt: params.frequency_days, tf: params.end_time },
         f_out,
-        P({ b: inflationAdjust(params.amount, envelopes[params.from_key].inflation_rate ?? 0.024, params.start_time) }),
+        P({ b: inflationAdjust(params.amount, envelopes.simulation_settings.inflation_rate, params.start_time) }),
         theta_growth_source
     );
 
@@ -522,36 +537,36 @@ export const loan_amortization = (event: any, envelopes: Record<string, any>) =>
         { t_k: params.start_time },
         f_in,
         P({ a: params.principal }),
-        theta_growth_source
+        theta_growth_dest
     );
-    envelopes[params.from_key].functions.push(recieved_loan);
+    envelopes[params.to_key].functions.push(recieved_loan);
 
     const loan_debit = T(
         { t_k: params.start_time },
         f_out,
         P({ b: params.principal }),
-        theta_growth_dest
+        theta_growth_source
     );
-    envelopes[params.to_key].functions.push(loan_debit);
+    envelopes[params.from_key].functions.push(loan_debit);
 
     // Now pay off the loan in an amortization schedule, aply principle payments to the debt
     const loan_amortization = R(
         { t0: params.start_time + 30, dt: 365 / 12, tf: params.start_time + params.loan_term_years * 365 },
         f_principal_payment,
         P({ P: params.principal, r: params.interest_rate, y: params.loan_term_years }),
-        theta_growth_dest
+        theta_growth_source
     );
-    envelopes[params.to_key].functions.push(loan_amortization);
+    envelopes[params.from_key].functions.push(loan_amortization);
 
     // Pay each monthly payment both the interest and the principle
     const payments_func = R(
         { t0: params.start_time + 30, dt: 365 / 12, tf: params.start_time + params.loan_term_years * 365 },
         f_monthly_payment,
         P({ P: params.principal, r: params.interest_rate, y: params.loan_term_years }),
-        theta_growth_source
+        theta_growth_dest
     );
 
-    envelopes[params.from_key].functions.push(payments_func);
+    envelopes[params.to_key].functions.push(payments_func);
 };
 
 export const purchase = (event: any, envelopes: Record<string, any>) => {
@@ -623,7 +638,7 @@ export const monthly_budgeting = (event: any, envelopes: Record<string, any>) =>
     const from_key = params.from_key;
     const start_time = params.start_time;
     const end_time = params.end_time;
-    const inflation_rate = envelopes[from_key].inflation_rate ?? 0.02; // Default 2% if not provided
+    const inflation_rate = envelopes.simulation_settings.inflation_rate; // Default 2% if not provided
 
     // List of parameter keys to skip (not budget categories)
     const skip_keys = new Set(["start_time", "end_time", "from_key", "inflation_rate"]);
@@ -654,8 +669,8 @@ export const get_job = (event: any, envelopes: Record<string, any>) => {
     const params = event.parameters;
 
     // Get growth parameters for both envelopes
-    const [theta_growth_source, theta_growth_dest] = get_growth_parameters(
-        envelopes, params.from_key, params.to_key
+    const [theta_growth_source, theta_growth_dest, theta_growth_taxable_income, theta_growth_penalty_401k, theta_growth_taxes_401k] = get_growth_parameters(
+        envelopes, params.from_key, params.to_key, params.taxable_income_key, params.penalty_401k_key, params.taxes_401k_key
     );
 
     // Base job parameters dictionary for P(...)
@@ -693,6 +708,12 @@ export const get_job = (event: any, envelopes: Record<string, any>) => {
     envelopes[to_key].functions.push(
         R({ t0: params.start_time, dt: 365 / params.pay_period, tf: params.end_time },
             f_salary, theta, theta_growth_dest)
+    );
+
+    // Add salary income to taxable income envelope
+    envelopes[params.taxable_income_key].functions.push(
+        R({ t0: params.start_time, dt: 365 / params.pay_period, tf: params.end_time },
+            f_in, P({ a: params.salary / params.pay_period }), theta_growth_taxable_income)
     );
 
     // Add 401(k) contributions if specified
@@ -843,6 +864,44 @@ export const buy_house = (event: any, envelopes: Record<string, any>) => {
         } else if (upd_type === "sell_house") {
         }
     }
+
+    // --- Property Tax Logic (added for property tax payments) ---
+    // Only run if params.property_tax_rate and params.house_key are defined
+    //Calcualte the house value at beginning of each year then calculate the property tax owed that year and the pay that in 6 month intervals.
+    if (params.property_tax_rate && params.from_key) {
+        const simulation_settings = envelopes.simulation_settings;
+        const startTime = simulation_settings.start_time;
+        const endTime = simulation_settings.end_time;
+        const interval = simulation_settings.interval;
+        const birthDate = simulation_settings.birthDate;
+
+        // Get year-end days based on birth date, this returns which days are Dec 31st of each year
+        const yearEndDays = birthDate ? getYearEndDays(birthDate, startTime, endTime) : [];
+
+        const houseEnvelope = envelopes[params.to_key];
+        const [theta_growth_cash] = get_growth_parameters(envelopes, params.from_key);
+
+        yearEndDays.forEach(yearStartDay => {
+            // Evaluate house value at the start of the year
+            let houseValue = 0.0;
+            for (const func of houseEnvelope.functions) {
+                houseValue += func(yearStartDay);
+            }
+            // Calculate annual property tax
+            const annualPropertyTax = houseValue * params.property_tax_rate;
+
+            if (annualPropertyTax > 0) {
+                // Create a recurring monthly outflow for property tax/12
+                const propertyTaxFunc = R(
+                    { t0: yearStartDay, dt: 30, tf: yearStartDay + 330 }, // 12 payments, approx monthly
+                    f_out,
+                    P({ b: annualPropertyTax / 12 }),
+                    theta_growth_cash
+                );
+                envelopes[params.from_key].functions.push(propertyTaxFunc);
+            }
+        });
+    }
 };
 
 export const buy_car = (event: any, envelopes: Record<string, any>) => {
@@ -920,22 +979,43 @@ export const buy_car = (event: any, envelopes: Record<string, any>) => {
 export const retirement = (event: any, envelopes: Record<string, any>) => {
     const params = event.parameters;
 
-    // Get growth parameters for the source envelope only
-    const [theta_growth_source, _] = get_growth_parameters(
-        envelopes, params.from_key
+    // Get growth parameters for all three envelopes
+    const [theta_growth_401k, theta_growth_dest, theta_growth_taxable] = get_growth_parameters(
+        envelopes, params.p_401k_key, params.to_key, params.taxable_income_key
     );
 
-    // Create recurring withdrawal function (outflow only)
+    // Create recurring transfer from 401K to cash (outflow from 401K)
     const withdrawal_func = R(
         { t0: params.start_time, dt: params.frequency_days, tf: params.end_time },
         f_out,
         P({ b: params.amount }),
-        theta_growth_source
+        theta_growth_401k
     );
 
-    // Add withdrawal function to source envelope
-    const from_key = params.from_key;
-    envelopes[from_key].functions.push(withdrawal_func);
+    // Add withdrawal function to 401K envelope
+    envelopes[params.p_401k_key].functions.push(withdrawal_func);
+
+    // Create recurring inflow to cash envelope
+    const inflow_func = R(
+        { t0: params.start_time, dt: params.frequency_days, tf: params.end_time },
+        f_in,
+        P({ a: params.amount }),
+        theta_growth_dest
+    );
+
+    // Add inflow function to cash envelope
+    envelopes[params.to_key].functions.push(inflow_func);
+
+    // Create recurring taxable income from 401K withdrawals
+    const taxable_income_func = R(
+        { t0: params.start_time, dt: params.frequency_days, tf: params.end_time },
+        f_in,
+        P({ a: params.amount }),
+        theta_growth_taxable
+    );
+
+    // Add taxable income function to taxable income envelope
+    envelopes[params.taxable_income_key].functions.push(taxable_income_func);
 };
 
 
@@ -1698,7 +1778,7 @@ export const federal_unsubsidized_loan = (event: any, envelopes: Record<string, 
 
     // Calculate when payments begin: graduation_date + 6 months (180 days)
     const payment_start_time = params.graduation_date + 180;
-    console.log("To_key envelope", envelopes[params.to_key]);
+    //console.log("To_key envelope", envelopes[params.to_key]);
     // Calculate accumulated debt using daily compound interest
     const interest_accrual_days = payment_start_time - params.start_time;
     const during_school_rate = envelopes[params.to_key].growth_rate; // Get rate from during-school envelope
@@ -1816,4 +1896,235 @@ export const private_student_loan = (event: any, envelopes: Record<string, any>)
         theta_growth_after
     );
     envelopes[params.after_school_key].functions.push(principal_payments);
+};
+
+// Helper function to find year-end days based on birth date
+const getYearEndDays = (birthDate: Date, startTime: number, endTime: number): number[] => {
+    const yearEndDays: number[] = [];
+
+    //console.log("Birth date", birthDate);
+    //console.log("Start time", startTime);
+    //console.log("End time", endTime);
+
+    // Start from the birth year
+    let currentYear = birthDate.getFullYear();
+
+    //console.log("Current year", currentYear);
+
+    while (true) {
+        // Create the tax year-end date (December 31st of current year)
+        const taxYearEndDate = new Date(currentYear, 11, 31); // Month 11 = December, Day 31
+
+        // Calculate days since birth date
+        const daysSinceBirth = Math.floor((taxYearEndDate.getTime() - birthDate.getTime()) / (1000 * 60 * 60 * 24));
+
+        //console.log(`Tax year ${currentYear} ends on day ${daysSinceBirth} (Dec 31, ${currentYear})`);
+
+        // If this year-end is beyond our simulation end time, break
+        if (daysSinceBirth > endTime) break;
+
+        // If this year-end is within our simulation range and after birth, add it
+        if (daysSinceBirth >= startTime && daysSinceBirth >= 0) {
+            yearEndDays.push(daysSinceBirth);
+        }
+
+        currentYear++;
+    }
+
+    return yearEndDays;
+};
+
+// Helper function to calculate taxes based on taxable income using tax brackets
+const calculateTaxes = (taxableIncome: number): number => {
+    if (taxableIncome <= 0) return 0;
+
+    // Simplified federal tax brackets for 2023 (single filer)
+    const federalBrackets = [
+        { min: 0, max: 11000, rate: 0.10 },
+        { min: 11000, max: 44725, rate: 0.12 },
+        { min: 44725, max: 95375, rate: 0.22 },
+        { min: 95375, max: 182050, rate: 0.24 },
+        { min: 182050, max: 231250, rate: 0.32 },
+        { min: 231250, max: 578125, rate: 0.35 },
+        { min: 578125, max: Infinity, rate: 0.37 }
+    ];
+
+    // Simplified state tax (flat rate - adjust as needed)
+    const stateRate = 0.05; // 5% flat state tax
+
+    let federalTax = 0;
+    let remainingIncome = taxableIncome;
+
+    // Calculate federal tax using brackets
+    for (const bracket of federalBrackets) {
+        if (remainingIncome <= 0) break;
+
+        const taxableInBracket = Math.min(remainingIncome, bracket.max - bracket.min);
+        federalTax += taxableInBracket * bracket.rate;
+        remainingIncome -= taxableInBracket;
+    }
+
+    // Calculate state tax (flat rate on full taxable income)
+    const stateTax = taxableIncome * stateRate;
+
+    // Return total tax (federal + state)
+    return federalTax + stateTax;
+};
+
+export const usa_tax_system = (event: any, envelopes: Record<string, any>) => {
+    const params = event.parameters;
+    const simulation_settings = envelopes.simulation_settings;
+
+    // Get growth parameters for the envelopes
+    const [theta_growth_taxable_income, theta_growth_penalty_401k, theta_growth_taxes_401k, theta_growth_roth, theta_growth_401k] = get_growth_parameters(
+        envelopes, params.taxable_income_key, params.penalty_401k_key, params.taxes_401k_key, params.roth_key, params.p_401k_key
+    );
+
+    // Get the relevant envelopes
+    const envelope401k = envelopes[params.p_401k_key];
+    const penaltyEnvelope = envelopes[params.penalty_401k_key];
+    const taxableIncomeEnvelope = envelopes[params.taxable_income_key];
+    const taxesEnvelope = envelopes[params.taxes_401k_key];
+
+    // Create time range based on simulation settings
+    const startTime = simulation_settings.start_time;
+    const endTime = simulation_settings.end_time;
+    const interval = simulation_settings.interval;
+    const birthDate = simulation_settings.birthDate;
+
+    // Generate time points similar to resultsEvaluation.ts
+    const timePoints = Array.from(
+        { length: Math.ceil((endTime - startTime) / interval) },
+        (_, i) => startTime + i * interval
+    );
+
+    // Get year-end days based on birth date, this returns which days are Dec 31st of each year
+    const yearEndDays = birthDate ? getYearEndDays(birthDate, startTime, endTime) : [];
+
+    //console.log("Year-end days", yearEndDays);
+
+    // Calculate the day when person reaches 59.5 years old
+    let age59HalfDay = null;
+    if (birthDate) {
+        // 59.5 years = 59 years + 6 months = 59 * 365.25 + 182.625 days
+        const daysTo59Half = Math.floor(59.5 * 365.25);
+        age59HalfDay = daysTo59Half;
+
+        // Only apply if within simulation range
+        if (age59HalfDay >= startTime && age59HalfDay <= endTime) {
+            console.log(`Person reaches age 59.5 on day ${age59HalfDay}`);
+        } else {
+            age59HalfDay = null; // Outside simulation range
+        }
+    }
+
+    // Process taxable income corrections on year-end days
+    yearEndDays.forEach(yearEndDay => {
+        // Evaluate taxable income envelope balance at year-end day
+        let taxableIncomeBalance = 0.0;
+        for (const func of taxableIncomeEnvelope.functions) {
+            taxableIncomeBalance += func(yearEndDay);
+        }
+
+        if (taxableIncomeBalance !== 0) {
+            // Apply difference correction - subtract the current balance to reset it
+            const difference = 0 - taxableIncomeBalance; // Target amount (0) minus current balance
+
+            // Create correction function following manual_correction pattern
+            const correctionFunc = T(
+                { t_k: yearEndDay },
+                difference > 0 ? f_in : f_out,
+                P(difference > 0 ? { a: Math.abs(difference) } : { b: Math.abs(difference) }),
+                theta_growth_taxable_income
+            );
+
+            // Add the correction to taxable income envelope
+            taxableIncomeEnvelope.functions.push(correctionFunc);
+
+            // console.log(`Applied taxable income correction of ${difference} at year-end day ${yearEndDay}`);
+        }
+    });
+
+    // For each time point, evaluate the 401K balance and create penalty functions
+    timePoints.forEach(t => {
+        // Evaluate 401K envelope balance at time t
+        let balance401k = 0.0;
+        for (const func of envelope401k.functions) {
+            balance401k += func(t);
+        }
+
+        // Only apply 401K penalty if person is under 59.5 years old
+        if (!age59HalfDay || t < age59HalfDay) {
+            // Calculate 10% penalty
+            const penaltyAmount = balance401k * 0.10;
+
+            // Create an impulse function at time t for the penalty amount
+            if (penaltyAmount > 0) {
+                const penaltyFunc = impulse_T(
+                    { t_k: t },
+                    f_out, // Using outflow function since it's a penalty (negative)
+                    P({ b: penaltyAmount }),
+                    theta_growth_penalty_401k,
+                    0
+                );
+
+                // Add the penalty function to the penalty envelope
+                penaltyEnvelope.functions.push(penaltyFunc);
+            }
+        }
+
+        // Evaluate taxable income envelope balance at time t
+        let taxableIncomeBalance = 0.0;
+        for (const func of taxableIncomeEnvelope.functions) {
+            taxableIncomeBalance += func(t);
+        }
+
+        //calcualte taxes owned just on the 401K balance part
+        const taxesOwed = calculateTaxes(taxableIncomeBalance + balance401k) - calculateTaxes(taxableIncomeBalance);
+
+        // Create an impulse function at time t for the tax amount
+        const taxFunc = impulse_T(
+            { t_k: t },
+            f_out, // Using outflow function since taxes are owed (positive debt)
+            P({ b: taxesOwed }),
+            theta_growth_taxes_401k,
+            0
+        );
+
+        // Add the tax function to the taxes envelope
+        taxesEnvelope.functions.push(taxFunc);
+
+        // console.log(`Added taxes of ${taxesOwed.toFixed(2)} on taxable income of ${taxableIncomeBalance.toFixed(2)} at time ${t}`);
+    });
+
+    // Apply manual correction to reset 401K penalty to 0 at age 59.5
+    if (age59HalfDay !== null) {
+        // Evaluate penalty envelope balance at age 59.5
+        let penaltyBalance = 0.0;
+        for (const func of penaltyEnvelope.functions) {
+            penaltyBalance += func(age59HalfDay);
+        }
+
+        if (penaltyBalance !== 0) {
+            // Apply difference correction - subtract the current balance to reset it to 0
+            const difference = 0 - penaltyBalance; // Target amount (0) minus current balance
+
+            // Create correction function following manual_correction pattern
+            const correctionFunc = T(
+                { t_k: age59HalfDay },
+                difference > 0 ? f_in : f_out,
+                P(difference > 0 ? { a: Math.abs(difference) } : { b: Math.abs(difference) }),
+                theta_growth_penalty_401k
+            );
+
+            // Add the correction to penalty envelope
+            penaltyEnvelope.functions.push(correctionFunc);
+
+            console.log(`Applied 401K penalty correction of ${difference} at age 59.5 (day ${age59HalfDay})`);
+        }
+    }
+
+    // console.log('USA Tax System event processed with parameters:', params);
+    // console.log(`Applied 401K penalties at ${timePoints.length} time points`);
+    //console.log(`Applied taxable income corrections at ${yearEndDays.length} year-end days:`, yearEndDays);
 }; 
