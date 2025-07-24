@@ -389,7 +389,7 @@
         },
         {
             "type": "income_with_changing_parameters",
-            "display_type": "Income (Updating Amount)",
+            "display_type": "Income",
             "display_event": true,
             "is_recurring": true,
             "can_be_reocurring": true,
@@ -748,6 +748,13 @@
                     "default": 200
                 },
                 {
+                    "type": "rent",
+                    "display_name": "Rent",
+                    "parameter_units": "usd",
+                    "description": "Monthly rent or housing payment.",
+                    "default": 1200
+                },
+                {
                     "type": "transportation",
                     "display_name": "Transportation",
                     "parameter_units": "usd",
@@ -800,7 +807,7 @@
         },
         {
             "type": "get_job",
-            "display_type": "Employment",
+            "display_type": "Salary Employment",
             "display_event": true,
             "is_recurring": true,
             "can_be_reocurring": false,

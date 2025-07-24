@@ -47,6 +47,7 @@ const DatePicker: React.FC<DatePickerProps> = ({
     };
 
     const displayDate = getDisplayDate();
+    const [popoverOpen, setPopoverOpen] = useState(false);
     const handleDateSelect = (newDate: Date | undefined) => {
         if (!newDate) return;
 
@@ -56,6 +57,7 @@ const DatePicker: React.FC<DatePickerProps> = ({
         const daysDiff = differenceInDays(newDate, birth);
         onChange(Number(daysDiff));
         setViewMonth(newDate);
+        setPopoverOpen(false); // Close popover on date select
     };
 
     const handlePreviousYear = () => {
@@ -108,7 +110,7 @@ const DatePicker: React.FC<DatePickerProps> = ({
 
     return (
         <div className="flex items-center gap-2">
-            <Popover>
+            <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
                 <PopoverTrigger asChild>
                     <Button
                         variant="outline"
@@ -118,6 +120,7 @@ const DatePicker: React.FC<DatePickerProps> = ({
                             !displayDate && "text-muted-foreground",
                             className
                         )}
+                        onClick={() => setPopoverOpen(true)}
                     >
                         <div className="flex items-center">
                             <CalendarIcon className="mr-2 h-4 w-4" />
@@ -127,6 +130,33 @@ const DatePicker: React.FC<DatePickerProps> = ({
                     </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
+                    <div className="flex justify-between px-2 py-1.5 border-b gap-2">
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 text-xs text-muted-foreground hover:text-foreground"
+                            onClick={handlePreviousYear}
+                        >
+                            Previous Year
+                        </Button>
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 text-xs text-muted-foreground hover:text-foreground"
+                            onClick={handleToday}
+                            style={{ opacity: 0.7 }}
+                        >
+                            Today
+                        </Button>
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 text-xs text-muted-foreground hover:text-foreground"
+                            onClick={handleNextYear}
+                        >
+                            Next Year
+                        </Button>
+                    </div>
                     <Calendar
                         mode="single"
                         selected={displayDate}
@@ -135,35 +165,6 @@ const DatePicker: React.FC<DatePickerProps> = ({
                         onMonthChange={setViewMonth}
                         defaultMonth={viewMonth}
                         className="pointer-events-auto"
-                        footer={
-                            <div className="flex justify-between px-2 py-1.5 border-t gap-2">
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-7 text-xs text-muted-foreground hover:text-foreground"
-                                    onClick={handlePreviousYear}
-                                >
-                                    Previous Year
-                                </Button>
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-7 text-xs text-muted-foreground hover:text-foreground"
-                                    onClick={handleToday}
-                                    style={{ opacity: 0.7 }}
-                                >
-                                    Today
-                                </Button>
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-7 text-xs text-muted-foreground hover:text-foreground"
-                                    onClick={handleNextYear}
-                                >
-                                    Next Year
-                                </Button>
-                            </div>
-                        }
                     />
                 </PopoverContent>
             </Popover>

@@ -53,12 +53,12 @@ const EventLibraryModal: React.FC<EventLibraryModalProps> = ({ isOpen, onClose, 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-6xl w-full h-[85vh] flex flex-col">
-        <DialogHeader className="flex items-center justify-between p-6 border-b border-gray-200">
+        <DialogHeader className="flex items-center justify-between p-2 border-b border-gray-200">
           <DialogTitle className="text-xl font-semibold text-gray-900">Financial Life Events Library</DialogTitle>
         </DialogHeader>
 
         {/* Search and Filters */}
-        <div className="p-6 border-b border-gray-200 space-y-4">
+        <div className="p-3 border-b border-gray-200 space-y-4">
           <div className="relative">
             <Search size={20} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[#03c6fc]" />
             <input
@@ -155,21 +155,39 @@ const EventLibraryModal: React.FC<EventLibraryModalProps> = ({ isOpen, onClose, 
 
                       {/* Disclaimer Box */}
                       {disclaimer && (
-                        <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 rounded-md px-4 py-3 text-sm mt-2">
+                        <button
+                          type="button"
+                          onClick={handleAddEvent}
+                          className="w-full text-left bg-yellow-50 border border-yellow-200 text-yellow-800 rounded-md px-4 py-3 text-sm mt-2 transition hover:bg-yellow-100 focus:outline-none focus:ring-2 focus:ring-yellow-300 cursor-pointer"
+                          tabIndex={0}
+                        >
                           {disclaimer}
-                        </div>
+                        </button>
                       )}
 
                       {/* Event Description (no header) */}
-                      <p className="text-gray-700 leading-relaxed mt-2">{event.description}</p>
+                      <button
+                        type="button"
+                        onClick={handleAddEvent}
+                        className="w-full text-left text-gray-700 leading-relaxed mt-2 bg-transparent border-none p-0 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-[#03c6fc] cursor-pointer rounded-md transition"
+                        tabIndex={0}
+                      >
+                        {event.description}
+                      </button>
 
                       {/* Parameters List (user-friendly, no header) */}
                       <div className="mt-4 space-y-3">
                         {event.parameters.map(param => (
-                          <div key={param.type} className="flex flex-col bg-gray-50 rounded-md px-4 py-2 border border-gray-100">
+                          <button
+                            key={param.type}
+                            type="button"
+                            onClick={handleAddEvent}
+                            className="w-full text-left flex flex-col bg-gray-50 rounded-md px-4 py-2 border border-gray-100 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-[#03c6fc] cursor-pointer transition"
+                            tabIndex={0}
+                          >
                             <span className="font-medium text-gray-900 text-sm">{getParameterDisplayName(event.type, param.type)}</span>
                             <span className="text-gray-600 text-sm mt-0.5">{param.description}</span>
-                          </div>
+                          </button>
                         ))}
                       </div>
                     </div>

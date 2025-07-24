@@ -550,16 +550,20 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
           // Calculate visibleYScale based on visibleData only
           const visibleYScale = useMemo(() => {
             if (!visibleData.length && !visibleLockedNetWorthData.length) return scaleLinear({ domain: [0, 1], range: [height, 0] });
-            const allYValues = [
-              ...visibleData.flatMap((d: any) => [normalizeZero(d.value), ...Object.values(d.parts).map((v: any) => normalizeZero(v))]),
-              ...visibleLockedNetWorthData.map(d => normalizeZero(d.value))
-            ];
-            const minY = Math.min(...allYValues);
+            // Compute stacked sums for each data point
+            const stackedSums = visibleData.map((d: any) => {
+              const values = [normalizeZero(d.value), ...Object.values(d.parts).map((v: any) => normalizeZero(v))];
+              const positiveSum = values.filter(v => v > 0).reduce((a, b) => a + b, 0);
+              const negativeSum = values.filter(v => v < 0).reduce((a, b) => a + b, 0);
+              return { positiveSum, negativeSum };
+            });
+            const lockedValues = visibleLockedNetWorthData.map(d => normalizeZero(d.value));
+            const maxY = Math.max(0, ...stackedSums.map(s => s.positiveSum), ...lockedValues);
+            const minY = Math.min(0, ...stackedSums.map(s => s.negativeSum), ...lockedValues);
             const adjustedMinY = minY > 0 ? 0 : minY;
-            const maxY = Math.max(...allYValues);
             // Add 10% padding to top and bottom
             const yRange = maxY - adjustedMinY || 1;
-            const pad = yRange * 0.1;
+            const pad = yRange * 0.2;
             const domainMin = adjustedMinY - pad;
             const domainMax = maxY + pad;
             return scaleLinear({
@@ -923,7 +927,7 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
                     y2={height * 2}
                     stroke="#a0aec0" // subtle gray
                     strokeWidth={1 / globalZoom}
-                    opacity={0.5}
+                    opacity={0.9}
                   />
 
                   {/* Retirement Goal Line (solid, inside zoom group) */}

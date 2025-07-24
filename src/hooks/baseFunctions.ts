@@ -536,7 +536,7 @@ export const loan_amortization = (event: any, envelopes: Record<string, any>) =>
 
     // Now pay off the loan in an amortization schedule, aply principle payments to the debt
     const loan_amortization = R(
-        { t0: params.start_time, dt: 365 / 12, tf: params.start_time + params.loan_term_years * 365 - 30 },
+        { t0: params.start_time + 30, dt: 365 / 12, tf: params.start_time + params.loan_term_years * 365 },
         f_principal_payment,
         P({ P: params.principal, r: params.interest_rate, y: params.loan_term_years }),
         theta_growth_dest
@@ -545,7 +545,7 @@ export const loan_amortization = (event: any, envelopes: Record<string, any>) =>
 
     // Pay each monthly payment both the interest and the principle
     const payments_func = R(
-        { t0: params.start_time, dt: 365 / 12, tf: params.start_time + params.loan_term_years * 365 - 30 },
+        { t0: params.start_time + 30, dt: 365 / 12, tf: params.start_time + params.loan_term_years * 365 },
         f_monthly_payment,
         P({ P: params.principal, r: params.interest_rate, y: params.loan_term_years }),
         theta_growth_source
@@ -813,7 +813,7 @@ export const buy_house = (event: any, envelopes: Record<string, any>) => {
 
     // Create mortgage payments to the mortgage envelope tracking the principle payments
     const mortgage_func = R(
-        { t0: params.start_time, dt: 365 / 12, tf: params.start_time + params.loan_term_years * 365 - 30 },
+        { t0: params.start_time + 30, dt: 365 / 12, tf: params.start_time + params.loan_term_years * 365 },
         f_principal_payment,
         P({ P: loan_amount, r: params.loan_rate, y: params.loan_term_years }),
         theta_growth_mortgage
@@ -823,7 +823,7 @@ export const buy_house = (event: any, envelopes: Record<string, any>) => {
 
     // Pay the morgage from the source envelope
     const mortgage_func_source = R(
-        { t0: params.start_time, dt: 365 / 12, tf: params.start_time + params.loan_term_years * 365 - 30 },
+        { t0: params.start_time + 30, dt: 365 / 12, tf: params.start_time + params.loan_term_years * 365 },
         f_monthly_payment,
         P({ P: loan_amount, r: params.loan_rate, y: params.loan_term_years }),
         theta_growth_source
@@ -887,7 +887,7 @@ export const buy_car = (event: any, envelopes: Record<string, any>) => {
     // Create car loan payments
     const loan_amount = params.car_value - params.downpayment;
     const loan_payment_func = R(
-        { t0: params.start_time, dt: 365 / 12, tf: params.start_time + params.loan_term_years * 365 - 30 },
+        { t0: params.start_time + 30, dt: 365 / 12, tf: params.start_time + params.loan_term_years * 365 },
         f_monthly_payment,
         P({ P: loan_amount, r: params.loan_rate, y: params.loan_term_years }),
         theta_growth_source
@@ -898,7 +898,7 @@ export const buy_car = (event: any, envelopes: Record<string, any>) => {
 
     // Create car loan payments to the mortgage envelope tracking the principle payments
     const car_loan_func = R(
-        { t0: params.start_time, dt: 365 / 12, tf: params.start_time + params.loan_term_years * 365 - 30 },
+        { t0: params.start_time + 30, dt: 365 / 12, tf: params.start_time + params.loan_term_years * 365 },
         f_principal_payment,
         P({ P: loan_amount, r: params.loan_rate, y: params.loan_term_years }),
         theta_growth_debt
@@ -1793,14 +1793,15 @@ export const private_student_loan = (event: any, envelopes: Record<string, any>)
 
     // Standard 10-year repayment schedule starting after transfer
     const loan_term_years = params.loan_term_years;
-    const payment_end_time = payment_start_time + loan_term_years * 365 - 30;
+    const payment_end_time = payment_start_time + loan_term_years * 365;
 
     // Get interest rate from the during-school envelope (private loans typically have higher rates)
     const interest_rate = envelopes[params.to_key].growth_rate; // Default 6.5% for private loans
 
+    // First payment is 30 days after transfer
     // Monthly payments from cash (includes both principal and interest)
     const monthly_payments = R(
-        { t0: payment_start_time, dt: 365 / 12, tf: payment_end_time },
+        { t0: payment_start_time + 30, dt: 365 / 12, tf: payment_end_time },
         f_monthly_payment,
         P({ P: accumulated_debt_amount, r: interest_rate, y: loan_term_years }),
         theta_growth_source
@@ -1809,7 +1810,7 @@ export const private_student_loan = (event: any, envelopes: Record<string, any>)
 
     // Monthly principal payments to reduce debt in after-school envelope
     const principal_payments = R(
-        { t0: payment_start_time, dt: 365 / 12, tf: payment_end_time },
+        { t0: payment_start_time + 30, dt: 365 / 12, tf: payment_end_time },
         f_principal_payment,
         P({ P: accumulated_debt_amount, r: interest_rate, y: loan_term_years }),
         theta_growth_after
