@@ -40,7 +40,7 @@ export const daysToDate = (daysSinceBirth: number, birthDate: Date): Date => {
 
 // Get interval in days based on selected time interval
 export type TimeInterval = 'day' | 'week' | 'month' | 'quarter' | 'half_year' | 'year';
-export type ExtendedTimeInterval = TimeInterval | 'full';
+export type ExtendedTimeInterval = TimeInterval | 'full' | 'month_year';
 
 export const getIntervalInDays = (interval: TimeInterval): number => {
     switch (interval) {
@@ -92,6 +92,12 @@ export const formatDate = (
         case 'full':
             dateStr = date.toLocaleString('default', {
                 day: 'numeric',
+                month: 'short',
+                year: 'numeric'
+            });
+            break;
+        case 'month_year':
+            dateStr = date.toLocaleString('default', {
                 month: 'short',
                 year: 'numeric'
             });

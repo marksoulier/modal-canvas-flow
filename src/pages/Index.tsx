@@ -18,6 +18,7 @@ import UserAccountModal from '../components/UserAccountModal';
 import EventParameterForm from '../components/EventParameterForm';
 import EditEnvelopeModal from '../components/EditEnvelopeModal';
 import EnvelopeManagerModal from '../components/EnvelopeManagerModal';
+import DateRangePicker from '../components/DateRangePicker';
 import { Visualization } from '../visualization/Visualization';
 import { usePlan, getEnvelopeDisplayName } from '../contexts/PlanContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -280,6 +281,9 @@ const Index = () => {
 
       {/* Overlay elements with higher z-index */}
       <div className="relative z-10">
+        {/* Date Range Picker - Top Right */}
+        <DateRangePicker />
+
         {/* Hamburger Menu and Title - Top Left */}
         <div className="absolute top-6 left-3 flex items-center gap-3">
           {/* Hamburger Dropdown Menu */}

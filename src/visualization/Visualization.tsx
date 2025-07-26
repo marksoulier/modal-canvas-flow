@@ -50,7 +50,8 @@ const isZeroTransition = (prevValue: number, currentValue: number): boolean => {
   const prev = normalizeZero(prevValue);
   const curr = normalizeZero(currentValue);
   // True if going from 0 to value OR from value to 0
-  return (prev === 0 && curr !== 0) || (prev !== 0 && curr === 0);
+  return false; //set false for now.
+  //return (prev === 0 && curr !== 0) || (prev !== 0 && curr === 0);
 };
 
 // Helper function to split data into segments based on 0-to-value transitions
@@ -219,6 +220,11 @@ const detectAccountWarnings = (netWorthData: Datum[], plan: Plan | null): Array<
 
 
 export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativeAccountWarning }: VisualizationProps) {
+  // Ref to store the setZoomToDateRange function for context access
+  const setZoomToDateRangeRef = useRef<((startDay: number, endDay: number) => void) | null>(null);
+
+  // Get the registerCurrentVisualizationRange function from context
+  const { registerCurrentVisualizationRange } = usePlan();
   const svgRef = useRef<SVGSVGElement>(null);
   const [cursorPos, setCursorPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
@@ -243,6 +249,15 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
   } | null>(null);
   const [autoZoomTrigger, setAutoZoomTrigger] = useState<{ years?: number; months?: number; days?: number } | null>(null);
 
+  // Visible range detection (for logging/debugging only)
+  const [currentVisibleRange, setCurrentVisibleRange] = useState<{
+    startDate: number;
+    endDate: number;
+    startDateFormatted: string;
+    endDateFormatted: string;
+    totalDays: number;
+  } | null>(null);
+
   // State for locked plan simulation results
   const [lockedNetWorthData, setLockedNetWorthData] = useState<{ date: number, value: number }[]>([]);
 
@@ -265,13 +280,55 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
     }
   }, [wheelHandler]);
 
-  const { plan, plan_locked, getEventIcon, updateParameter, schema, deleteEvent, getEventDisplayType, currentDay } = usePlan();
+  const { plan, plan_locked, getEventIcon, updateParameter, schema, deleteEvent, getEventDisplayType, currentDay, registerSetZoomToDateRange } = usePlan();
+
+  // Register the setZoomToDateRange function with the context when it's available
+  useEffect(() => {
+    if (setZoomToDateRangeRef.current) {
+      registerSetZoomToDateRange(setZoomToDateRangeRef.current);
+    }
+  }, [registerSetZoomToDateRange]);
 
   // Base sizes that will be adjusted by zoom
   const baseLineWidth = 2;
   const baseTextSize = 10;
   const basePointRadius = 4;
 
+  // Get the current visible date range with padding for simulator
+  const getVisibleDateRange = (zoom: any, xScale: any, width: number) => {
+    const viewportPadding = width * 0.2; // 20% padding on each side
+
+    // Calculate the visible domain in data coordinates
+    const visibleXDomain = [
+      xScale.invert((-zoom.transformMatrix.translateX - viewportPadding) / zoom.transformMatrix.scaleX),
+      xScale.invert((width - zoom.transformMatrix.translateX + viewportPadding) / zoom.transformMatrix.scaleX)
+    ];
+
+    // Clamp to valid date range (0 to 80 years)
+    let startDate = Math.max(0, Math.floor(visibleXDomain[0]));
+    let endDate = Math.min(80 * 365, Math.ceil(visibleXDomain[1]));
+
+    // Ensure minimum range of 1 year
+    const minRange = 365;
+    if (endDate - startDate < minRange) {
+      const center = (startDate + endDate) / 2;
+      startDate = Math.max(0, Math.floor(center - minRange / 2));
+      endDate = Math.min(80 * 365, Math.ceil(center + minRange / 2));
+    }
+
+    const startDateFormatted = formatDate(startDate, birthDate, 'full', true, false);
+    const endDateFormatted = formatDate(endDate, birthDate, 'full', true, false);
+
+    return {
+      startDate,
+      endDate,
+      startDateFormatted: typeof startDateFormatted === 'string' ? startDateFormatted : startDateFormatted.toString(),
+      endDateFormatted: typeof endDateFormatted === 'string' ? endDateFormatted : endDateFormatted.toString(),
+      totalDays: endDate - startDate
+    };
+  };
+
+  // Default full range (fallback)
   const startDate: number = 0
   const endDate: number = 80 * 365
 
@@ -283,6 +340,13 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
         return;
       }
       try {
+        // Run simulation with full range
+        console.log('🔍 Locked Plan - Running simulation with full range:', {
+          startDate,
+          endDate,
+          days: endDate - startDate
+        });
+
         const result = await runSimulation(
           plan_locked,
           schema,
@@ -326,7 +390,14 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
           const birthDateObj = new Date(plan.birth_date + 'T00:00:00');
           setBirthDate(birthDateObj);
         }
-        // Run simulation with plan and schema from context
+
+        // Run simulation with full range
+        console.log('🔍 Running simulation with full range:', {
+          startDate,
+          endDate,
+          days: endDate - startDate
+        });
+
         const result = await runSimulation(
           plan,
           schema,
@@ -460,6 +531,38 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
             xScale.invert((-zoom.transformMatrix.translateX - viewportPadding) / zoom.transformMatrix.scaleX),
             xScale.invert((width - zoom.transformMatrix.translateX + viewportPadding) / zoom.transformMatrix.scaleX)
           ];
+
+          // Get actual visible range for simulator (this is where we have access to real zoom state)
+          const actualVisibleRange = getVisibleDateRange(zoom, xScale, width);
+          // console.log('🔍 ACTUAL Visible Date Range (from zoom state):', {
+          //   start: actualVisibleRange.startDateFormatted,
+          //   end: actualVisibleRange.endDateFormatted,
+          //   days: actualVisibleRange.totalDays,
+          //   startDate: actualVisibleRange.startDate,
+          //   endDate: actualVisibleRange.endDate,
+          //   zoomLevel: globalZoom,
+          //   translateX: zoom.transformMatrix.translateX
+          // });
+
+          // Update current visible range for logging and register with context
+          useEffect(() => {
+            setCurrentVisibleRange({
+              startDate: actualVisibleRange.startDate,
+              endDate: actualVisibleRange.endDate,
+              startDateFormatted: actualVisibleRange.startDateFormatted,
+              endDateFormatted: actualVisibleRange.endDateFormatted,
+              totalDays: actualVisibleRange.totalDays
+            });
+            console.log('🔍 Registering current range with context:', {
+              startDay: actualVisibleRange.startDate,
+              endDay: actualVisibleRange.endDate
+            });
+            // Register current range with context for DateRangePicker to access
+            registerCurrentVisualizationRange({
+              startDay: actualVisibleRange.startDate,
+              endDay: actualVisibleRange.endDate
+            });
+          }, [actualVisibleRange.startDate, actualVisibleRange.endDate, actualVisibleRange.startDateFormatted, actualVisibleRange.endDateFormatted, actualVisibleRange.totalDays, registerCurrentVisualizationRange]);
 
           // Filter data points to only those in viewport
           const visibleData = netWorthData.filter(d =>
@@ -684,6 +787,33 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
               translateX,
             });
           };
+
+          // Method to set zoom to show a specific date range
+          const setZoomToDateRange = (startDay: number, endDay: number) => {
+            console.log('🎯 Setting zoom to date range:', {
+              startDay,
+              endDay,
+              startDateFormatted: formatDate(startDay, birthDate, 'full', true, false),
+              endDateFormatted: formatDate(endDay, birthDate, 'full', true, false),
+              totalDays: endDay - startDay
+            });
+
+            // Calculate the scale and translation to show this range
+            const rangeWidth = endDay - startDay;
+            if (rangeWidth <= 0) return;
+
+            const scaleX = width / (xScale(endDay) - xScale(startDay));
+            const translateX = -xScale(startDay) * scaleX + 80;
+
+            zoom.setTransformMatrix({
+              ...zoom.transformMatrix,
+              scaleX,
+              translateX,
+            });
+          };
+
+          // Store the function in the ref for context access
+          setZoomToDateRangeRef.current = setZoomToDateRange;
           // Auto-trigger second zoom after component rerenders
           useEffect(() => {
             if (autoZoomTrigger !== null) {
@@ -1156,14 +1286,26 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
                   const snappedEventsMap: { [snappedDate: number]: Array<{ event: any, originalDate: number }> } = {};
                   for (const [dateStr, eventsAtDate] of Object.entries(allEventsByDate)) {
                     const date = Number(dateStr);
-                    // Find the closest visible data point
+                    // Find the closest visible data point that is greater than or equal to the event date
                     const visibleDataPoints = netWorthData.filter(p =>
                       p.date >= xScale.domain()[0] && p.date <= xScale.domain()[1]
                     );
                     if (visibleDataPoints.length === 0) continue;
-                    // Find the closest data point to this date
-                    const closestDataPoint = [...visibleDataPoints]
-                      .sort((a, b) => Math.abs(a.date - date) - Math.abs(b.date - date))[0];
+
+                    // Find the closest data point that is >= the event date
+                    const futureDataPoints = visibleDataPoints.filter(p => p.date >= date);
+                    let closestDataPoint;
+
+                    if (futureDataPoints.length > 0) {
+                      // If we have future data points, find the closest one
+                      closestDataPoint = futureDataPoints.reduce((closest, current) =>
+                        Math.abs(current.date - date) < Math.abs(closest.date - date) ? current : closest
+                      );
+                    } else {
+                      // If no future data points, use the latest available data point
+                      closestDataPoint = visibleDataPoints[visibleDataPoints.length - 1];
+                    }
+
                     if (!closestDataPoint) continue;
                     // For each event at this date, add to the snapped map
                     for (const event of eventsAtDate) {

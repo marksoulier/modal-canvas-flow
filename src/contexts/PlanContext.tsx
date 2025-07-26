@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
 import * as LucideIcons from 'lucide-react';
 import eventSchemaData from '@/data/event_schema.json';
 import defaultPlanData from '@/data/plan.json';
@@ -186,13 +186,18 @@ interface PlanContextType {
     deleteEventsByType: (eventType: string) => void; // <-- add this
     getEnvelopeDisplayName: (envelopeName: string) => string;
     captureVisualizationAsSVG: () => string | null; // <-- add this
+    setVisualizationDateRange: (planData: Plan) => void; // <-- add this
+    setZoomToDateRange: (startDay: number, endDay: number) => void; // <-- add this
+    registerSetZoomToDateRange: (fn: (startDay: number, endDay: number) => void) => void; // <-- add this
+    getCurrentVisualizationRange: () => { startDay: number; endDay: number } | null; // <-- add this
+    registerCurrentVisualizationRange: (range: { startDay: number; endDay: number } | null) => void; // <-- add this
 }
 
 // Schema and default data are now imported directly
 
 // --- AUTO-PERSISTENCE FLAG ---
 // Set this to true to enable automatic saving/loading of the plan to/from localStorage
-const ENABLE_AUTO_PERSIST_PLAN = true;
+const ENABLE_AUTO_PERSIST_PLAN = false;
 const LOCALSTORAGE_PLAN_KEY = 'user_plan_v1';
 const LOCALSTORAGE_PLAN_LOCKED_KEY = 'user_plan_locked_v1';
 
@@ -232,6 +237,12 @@ export function PlanProvider({ children }: PlanProviderProps) {
     const [plan_locked, setPlanLocked] = useState<Plan | null>(null); // <-- add this
     const [schema, setSchema] = useState<Schema | null>(null);
     const [isInitialized, setIsInitialized] = useState(false);
+
+    // Ref to store the setZoomToDateRange function from Visualization
+    const setZoomToDateRangeRef = useRef<((startDay: number, endDay: number) => void) | null>(null);
+
+    // Ref to store the current visualization range from Visualization
+    const currentVisualizationRangeRef = useRef<{ startDay: number; endDay: number } | null>(null);
 
     const { upsertAnonymousPlan } = useAuth();
 
@@ -323,9 +334,55 @@ export function PlanProvider({ children }: PlanProviderProps) {
         }
     }, [plan_locked]);
 
-    const loadPlan = useCallback((planData: Plan) => {
-        setPlan(planData);
+    // Helper function to set visualization date range
+    // This function can be used by other components to set the visualization date range
+    // Example usage: setVisualizationDateRange(planData) where planData has view_start_date and view_end_date
+    const setVisualizationDateRange = useCallback((planData: Plan) => {
+        if (planData.view_start_date && planData.view_end_date) {
+            // Convert ISO dates to day numbers
+            const birthDate = new Date(planData.birth_date + 'T00:00:00');
+            const startDate = new Date(planData.view_start_date + 'T00:00:00');
+            const endDate = new Date(planData.view_end_date + 'T00:00:00');
+
+            const startDay = Math.floor((startDate.getTime() - birthDate.getTime()) / (1000 * 60 * 60 * 24));
+            const endDay = Math.floor((endDate.getTime() - birthDate.getTime()) / (1000 * 60 * 60 * 24));
+
+            console.log('📅 Setting visualization date range:', {
+                startDate: planData.view_start_date,
+                endDate: planData.view_end_date,
+                startDay,
+                endDay
+            });
+
+            // Set zoom to the specified range (this will be called after the visualization is ready)
+            setTimeout(() => {
+                // Use the ref directly
+                if (setZoomToDateRangeRef.current) {
+                    setZoomToDateRangeRef.current(startDay, endDay);
+                } else {
+                    console.warn('setZoomToDateRange not ready yet, will retry in 500ms');
+                    // Retry after a longer delay
+                    setTimeout(() => {
+                        if (setZoomToDateRangeRef.current) {
+                            setZoomToDateRangeRef.current(startDay, endDay);
+                        }
+                    }, 500);
+                }
+            }, 100);
+        }
     }, []);
+
+    // Helper function to load plan data and set visualization range
+    const loadPlanData = useCallback((planData: Plan) => {
+        setPlan(planData);
+        console.log("planData.view_start_date: ", planData.view_start_date);
+        console.log("planData.view_end_date: ", planData.view_end_date);
+        setVisualizationDateRange(planData);
+    }, [setVisualizationDateRange]);
+
+    const loadPlan = useCallback((planData: Plan) => {
+        loadPlanData(planData);
+    }, [loadPlanData]);
 
     const savePlan = useCallback(() => {
         if (!plan) {
@@ -338,12 +395,12 @@ export function PlanProvider({ children }: PlanProviderProps) {
         try {
             const text = await file.text();
             const planData = JSON.parse(text) as Plan;
-            setPlan(planData);
+            loadPlanData(planData);
         } catch (error) {
             console.error('Error loading plan from file:', error);
             throw error;
         }
-    }, []);
+    }, [loadPlanData]);
 
     const savePlanToFile = useCallback(() => {
         if (!plan) {
@@ -942,6 +999,30 @@ export function PlanProvider({ children }: PlanProviderProps) {
         }
     }, [plan]);
 
+    const getCurrentVisualizationRange = useCallback(() => {
+        // First try to get the actual visualization range
+        if (currentVisualizationRangeRef.current) {
+            console.log("PlanContext - getCurrentVisualizationRange: using actual visualization range:", currentVisualizationRangeRef.current);
+            return currentVisualizationRangeRef.current;
+        }
+
+        // Fallback to plan's stored view dates
+        if (!plan || !plan.view_start_date || !plan.view_end_date) {
+            console.log("PlanContext - getCurrentVisualizationRange: no plan or view dates, returning null");
+            return null;
+        }
+        const birthDate = new Date(plan.birth_date + 'T00:00:00');
+        const startDate = new Date(plan.view_start_date + 'T00:00:00');
+        const endDate = new Date(plan.view_end_date + 'T00:00:00');
+
+        const startDay = Math.floor((startDate.getTime() - birthDate.getTime()) / (1000 * 60 * 60 * 24));
+        const endDay = Math.floor((endDate.getTime() - birthDate.getTime()) / (1000 * 60 * 60 * 24));
+
+        const result = { startDay, endDay };
+        console.log("PlanContext - getCurrentVisualizationRange: using plan view dates:", result);
+        return result;
+    }, [plan]);
+
     const value = {
         plan,
         plan_locked, // <-- add to context value
@@ -976,6 +1057,22 @@ export function PlanProvider({ children }: PlanProviderProps) {
         deleteEventsByType, // <-- add to context value
         getEnvelopeDisplayName, // <-- add to context value
         captureVisualizationAsSVG, // <-- add to context value
+        setVisualizationDateRange, // <-- add to context value
+        setZoomToDateRange: (startDay: number, endDay: number) => {
+            // Use the ref if available, otherwise log a warning
+            if (setZoomToDateRangeRef.current) {
+                setZoomToDateRangeRef.current(startDay, endDay);
+            } else {
+                console.warn('setZoomToDateRange called but Visualization component not ready yet');
+            }
+        }, // <-- add to context value
+        registerSetZoomToDateRange: (fn: (startDay: number, endDay: number) => void) => {
+            setZoomToDateRangeRef.current = fn;
+        }, // <-- add to context value
+        registerCurrentVisualizationRange: (range: { startDay: number; endDay: number } | null) => {
+            currentVisualizationRangeRef.current = range;
+        }, // <-- add to context value
+        getCurrentVisualizationRange, // <-- add to context value
     };
 
     // Don't render children until we've attempted to load the default plan and schema

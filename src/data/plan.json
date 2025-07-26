@@ -4,8 +4,8 @@
   "inflation_rate": 0.024,
   "adjust_for_inflation": false,
   "retirement_goal": 0,
-  "view_start_date": "2001-01-01",
-  "view_end_date": "2100-12-31",
+  "view_start_date": "2025-01-01",
+  "view_end_date": "2025-12-31",
   "envelopes": [],
   "events": []
 }

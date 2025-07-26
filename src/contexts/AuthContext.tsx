@@ -324,9 +324,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     plan_image: planImage || null,
                 });
 
+            //Also save the plan to the anonymous_plans table
+            const upsertData = {
+                anonymous_user_id: getOrCreateAnonId(),
+                plan_name: planName,
+                plan_data: plan as any, // Type assertion for JSON compatibility
+                plan_image: planImage || null,
+            };
+            const { error: anonymousError } = await supabase
+                .from('anonymous_plans')
+                .upsert(
+                    upsertData,
+                    { onConflict: 'anonymous_user_id,plan_name' }
+                );
+
+
             if (error) {
                 console.error('Error inserting plan:', error);
                 throw error;
+            }
+
+            if (anonymousError) {
+                console.error('Error inserting anonymous plan:', anonymousError);
+                throw anonymousError;
             }
 
             toast.success(`Plan "${planName}" saved to cloud successfully!`);
@@ -363,6 +383,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 })
                 .eq('user_id', user.id)
                 .eq('plan_name', planName);
+            
+            const upsertData = {
+                anonymous_user_id: getOrCreateAnonId(),
+                plan_name: planName,
+                plan_data: plan as any, // Type assertion for JSON compatibility
+                plan_image: planImage || null,
+            };
+            const { error: anonymousError } = await supabase
+                .from('anonymous_plans')
+                .upsert(
+                    upsertData,
+                    { onConflict: 'anonymous_user_id,plan_name' }
+                );
 
             if (error) {
                 console.error('Error updating plan:', error);

@@ -27,7 +27,7 @@ interface Datum {
 export function initializeEnvelopes(plan: Plan, simulation_settings: any): Record<string, any> {
     const envelopes: Record<string, any> = {};
 
-    console.log("plan.envelopes", plan.envelopes);
+    //console.log("plan.envelopes", plan.envelopes);
     for (const env of plan.envelopes) {
         const name = env.name;
         const growth_type = env.growth || "None";
@@ -73,7 +73,7 @@ export async function runSimulation(
 
         const parsedEvents = parseEvents(plan);
         const envelopes = initializeEnvelopes(plan, simulation_settings);
-        console.log('Initialized envelopes:', envelopes);
+        //console.log('Initialized envelopes:', envelopes);
         // Collect manual_correction events to process at the end
         const manualCorrectionEvents: any[] = [];
         // Collect declare_accounts events to process at the end
@@ -149,7 +149,7 @@ export async function runSimulation(
 
         // Process usa_tax_system events at the end
         for (const event of parsedEvents) {
-            console.log("Event: ", event);
+            //console.log("Event: ", event);
             if (event.type === 'usa_tax_system') {
                 usa_tax_system(event, envelopes);
             }
