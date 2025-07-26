@@ -383,7 +383,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 })
                 .eq('user_id', user.id)
                 .eq('plan_name', planName);
-            
+
             const upsertData = {
                 anonymous_user_id: getOrCreateAnonId(),
                 plan_name: planName,
@@ -608,7 +608,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const fetchDefaultPlans = async () => {
         // Use a hardcoded anonymous key for default plans that everyone can access
-        const defaultAnonId = '3bca4c8b-36ab-43fc-86b0-e572b14186fa';
+        const defaultAnonId = 'd7c733e0-9a8b-4584-a5a3-434288295ea5';
         const { data, error } = await supabase
             .from('anonymous_plans')
             .select('plan_name, plan_data, plan_image')

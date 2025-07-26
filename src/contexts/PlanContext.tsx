@@ -140,6 +140,7 @@ export interface SchemaEvent {
     disclaimer?: string;
     display_event?: boolean;
     is_recurring?: boolean;
+    can_be_reocurring?: boolean; // Added this property
 }
 
 export interface Schema {
@@ -191,13 +192,14 @@ interface PlanContextType {
     registerSetZoomToDateRange: (fn: (startDay: number, endDay: number) => void) => void; // <-- add this
     getCurrentVisualizationRange: () => { startDay: number; endDay: number } | null; // <-- add this
     registerCurrentVisualizationRange: (range: { startDay: number; endDay: number } | null) => void; // <-- add this
+    setVisualizationReady: (ready: boolean) => void; // <-- add this new method
 }
 
 // Schema and default data are now imported directly
 
 // --- AUTO-PERSISTENCE FLAG ---
 // Set this to true to enable automatic saving/loading of the plan to/from localStorage
-const ENABLE_AUTO_PERSIST_PLAN = false;
+const ENABLE_AUTO_PERSIST_PLAN = true;
 const LOCALSTORAGE_PLAN_KEY = 'user_plan_v1';
 const LOCALSTORAGE_PLAN_LOCKED_KEY = 'user_plan_locked_v1';
 
@@ -237,6 +239,7 @@ export function PlanProvider({ children }: PlanProviderProps) {
     const [plan_locked, setPlanLocked] = useState<Plan | null>(null); // <-- add this
     const [schema, setSchema] = useState<Schema | null>(null);
     const [isInitialized, setIsInitialized] = useState(false);
+    const [isVisualizationReady, setIsVisualizationReady] = useState(false); // <-- add this new state
 
     // Ref to store the setZoomToDateRange function from Visualization
     const setZoomToDateRangeRef = useRef<((startDay: number, endDay: number) => void) | null>(null);
@@ -268,7 +271,7 @@ export function PlanProvider({ children }: PlanProviderProps) {
                 if (stored) {
                     try {
                         const parsed = JSON.parse(stored);
-                        setPlan(parsed);
+                        loadPlanData(parsed);
                         loaded = true;
                     } catch (e) {
                         console.warn('Failed to parse plan from localStorage:', e);
@@ -277,6 +280,7 @@ export function PlanProvider({ children }: PlanProviderProps) {
                 if (storedLocked) {
                     try {
                         const parsedLocked = JSON.parse(storedLocked);
+                        // For locked plan, we don't need to set visualization range
                         setPlanLocked(parsedLocked);
                         lockedLoaded = true;
                     } catch (e) {
@@ -305,23 +309,49 @@ export function PlanProvider({ children }: PlanProviderProps) {
         tryLoadPlan();
     }, [isInitialized]);
 
+    // Helper function to add current view range to plan
+    const addViewRangeToPlan = useCallback((planToUpdate: Plan): Plan => {
+        const currentRange = currentVisualizationRangeRef.current;
+        if (!currentRange || !planToUpdate.birth_date) {
+            return planToUpdate;
+        }
+
+        const birthDate = new Date(planToUpdate.birth_date + 'T00:00:00');
+        const startDate = new Date(birthDate.getTime() + currentRange.startDay * 24 * 60 * 60 * 1000);
+        const endDate = new Date(birthDate.getTime() + currentRange.endDay * 24 * 60 * 60 * 1000);
+
+        console.log("startDate: ", startDate);
+        console.log("endDate: ", endDate);
+
+        return {
+            ...planToUpdate,
+            view_start_date: startDate.toISOString().split('T')[0],
+            view_end_date: endDate.toISOString().split('T')[0]
+        };
+    }, []);
+
     // --- Auto-save plan to localStorage on every change ---
     useEffect(() => {
         if (!ENABLE_AUTO_PERSIST_PLAN) return;
         if (!plan) return;
+        if (!isVisualizationReady) {
+            console.warn('Visualization not ready, skipping auto-save.');
+            return;
+        }
         try {
-            localStorage.setItem(LOCALSTORAGE_PLAN_KEY, JSON.stringify(plan));
+            const planToSave = addViewRangeToPlan(plan);
+            localStorage.setItem(LOCALSTORAGE_PLAN_KEY, JSON.stringify(planToSave));
+
+            // --- Upsert anonymous plan if anon key exists ---
+            const anonId = localStorage.getItem('anon_id');
+            if (anonId && typeof upsertAnonymousPlan === 'function') {
+                const planName = planToSave.title || 'Anonymous Plan';
+                upsertAnonymousPlan(planName, planToSave);
+            }
         } catch (e) {
             console.warn('Failed to save plan to localStorage:', e);
         }
-
-        // --- Upsert anonymous plan if anon key exists ---
-        const anonId = localStorage.getItem('anon_id');
-        if (anonId && typeof upsertAnonymousPlan === 'function') {
-            const planName = plan.title || 'Anonymous Plan';
-            upsertAnonymousPlan(planName, plan);
-        }
-    }, [plan]);
+    }, [plan, addViewRangeToPlan, isVisualizationReady]);
 
     // --- Auto-save plan_locked to localStorage on every change ---
     useEffect(() => {
@@ -333,6 +363,31 @@ export function PlanProvider({ children }: PlanProviderProps) {
             console.warn('Failed to save locked plan to localStorage:', e);
         }
     }, [plan_locked]);
+
+    // --- Perform a save when visualization becomes ready (to handle delayed saves) ---
+    useEffect(() => {
+        if (!ENABLE_AUTO_PERSIST_PLAN) return;
+        if (!plan) return;
+        if (!isVisualizationReady) return;
+
+        // Only save if we have a current range to avoid overwriting with null
+        if (currentVisualizationRangeRef.current) {
+            try {
+                const planToSave = addViewRangeToPlan(plan);
+                localStorage.setItem(LOCALSTORAGE_PLAN_KEY, JSON.stringify(planToSave));
+                console.log('📅 Delayed save completed after visualization ready');
+
+                // --- Upsert anonymous plan if anon key exists ---
+                const anonId = localStorage.getItem('anon_id');
+                if (anonId && typeof upsertAnonymousPlan === 'function') {
+                    const planName = planToSave.title || 'Anonymous Plan';
+                    upsertAnonymousPlan(planName, planToSave);
+                }
+            } catch (e) {
+                console.warn('Failed to save plan to localStorage during delayed save:', e);
+            }
+        }
+    }, [isVisualizationReady, plan, addViewRangeToPlan, upsertAnonymousPlan]);
 
     // Helper function to set visualization date range
     // This function can be used by other components to set the visualization date range
@@ -374,6 +429,8 @@ export function PlanProvider({ children }: PlanProviderProps) {
 
     // Helper function to load plan data and set visualization range
     const loadPlanData = useCallback((planData: Plan) => {
+        // Reset visualization ready state when loading new plan
+        setIsVisualizationReady(false);
         setPlan(planData);
         console.log("planData.view_start_date: ", planData.view_start_date);
         console.log("planData.view_end_date: ", planData.view_end_date);
@@ -388,8 +445,9 @@ export function PlanProvider({ children }: PlanProviderProps) {
         if (!plan) {
             throw new Error('No plan data to save');
         }
-        return JSON.stringify(plan, null, 2);
-    }, [plan]);
+        const planToSave = addViewRangeToPlan(plan);
+        return JSON.stringify(planToSave, null, 2);
+    }, [plan, addViewRangeToPlan]);
 
     const loadPlanFromFile = useCallback(async (file: File) => {
         try {
@@ -406,8 +464,9 @@ export function PlanProvider({ children }: PlanProviderProps) {
         if (!plan) {
             throw new Error('No plan data to save');
         }
-        const fileName = getPlanFileName(plan.title);
-        const blob = new Blob([JSON.stringify(plan, null, 2)], { type: 'application/json' });
+        const planToSave = addViewRangeToPlan(plan);
+        const fileName = getPlanFileName(planToSave.title);
+        const blob = new Blob([JSON.stringify(planToSave, null, 2)], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
@@ -416,7 +475,7 @@ export function PlanProvider({ children }: PlanProviderProps) {
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
-    }, [plan]);
+    }, [plan, addViewRangeToPlan]);
 
     const updateParameter = useCallback((eventId: number, parameterType: string, newValue: number | string) => {
         if (!plan) {
@@ -537,18 +596,19 @@ export function PlanProvider({ children }: PlanProviderProps) {
         // Create parameters with default values from schema, overridden by parameterOverrides
         const parameters = eventSchema.parameters.map((param, index) => {
             let value = param.default;
-            if (parameterOverrides && parameterOverrides.hasOwnProperty(param.type)) {
+            const wasOverridden = parameterOverrides && parameterOverrides.hasOwnProperty(param.type);
+
+            if (wasOverridden) {
                 value = parameterOverrides[param.type];
-            }
-            // For the start_time and end_time parameters add the current day value
-            if (
+            } else if (
                 (param.type === 'start_time' || param.type === 'end_time' || param.type === 'graduation_date') &&
                 typeof value === 'number'
             ) {
+                // Only add currentDay if the value wasn't overridden
                 value = value + currentDay;
             }
 
-            console.log("param.type: ", param.type, "value: ", value);
+            console.log("param.type: ", param.type, "value: ", value, "wasOverridden:", wasOverridden);
             return {
                 id: index,
                 type: param.type,
@@ -1002,7 +1062,7 @@ export function PlanProvider({ children }: PlanProviderProps) {
     const getCurrentVisualizationRange = useCallback(() => {
         // First try to get the actual visualization range
         if (currentVisualizationRangeRef.current) {
-            console.log("PlanContext - getCurrentVisualizationRange: using actual visualization range:", currentVisualizationRangeRef.current);
+            //console.log("PlanContext - getCurrentVisualizationRange: using actual visualization range:", currentVisualizationRangeRef.current);
             return currentVisualizationRangeRef.current;
         }
 
@@ -1019,7 +1079,7 @@ export function PlanProvider({ children }: PlanProviderProps) {
         const endDay = Math.floor((endDate.getTime() - birthDate.getTime()) / (1000 * 60 * 60 * 24));
 
         const result = { startDay, endDay };
-        console.log("PlanContext - getCurrentVisualizationRange: using plan view dates:", result);
+        //console.log("PlanContext - getCurrentVisualizationRange: using plan view dates:", result);
         return result;
     }, [plan]);
 
@@ -1073,6 +1133,9 @@ export function PlanProvider({ children }: PlanProviderProps) {
             currentVisualizationRangeRef.current = range;
         }, // <-- add to context value
         getCurrentVisualizationRange, // <-- add to context value
+        setVisualizationReady: (ready: boolean) => {
+            setIsVisualizationReady(ready);
+        },
     };
 
     // Don't render children until we've attempted to load the default plan and schema

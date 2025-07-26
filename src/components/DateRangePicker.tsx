@@ -89,7 +89,7 @@ const DateRangePicker: React.FC<DateRangePickerProps> = ({ className }) => {
         const endFormatted = formatDate(currentRange.endDay, birthDate, 'month_year', true);
 
         const newDisplayText = `${startFormatted} | ${endFormatted}`;
-        console.log("DateRangePicker - updating display text:", newDisplayText);
+        //console.log("DateRangePicker - updating display text:", newDisplayText);
         setDisplayText(newDisplayText);
     };
 

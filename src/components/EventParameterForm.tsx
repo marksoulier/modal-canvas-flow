@@ -228,8 +228,24 @@ const EventParametersForm: React.FC<EventParametersFormProps> = ({
     // Helper to filter parameters based on repeat settings
     const shouldShowParameter = (paramType: string): boolean => {
         const recurringOnlyParams = ['end_time', 'frequency_days'];
+
+        // Get the event definition to check can_be_reocurring
+        const eventDef = getEventDefinition(plan, schema, eventId);
+        const { event } = findEventOrUpdatingEventById(plan, eventId);
+
         if (recurringOnlyParams.includes(paramType)) {
-            return isRepeating;
+            // If event cannot be recurring, always show these parameters
+            if (eventDef?.can_be_reocurring === false) {
+                return true;
+            }
+
+            // For events that can be recurring:
+            // - If the event is currently recurring, only show in the repeating section
+            // - If the event is not recurring, don't show at all
+            if (eventDef?.can_be_reocurring === true) {
+                // Only show in regular section if NOT recurring
+                return false;
+            }
         }
         return true;
     };
@@ -978,7 +994,7 @@ const EventParametersForm: React.FC<EventParametersFormProps> = ({
                             Parameters
                         </h3>
                         {currentEvent && currentEvent.parameters && currentEvent.parameters
-                            .filter((param) => shouldShowParameter(param.type) && !['frequency_days', 'end_time'].includes(param.type))
+                            .filter((param) => shouldShowParameter(param.type))
                             .map((param) => (
                                 <div key={param.id} className="space-y-2">
                                     <div className="space-y-1">

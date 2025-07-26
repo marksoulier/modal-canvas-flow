@@ -11,6 +11,7 @@ import { DollarSign, Target, Home, Plane, Users, Coffee, TrendingUp, PiggyBank, 
 import { usePlan } from '../contexts/PlanContext';
 import { useAuth } from '../contexts/AuthContext';
 import { toast } from 'sonner';
+import { getDaysFromAge, getAgeFromDays } from '../visualization/viz_utils';
 
 interface OnboardingFlowProps {
   isOpen: boolean;
@@ -29,6 +30,11 @@ interface OnboardingData {
   educationField: string;
   budgetCategories: Record<string, number>;
   accounts: Record<string, number>;
+  retirementAge?: number;
+  retirementGoal?: number;
+  monthlyRetirementIncome?: number;
+  retirementStartDay?: number;
+  writtenFinancialGoal?: string;
 }
 
 const CATEGORY_BASE_COLORS: Record<string, string> = {
@@ -72,7 +78,7 @@ const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ isOpen, onComplete, onA
   });
   const [loading, setLoading] = useState(true);
   const { upsertAnonymousOnboarding, fetchAnonymousOnboarding, logAnonymousButtonClick } = useAuth();
-  const { addEvent, hasEventType, plan, getEventDisplayType, getEventIcon, updateBirthDate } = usePlan();
+  const { addEvent, hasEventType, plan, getEventDisplayType, getEventIcon, updateBirthDate, updateRetirementGoal } = usePlan();
 
   // Fetch onboarding data on mount
   React.useEffect(() => {
@@ -105,7 +111,7 @@ const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ isOpen, onComplete, onA
     onAddEventAndEditParams(eventType);
   };
 
-  const totalSteps = 8;
+  const totalSteps = 9;  // Updated from 8 to 9
 
   const handleNext = async () => {
 
@@ -139,7 +145,6 @@ const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ isOpen, onComplete, onA
     // After monthly budget step (step 5, index 4)
     if (currentStep === 4) {
       const monthlyBudgetingParams = {
-        start_time: 0,
         end_time: 29200,
         frequency_days: 30,
         from_key: "Other (Cash)",
@@ -162,8 +167,7 @@ const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ isOpen, onComplete, onA
     // After account balances step (step 6, index 5)
     if (currentStep === 5) {
       const declareAccountsParams = {
-        start_time: 0,
-        end_time: 3650,
+        end_time: 36500,
         frequency_days: 365,
         amount1: data.accounts.cash,
         envelope1: "Other (Cash)",
@@ -173,12 +177,33 @@ const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ isOpen, onComplete, onA
         envelope3: "Other (Investments)",
         amount4: data.accounts.retirement,
         envelope4: "Other (Retirement)",
-        amount5: data.accounts.debt,
+        amount5: -Math.abs(data.accounts.debt), // Convert debt to negative
         envelope5: "Other (Debt)"
       };
       // Check if declare_accounts event already exists and replace it
       // The third parameter (true) tells addEvent to delete existing events of this type first
       addEvent("declare_accounts", declareAccountsParams, true);
+    }
+
+    // After retirement planning step (step 8, index 7)
+    if (currentStep === 7) {
+      // Add retirement event
+      const retirementParams = {
+        start_time: data.retirementStartDay || 0,
+        end_time: 36500,
+        amount: data.monthlyRetirementIncome || 3000,
+        amount_roth_ira: 0,
+      };
+
+      // Update retirement goal in plan
+      if (data.retirementGoal) {
+        updateRetirementGoal(data.retirementGoal);
+      }
+
+      // Add retirement event if retirement age is set
+      if (data.retirementAge) {
+        addEvent("retirement", retirementParams, true);
+      }
     }
 
     // Move to next step or finish
@@ -227,11 +252,13 @@ const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ isOpen, onComplete, onA
   };
 
   const updateAccount = (account: string, value: number) => {
+    // Ensure all input values are positive
+    const positiveValue = Math.abs(value);
     setData(prev => ({
       ...prev,
       accounts: {
         ...prev.accounts,
-        [account]: value
+        [account]: positiveValue
       }
     }));
   };
@@ -371,12 +398,12 @@ const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ isOpen, onComplete, onA
           </p>
           <div className="space-y-4">
             <div>
-              <Label htmlFor="name">Full Name</Label>
+              <Label htmlFor="name">Name</Label>
               <Input
                 id="name"
                 value={data.name}
                 onChange={(e) => setData(prev => ({ ...prev, name: e.target.value }))}
-                placeholder="Enter your full name"
+                placeholder="Enter your name"
               />
             </div>
             <div>
@@ -529,7 +556,7 @@ const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ isOpen, onComplete, onA
                   key: 'debt',
                   label: 'Debt',
                   icon: CreditCard,
-                  description: 'Credit cards, loans, and other outstanding debts',
+                  description: 'Credit cards, loans, and other outstanding debts (enter as positive amount)',
                   category: 'Debt'
                 },
                 {
@@ -586,11 +613,21 @@ const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ isOpen, onComplete, onA
                         <span className="text-muted-foreground text-sm">$</span>
                         <Input
                           type="number"
+                          min="0"
+                          step="1"
                           value={data.accounts[key] || ''}
-                          onChange={(e) => updateAccount(key, parseFloat(e.target.value) || 0)}
+                          onChange={(e) => {
+                            const value = parseFloat(e.target.value) || 0;
+                            updateAccount(key, value);
+                          }}
                           placeholder="0"
-                          className="w-32 text-right"
+                          className={`w-32 text-right ${key === 'debt' && data.accounts[key] < 0 ? 'border-orange-200 focus:border-orange-400' : ''}`}
                         />
+                        {key === 'debt' && data.accounts[key] < 0 && (
+                          <div className="text-xs text-orange-600 mt-1 text-right">
+                            💡 Enter debt as positive
+                          </div>
+                        )}
                       </div>
                     </div>
                   </CardContent>
@@ -680,7 +717,112 @@ const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ isOpen, onComplete, onA
         </div>
       )
     },
-    // Step 8: Explore Your Financial Future (ORIGINAL, just pass for now)
+    // Step 8: Retirement Planning (NEW)
+    {
+      title: "Plan Your Retirement",
+      content: (
+        <div className="space-y-6">
+          <p className="text-muted-foreground text-center mb-6">
+            Let's plan for your retirement. This will help us calculate your retirement needs and timeline.
+          </p>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="retirementAge">At what age would you like to retire?</Label>
+              <Input
+                id="retirementAge"
+                type="number"
+                min="35"
+                max="90"
+                value={data.retirementAge || ''}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  if (value === '') {
+                    setData(prev => ({
+                      ...prev,
+                      retirementAge: undefined
+                    }));
+                  } else {
+                    const age = parseInt(value);
+                    if (!isNaN(age)) {
+                      setData(prev => ({
+                        ...prev,
+                        retirementAge: age
+                      }));
+                    }
+                  }
+                }}
+                onBlur={(e) => {
+                  const age = parseInt(e.target.value);
+                  if (!isNaN(age) && age >= 35 && age <= 90 && data.birthDate) {
+                    // Calculate current age from birth date
+                    const birthDate = new Date(data.birthDate);
+                    const today = new Date();
+                    const currentAgeInDays = Math.floor((today.getTime() - birthDate.getTime()) / (1000 * 60 * 60 * 24));
+                    const currentAge = getAgeFromDays(currentAgeInDays);
+                    
+                    // Calculate days until retirement
+                    const retirementAgeInDays = getDaysFromAge(age);
+                    const daysUntilRetirement = retirementAgeInDays;
+
+                    setData(prev => ({
+                      ...prev,
+                      retirementStartDay: Math.max(0, daysUntilRetirement)
+                    }));
+                  }
+                }}
+                placeholder="65"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Most people retire between ages 62 and 70
+              </p>
+            </div>
+
+            <div>
+              <Label htmlFor="retirementGoal">What's your retirement savings goal?</Label>
+              <Input
+                id="retirementGoal"
+                type="number"
+                min="0"
+                step="10000"
+                value={data.retirementGoal || ''}
+                onChange={(e) => {
+                  const value = parseInt(e.target.value);
+                  if (!isNaN(value) && value >= 0) {
+                    setData(prev => ({ ...prev, retirementGoal: value }));
+                  }
+                }}
+                placeholder="1000000"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                A common goal is 10-12 times your annual salary
+              </p>
+            </div>
+
+            <div>
+              <Label htmlFor="monthlyRetirementIncome">Desired monthly retirement income (in today's dollars)</Label>
+              <Input
+                id="monthlyRetirementIncome"
+                type="number"
+                min="0"
+                step="100"
+                value={data.monthlyRetirementIncome || ''}
+                onChange={(e) => {
+                  const value = parseInt(e.target.value);
+                  if (!isNaN(value) && value >= 0) {
+                    setData(prev => ({ ...prev, monthlyRetirementIncome: value }));
+                  }
+                }}
+                placeholder="5000"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Consider your current monthly expenses as a starting point
+              </p>
+            </div>
+          </div>
+        </div>
+      )
+    },
+    // Step 9: Explore Your Financial Future (ORIGINAL)
     {
       title: "Explore Your Financial Future",
       content: (

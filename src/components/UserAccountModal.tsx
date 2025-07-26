@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -47,30 +47,44 @@ const svgToDataUri = (svgText: string): string => {
 };
 
 const UserAccountModal: React.FC<UserAccountModalProps> = ({ isOpen, onClose, onSignOut, onOpenSubscription }) => {
-  const { user, userData, isLoading, isPremium, togglePremium, fetchDefaultPlans, deletePlan, loadPlanById } = useAuth();
+  const { user, userData, isLoading, isPremium, togglePremium, fetchDefaultPlans, deletePlan, loadPlanById, refreshUserData } = useAuth();
   const { loadPlan } = usePlan();
   const [defaultPlans, setDefaultPlans] = useState<DefaultPlan[]>([]);
   const [isLoadingDefaults, setIsLoadingDefaults] = useState(false);
   const [deletingPlanId, setDeletingPlanId] = useState<string | null>(null);
   const [loadingPlanId, setLoadingPlanId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'profile' | 'subscription' | 'plans'>('plans');
+  const [hasLoadedDefaults, setHasLoadedDefaults] = useState(false);
 
-  // Fetch default plans when modal opens
+  // Fetch default plans once on component mount
   useEffect(() => {
-    if (isOpen && fetchDefaultPlans) {
-      setIsLoadingDefaults(true);
-      fetchDefaultPlans()
-        .then((plans) => {
+    const loadDefaultPlans = async () => {
+      if (fetchDefaultPlans && !hasLoadedDefaults) {
+        console.log('🔄 Fetching default plans...');
+        setIsLoadingDefaults(true);
+        try {
+          const plans = await fetchDefaultPlans();
+          console.log('✅ Default plans loaded:', plans.length);
           setDefaultPlans(plans);
-        })
-        .catch((error) => {
-          console.error('Error fetching default plans:', error);
-        })
-        .finally(() => {
+          setHasLoadedDefaults(true);
+        } catch (error) {
+          console.error('❌ Error fetching default plans:', error);
+        } finally {
           setIsLoadingDefaults(false);
-        });
+        }
+      }
+    };
+
+    loadDefaultPlans();
+  }, []); // Empty dependency array since we use hasLoadedDefaults flag
+
+  // Refresh user data when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      console.log('🔄 Refreshing user data...');
+      refreshUserData();
     }
-  }, [isOpen, fetchDefaultPlans]);
+  }, [isOpen, refreshUserData]);
 
   if (isLoading) {
     return (
@@ -356,15 +370,13 @@ const UserAccountModal: React.FC<UserAccountModalProps> = ({ isOpen, onClose, on
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-5xl max-h-[85vh] p-0 gap-0">
-        <div className="flex h-full">
+      <DialogContent className="sm:max-w-5xl h-[85vh] p-0 gap-0 overflow-hidden flex flex-col">
+        <DialogHeader className="px-6 py-4 border-b border-border">
+          <DialogTitle>Account Settings</DialogTitle>
+        </DialogHeader>
+        <div className="flex-1 flex min-h-0">
           {/* Sidebar */}
-          <div className="w-64 bg-muted/30 border-r border-border p-6">
-            <div className="mb-8">
-              <h2 className="text-lg font-semibold text-foreground">Account Settings</h2>
-              <p className="text-sm text-muted-foreground mt-1">Manage your account and preferences</p>
-            </div>
-
+          <div className="w-64 bg-muted/30 border-r border-border p-6 overflow-y-auto">
             <nav className="space-y-2">
               {sidebarItems.map((item) => (
                 <button
@@ -394,7 +406,7 @@ const UserAccountModal: React.FC<UserAccountModalProps> = ({ isOpen, onClose, on
           </div>
 
           {/* Main Content */}
-          <div className="flex-1 p-8 overflow-y-auto min-h-[85vh]">
+          <div className="flex-1 p-8 overflow-y-auto">
             {activeTab === 'profile' && renderProfileContent()}
             {activeTab === 'subscription' && renderSubscriptionContent()}
             {activeTab === 'plans' && renderPlansContent()}

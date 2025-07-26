@@ -631,22 +631,6 @@
                     "editable": true
                 },
                 {
-                    "type": "end_time",
-                    "display_name": "End Date",
-                    "parameter_units": "date",
-                    "description": "When the recurring adjustment ends (only used if recurring)",
-                    "default": 3650,
-                    "editable": true
-                },
-                {
-                    "type": "frequency_days",
-                    "display_name": "Frequency (Days)",
-                    "parameter_units": "days",
-                    "description": "Number of days between each adjustment (only used if recurring)",
-                    "default": 30,
-                    "editable": true
-                },
-                {
                     "type": "amount",
                     "display_name": "Adjustment Amount",
                     "parameter_units": "usd",
@@ -1073,16 +1057,8 @@
                     "type": "end_time",
                     "display_name": "End Date",
                     "parameter_units": "date",
-                    "description": "When the job ends (optional)",
-                    "default": 3650,
-                    "editable": true
-                },
-                {
-                    "type": "frequency_days",
-                    "display_name": "Frequency (Days)",
-                    "parameter_units": "days",
-                    "description": "Number of days between each pay period",
-                    "default": 14,
+                    "description": "When the job ends",
+                    "default": 14600,
                     "editable": true
                 },
                 {
@@ -1765,22 +1741,6 @@
                     "parameter_units": "date",
                     "description": "When the house is purchased",
                     "default": 0,
-                    "editable": true
-                },
-                {
-                    "type": "end_time",
-                    "display_name": "End Date",
-                    "parameter_units": "date",
-                    "description": "When the recurring purchase ends (only used if recurring)",
-                    "default": 3650,
-                    "editable": true
-                },
-                {
-                    "type": "frequency_days",
-                    "display_name": "Frequency (Days)",
-                    "parameter_units": "days",
-                    "description": "Number of days between each purchase (only used if recurring)",
-                    "default": 365,
                     "editable": true
                 },
                 {
@@ -3717,7 +3677,7 @@
                     "parameter_units": "envelope",
                     "description": "Envelope where IRS registered account is tracked",
                     "default": "Other (Cash)",
-                    "editable": false
+                    "editable": true
                 },
                 {
                     "type": "filing_status",
