@@ -47,11 +47,12 @@ const EventParametersForm: React.FC<EventParametersFormProps> = ({
     onSelectEvent,
     onOpenEnvelopeModal
 }) => {
-    const { plan, schema, getEventIcon, updateParameter, deleteEvent, getParameterDisplayName, getParameterUnits, getEventDisplayType, addUpdatingEvent, getParameterDescription, updateEventDescription, canEventBeRecurring, updateEventRecurring, getParameterOptions, currentDay, getEnvelopeDisplayName } = usePlan();
+    const { plan, schema, getEventIcon, updateParameter, deleteEvent, getParameterDisplayName, getParameterUnits, getEventDisplayType, addUpdatingEvent, getParameterDescription, updateEventDescription, updateEventTitle, canEventBeRecurring, updateEventRecurring, getParameterOptions, currentDay, getEnvelopeDisplayName } = usePlan();
     // State for local parameter editing (now supports main and updating events)
     const [parameters, setParameters] = useState<Record<number, Record<number, { type: string; value: string | number }>>>({});
     const [loading, setLoading] = useState(false);
     const [newUpdatingEventType, setNewUpdatingEventType] = useState<string>("");
+    const [title, setTitle] = useState<string>("");
     const [description, setDescription] = useState<string>("");
     // State for main event description input expansion
     const [descExpanded, setDescExpanded] = useState(false);
@@ -59,6 +60,8 @@ const EventParametersForm: React.FC<EventParametersFormProps> = ({
     const [updatingDescExpanded, setUpdatingDescExpanded] = useState<Record<number, boolean>>({});
     // State for updating event descriptions
     const [updatingDescriptions, setUpdatingDescriptions] = useState<Record<number, string>>({});
+    // State for updating event titles
+    const [updatingTitles, setUpdatingTitles] = useState<Record<number, string>>({});
     const [usdInputFocus, setUsdInputFocus] = useState<Record<number, boolean>>({});
     const [usdTodayMode, setUsdTodayMode] = useState<Record<number, boolean>>({});
     const [usdTodayValues, setUsdTodayValues] = useState<Record<number, string>>({});
@@ -113,25 +116,32 @@ const EventParametersForm: React.FC<EventParametersFormProps> = ({
 
     useEffect(() => {
         // Find the event or updating event by id
+        let eventTitle = "";
         let desc = "";
         let updatingDescs: Record<number, string> = {};
+        let updatingTitles: Record<number, string> = {};
         if (plan) {
             const { event, parentEvent } = findEventOrUpdatingEventById(plan, eventId);
             if (event && !parentEvent) {
                 // Main event
+                eventTitle = (event as any).title || "";
                 desc = (event as any).description;
                 if ((event as any).updating_events) {
                     for (const ue of (event as any).updating_events) {
                         updatingDescs[ue.id] = ue.description;
+                        updatingTitles[ue.id] = ue.title || "";
                     }
                 }
             } else if (event && parentEvent) {
                 // Updating event
+                eventTitle = (event as any).title || "";
                 desc = (event as any).description;
             }
         }
+        setTitle(eventTitle);
         setDescription(desc);
         setUpdatingDescriptions(updatingDescs);
+        setUpdatingTitles(updatingTitles);
 
         // Set the isRepeating state based on the event's is_recurring property
         const { event: foundEventForState, parentEvent: foundParentEventForState } = findEventOrUpdatingEventById(plan, eventId);
@@ -283,6 +293,7 @@ const EventParametersForm: React.FC<EventParametersFormProps> = ({
             const growthRate = plan?.envelopes.find(e => e.name === value)?.rate;
             const growthType = plan?.envelopes.find(e => e.name === value)?.growth;
             const currentEnvelope = plan?.envelopes.find(e => e.name === value);
+            console.log('currentEnvelope: ', currentEnvelope);
             const isCurrentEnvelopeRegular = currentEnvelope?.account_type === 'regular';
 
             console.log('growthRate: ', growthRate);
@@ -932,99 +943,117 @@ const EventParametersForm: React.FC<EventParametersFormProps> = ({
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
             <DialogContent className="sm:max-w-md max-h-[80vh] overflow-y-auto p-6">
-                <DialogHeader className="mb-6">
-                    <div className="flex items-center gap-3 mb-4">
-                        {currentEvent && getEventIcon((currentEvent as any).type)}
-                        {currentUpdatingEvent && getEventIcon((currentUpdatingEvent as any).type)}
-                        <DialogTitle>
-                            {currentEvent
-                                ? getEventDisplayType((currentEvent as any).type)
-                                : currentUpdatingEvent
-                                    ? getEventDisplayType((currentUpdatingEvent as any).type)
-                                    : 'Event'}
-                        </DialogTitle>
+                <DialogHeader className="mb-0">
+                    <div className="space-y-3">
+                        {/* Event type - left aligned */}
+                        <div className="flex items-center gap-3 mb-5">
+                            {currentEvent && getEventIcon((currentEvent as any).type)}
+                            {currentUpdatingEvent && getEventIcon((currentUpdatingEvent as any).type)}
+                            <DialogTitle>
+                                {currentEvent
+                                    ? getEventDisplayType((currentEvent as any).type)
+                                    : currentUpdatingEvent
+                                        ? getEventDisplayType((currentUpdatingEvent as any).type)
+                                        : 'Event'}
+                            </DialogTitle>
+                        </div>
+                        {/* Title Input - centered */}
+                        <div className="flex justify-center">
+                            <Input
+                                value={title}
+                                onChange={e => setTitle(e.target.value)}
+                                onBlur={e => updateEventTitle(eventId, e.target.value)}
+                                placeholder="Enter event title..."
+                                className="w-48 border-gray-200 focus:border-gray-400 focus:ring-gray-400 text-sm"
+                            />
+                        </div>
                     </div>
-                    <DialogDescription>
-                        Configure the parameters for this event. Changes will be saved automatically.
-                    </DialogDescription>
                 </DialogHeader>
 
 
-                <form onSubmit={handleSubmit} className="space-y-6">
-                    {currentEvent && currentEvent.parameters && currentEvent.parameters
-                        .filter((param) => shouldShowParameter(param.type) && !['frequency_days', 'end_time'].includes(param.type))
-                        .map((param) => (
-                            <div key={param.id} className="space-y-2">
-                                <div className="space-y-1">
-                                    <Label htmlFor={param.id.toString()} className="text-sm font-medium">
-                                        {getParameterDisplayName((currentEvent as any).type, param.type)}
-                                    </Label>
-                                    <p className="text-xs text-muted-foreground">
-                                        {getEventDefinition(plan, schema, eventId)?.parameters.find((p: any) => p.type === param.type)?.description}
-                                    </p>
+                <form onSubmit={handleSubmit} className="space-y-4">
+                    {/* Parameters Section */}
+                    <div className="space-y-4">
+                        <h3 className="text-sm font-medium text-gray-700 border-b border-gray-200 pb-2">
+                            Parameters
+                        </h3>
+                        {currentEvent && currentEvent.parameters && currentEvent.parameters
+                            .filter((param) => shouldShowParameter(param.type) && !['frequency_days', 'end_time'].includes(param.type))
+                            .map((param) => (
+                                <div key={param.id} className="space-y-2">
+                                    <div className="space-y-1">
+                                        <Label htmlFor={param.id.toString()} className="text-sm font-medium">
+                                            {getParameterDisplayName((currentEvent as any).type, param.type)}
+                                        </Label>
+                                        <p className="text-xs text-muted-foreground">
+                                            {getEventDefinition(plan, schema, eventId)?.parameters.find((p: any) => p.type === param.type)?.description}
+                                        </p>
+                                    </div>
+                                    {currentEvent && renderInput(param, currentEvent as any)}
                                 </div>
-                                {currentEvent && renderInput(param, currentEvent as any)}
-                            </div>
-                        ))}
-                    {canEventBeRecurring(eventId) && (
-                        <div className="flex flex-col gap-2 p-3 bg-blue-50 rounded-lg border border-blue-200">
-                            <div className="flex items-center gap-3">
-                                <label className="flex items-center gap-2 text-sm font-medium cursor-pointer">
-                                    <input
-                                        type="checkbox"
-                                        checked={isRepeating}
-                                        onChange={(e) => handleRepeatToggle(e.target.checked)}
-                                        className="form-checkbox h-4 w-4 text-blue-500 border-gray-300 rounded"
-                                        style={{ accentColor: '#3b82f6' }}
-                                    />
-                                    Repeat Event
-                                </label>
-                                <TooltipProvider>
-                                    <Tooltip>
-                                        <TooltipTrigger asChild>
-                                            <HelpCircle className="h-4 w-4 text-blue-400 hover:text-blue-600 cursor-help" />
-                                        </TooltipTrigger>
-                                        <TooltipContent side="top" className="max-w-xs">
-                                            <p className="text-sm">
-                                                Enable this to make the event repeat over time. When enabled, you can set
-                                                the end date and frequency for the recurring event.
-                                            </p>
-                                        </TooltipContent>
-                                    </Tooltip>
-                                </TooltipProvider>
-                            </div>
-                            {isRepeating && currentEvent && (
-                                <div className="flex flex-col gap-2 mt-2">
-                                    {['frequency_days', 'end_time'].map((type) =>
-                                        currentEvent.parameters
-                                            .filter(param => param.type === type)
-                                            .map(param => (
-                                                <div key={param.id} className="space-y-1">
-                                                    <Label htmlFor={param.id.toString()} className="text-sm font-medium">
-                                                        {getParameterDisplayName((currentEvent as any).type, param.type)}
-                                                    </Label>
-                                                    <p className="text-xs text-muted-foreground">
-                                                        {getEventDefinition(plan, schema, eventId)?.parameters.find((p: any) => p.type === param.type)?.description}
-                                                    </p>
-                                                    {renderInput(param, currentEvent as any)}
-                                                </div>
-                                            ))
-                                    )}
+                            ))}
+                        {canEventBeRecurring(eventId) && (
+                            <div className="flex flex-col gap-2 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                                <div className="flex items-center gap-3">
+                                    <label className="flex items-center gap-2 text-sm font-medium cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            checked={isRepeating}
+                                            onChange={(e) => handleRepeatToggle(e.target.checked)}
+                                            className="form-checkbox h-4 w-4 text-blue-500 border-gray-300 rounded"
+                                            style={{ accentColor: '#3b82f6' }}
+                                        />
+                                        Repeat Event
+                                    </label>
+                                    <TooltipProvider>
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <HelpCircle className="h-4 w-4 text-blue-400 hover:text-blue-600 cursor-help" />
+                                            </TooltipTrigger>
+                                            <TooltipContent side="top" className="max-w-xs">
+                                                <p className="text-sm">
+                                                    Enable this to make the event repeat over time. When enabled, you can set
+                                                    the end date and frequency for the recurring event.
+                                                </p>
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    </TooltipProvider>
                                 </div>
-                            )}
-                        </div>
-                    )}
+                                {isRepeating && currentEvent && (
+                                    <div className="flex flex-col gap-2 mt-2">
+                                        {['frequency_days', 'end_time'].map((type) =>
+                                            currentEvent.parameters
+                                                .filter(param => param.type === type)
+                                                .map(param => (
+                                                    <div key={param.id} className="space-y-1">
+                                                        <Label htmlFor={param.id.toString()} className="text-sm font-medium">
+                                                            {getParameterDisplayName((currentEvent as any).type, param.type)}
+                                                        </Label>
+                                                        <p className="text-xs text-muted-foreground">
+                                                            {getEventDefinition(plan, schema, eventId)?.parameters.find((p: any) => p.type === param.type)?.description}
+                                                        </p>
+                                                        {renderInput(param, currentEvent as any)}
+                                                    </div>
+                                                ))
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </div>
 
-                    {/* Main Event Description Edit Box (before Updating Events) */}
-                    <div className="mt-2">
-                        <Label htmlFor="event-description" className="text-sm font-medium">Description</Label>
+                    {/* Description Input */}
+                    <div className="space-y-2">
+                        <Label htmlFor="event-description" className="text-sm font-medium text-gray-700">
+                            Description
+                        </Label>
                         {descExpanded ? (
                             <Textarea
                                 id="event-description"
                                 value={description}
                                 onChange={e => setDescription(e.target.value)}
                                 onBlur={e => { updateEventDescription(eventId, e.target.value); setDescExpanded(false); }}
-                                className="w-full mt-1"
+                                className="w-full border-gray-200 focus:border-gray-400 focus:ring-gray-400"
                                 rows={2}
                                 autoFocus
                             />
@@ -1034,8 +1063,9 @@ const EventParametersForm: React.FC<EventParametersFormProps> = ({
                                 value={description}
                                 onFocus={() => setDescExpanded(true)}
                                 onChange={e => setDescription(e.target.value)}
-                                className="w-full mt-1 cursor-pointer"
+                                className="w-full cursor-pointer border-gray-200 focus:border-gray-400 focus:ring-gray-400"
                                 readOnly
+                                placeholder="Enter event description..."
                             />
                         )}
                     </div>
@@ -1164,29 +1194,49 @@ const EventParametersForm: React.FC<EventParametersFormProps> = ({
                                                             {renderInput(param, ue)}
                                                         </div>
                                                     ))}
-                                                    {/* Updating Event Description Edit Box */}
-                                                    <div className="mt-4">
-                                                        <Label htmlFor={`updating-event-description-${ue.id}`} className="text-xs font-medium">Description</Label>
-                                                        {updatingDescExpanded[ue.id] ? (
-                                                            <Textarea
-                                                                id={`updating-event-description-${ue.id}`}
-                                                                value={updatingDescriptions[ue.id] || ''}
-                                                                onChange={e => setUpdatingDescriptions(prev => ({ ...prev, [ue.id]: e.target.value }))}
-                                                                onBlur={e => { updateEventDescription(ue.id, e.target.value); setUpdatingDescExpanded(prev => ({ ...prev, [ue.id]: false })); }}
-                                                                className="w-full mt-1 mb-2"
-                                                                rows={2}
-                                                                autoFocus
-                                                            />
-                                                        ) : (
+                                                    {/* Updating Event Title and Description Edit Box */}
+                                                    <div className="mt-4 space-y-3">
+                                                        {/* Title Input */}
+                                                        <div className="space-y-1">
+                                                            <Label htmlFor={`updating-event-title-${ue.id}`} className="text-xs font-medium text-gray-700">
+                                                                Title
+                                                            </Label>
                                                             <Input
-                                                                id={`updating-event-description-${ue.id}`}
-                                                                value={updatingDescriptions[ue.id] || ''}
-                                                                onFocus={() => setUpdatingDescExpanded(prev => ({ ...prev, [ue.id]: true }))}
-                                                                onChange={e => setUpdatingDescriptions(prev => ({ ...prev, [ue.id]: e.target.value }))}
-                                                                className="w-full mt-1 cursor-pointer mb-2"
-                                                                readOnly
+                                                                id={`updating-event-title-${ue.id}`}
+                                                                value={updatingTitles[ue.id] || ''}
+                                                                onChange={e => setUpdatingTitles(prev => ({ ...prev, [ue.id]: e.target.value }))}
+                                                                onBlur={e => updateEventTitle(ue.id, e.target.value)}
+                                                                placeholder="Enter event title..."
+                                                                className="w-full border-gray-200 focus:border-gray-400 focus:ring-gray-400 text-xs"
                                                             />
-                                                        )}
+                                                        </div>
+
+                                                        {/* Description Input */}
+                                                        <div className="space-y-1">
+                                                            <Label htmlFor={`updating-event-description-${ue.id}`} className="text-xs font-medium text-gray-700">
+                                                                Description
+                                                            </Label>
+                                                            {updatingDescExpanded[ue.id] ? (
+                                                                <Textarea
+                                                                    id={`updating-event-description-${ue.id}`}
+                                                                    value={updatingDescriptions[ue.id] || ''}
+                                                                    onChange={e => setUpdatingDescriptions(prev => ({ ...prev, [ue.id]: e.target.value }))}
+                                                                    onBlur={e => { updateEventDescription(ue.id, e.target.value); setUpdatingDescExpanded(prev => ({ ...prev, [ue.id]: false })); }}
+                                                                    className="w-full mt-1 mb-2"
+                                                                    rows={2}
+                                                                    autoFocus
+                                                                />
+                                                            ) : (
+                                                                <Input
+                                                                    id={`updating-event-description-${ue.id}`}
+                                                                    value={updatingDescriptions[ue.id] || ''}
+                                                                    onFocus={() => setUpdatingDescExpanded(prev => ({ ...prev, [ue.id]: true }))}
+                                                                    onChange={e => setUpdatingDescriptions(prev => ({ ...prev, [ue.id]: e.target.value }))}
+                                                                    className="w-full mt-1 cursor-pointer mb-2"
+                                                                    readOnly
+                                                                />
+                                                            )}
+                                                        </div>
                                                         <Button
                                                             type="button"
                                                             variant="destructive"

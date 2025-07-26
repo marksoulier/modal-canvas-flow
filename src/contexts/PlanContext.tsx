@@ -68,6 +68,7 @@ export interface Parameter {
 export interface UpdatingEvent {
     id: number;
     type: string;
+    title: string; // User-defined title for the event
     description: string;
     is_recurring: boolean;
     parameters: Parameter[];
@@ -76,6 +77,7 @@ export interface UpdatingEvent {
 export interface Event {
     id: number;
     type: string;
+    title: string; // User-defined title for the event
     description: string;
     is_recurring: boolean;
     parameters: Parameter[];
@@ -99,6 +101,8 @@ export interface Plan {
     events: Event[];
     envelopes: Envelope[];
     retirement_goal: number; // New field for retirement goal
+    view_start_date?: string; // Date when the view starts (ISO string)
+    view_end_date?: string; // Date when the view ends (ISO string)
 }
 
 export interface SchemaParameter {
@@ -116,6 +120,7 @@ export interface SchemaUpdatingEvent {
     display_type: string;
     icon: string;
     description: string;
+    default_title: string; // Default title for the updating event
     parameters: SchemaParameter[];
     display_event?: boolean;
     is_recurring?: boolean; // defualt to what reoccuring nature should start as when added to the plan.
@@ -129,6 +134,7 @@ export interface SchemaEvent {
     weight: number;
     description: string;
     icon: string;
+    default_title: string; // Default title for the event
     parameters: SchemaParameter[];
     updating_events?: SchemaUpdatingEvent[];
     disclaimer?: string;
@@ -164,6 +170,7 @@ interface PlanContextType {
     getParameterUnits: (eventType: string, parameterType: string) => string;
     getParameterDescription: (eventType: string, parameterType: string) => string;
     updateEventDescription: (eventId: number, newDescription: string) => void;
+    updateEventTitle: (eventId: number, newTitle: string) => void;
     updatePlanTitle: (newTitle: string) => void;
     updateBirthDate: (daysFromCurrent: number) => void;
     getEventDisclaimer: (eventType: string) => string;
@@ -496,6 +503,7 @@ export function PlanProvider({ children }: PlanProviderProps) {
         const newEvent: Event = {
             id: newId,
             type: eventType,
+            title: eventSchema.default_title || '', // Use default title from schema or blank string
             description: eventSchema.description,
             is_recurring: eventSchema.is_recurring || false,
             parameters: parameters,
@@ -560,6 +568,7 @@ export function PlanProvider({ children }: PlanProviderProps) {
         const newUpdatingEvent: UpdatingEvent = {
             id: newId,
             type: updatingEventType,
+            title: updatingEventSchema.default_title || '', // Use default title from schema or blank string
             description: updatingEventSchema.description,
             is_recurring: updatingEventSchema.is_recurring || false,
             parameters: parameters
@@ -698,6 +707,33 @@ export function PlanProvider({ children }: PlanProviderProps) {
                     const updatedUpdatingEvents = event.updating_events.map(updatingEvent => {
                         if (updatingEvent.id === eventId) {
                             return { ...updatingEvent, description: newDescription };
+                        }
+                        return updatingEvent;
+                    });
+                    return { ...event, updating_events: updatedUpdatingEvents };
+                }
+                return event;
+            });
+            return { ...prevPlan, events: updatedEvents };
+        });
+    }, [plan]);
+
+    const updateEventTitle = useCallback((eventId: number, newTitle: string) => {
+        if (!plan) {
+            throw new Error('No plan data available');
+        }
+        setPlan(prevPlan => {
+            if (!prevPlan) return null;
+            // Try to update main event first
+            const updatedEvents = prevPlan.events.map(event => {
+                if (event.id === eventId) {
+                    return { ...event, title: newTitle };
+                }
+                // Try updating events
+                if (event.updating_events) {
+                    const updatedUpdatingEvents = event.updating_events.map(updatingEvent => {
+                        if (updatingEvent.id === eventId) {
+                            return { ...updatingEvent, title: newTitle };
                         }
                         return updatingEvent;
                     });
@@ -924,6 +960,7 @@ export function PlanProvider({ children }: PlanProviderProps) {
         getParameterUnits,
         getParameterDescription,
         updateEventDescription,
+        updateEventTitle,
         updatePlanTitle,
         updateBirthDate,
         getEventDisclaimer,

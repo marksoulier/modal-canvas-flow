@@ -53,6 +53,7 @@ const UserAccountModal: React.FC<UserAccountModalProps> = ({ isOpen, onClose, on
   const [isLoadingDefaults, setIsLoadingDefaults] = useState(false);
   const [deletingPlanId, setDeletingPlanId] = useState<string | null>(null);
   const [loadingPlanId, setLoadingPlanId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'profile' | 'subscription' | 'plans'>('plans');
 
   // Fetch default plans when modal opens
   useEffect(() => {
@@ -158,8 +159,6 @@ const UserAccountModal: React.FC<UserAccountModalProps> = ({ isOpen, onClose, on
     }
   };
 
-  const [activeTab, setActiveTab] = useState<'profile' | 'subscription' | 'plans'>('profile');
-
   const sidebarItems = [
     { id: 'profile' as const, label: 'Profile', icon: User },
     { id: 'subscription' as const, label: 'Subscription', icon: CreditCard },
@@ -209,8 +208,8 @@ const UserAccountModal: React.FC<UserAccountModalProps> = ({ isOpen, onClose, on
                 {userData?.profile?.plan_type || 'Free'}
               </p>
             </div>
-            <Badge 
-              variant={isPremium ? "default" : "secondary"} 
+            <Badge
+              variant={isPremium ? "default" : "secondary"}
               className="text-xs px-3 py-1"
             >
               {isPremium ? 'Premium' : 'Free'}
@@ -247,9 +246,9 @@ const UserAccountModal: React.FC<UserAccountModalProps> = ({ isOpen, onClose, on
               </div>
             ) : (
               defaultPlans.map((plan, index) => (
-                <Card 
-                  key={`default-${index}`} 
-                  className="cursor-pointer hover:shadow-md transition-all duration-200 hover:bg-accent/50 border-primary/20" 
+                <Card
+                  key={`default-${index}`}
+                  className="cursor-pointer hover:shadow-md transition-all duration-200 hover:bg-accent/50 border-primary/20"
                   onClick={() => handleLoadDefaultPlan(plan.plan_data, plan.plan_name || '')}
                 >
                   <CardHeader className="pb-3">
@@ -289,9 +288,9 @@ const UserAccountModal: React.FC<UserAccountModalProps> = ({ isOpen, onClose, on
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {userData.plans.map((plan) => (
-              <Card 
-                key={plan.id} 
-                className="cursor-pointer hover:shadow-md transition-all duration-200 hover:bg-accent/50 relative group" 
+              <Card
+                key={plan.id}
+                className="cursor-pointer hover:shadow-md transition-all duration-200 hover:bg-accent/50 relative group"
                 onClick={() => handleLoadPlan(plan.id)}
               >
                 <CardHeader className="pb-3">
@@ -357,7 +356,7 @@ const UserAccountModal: React.FC<UserAccountModalProps> = ({ isOpen, onClose, on
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-5xl h-[85vh] max-h-[85vh] p-0 gap-0 fixed inset-0 m-auto">
+      <DialogContent className="sm:max-w-5xl max-h-[85vh] p-0 gap-0">
         <div className="flex h-full">
           {/* Sidebar */}
           <div className="w-64 bg-muted/30 border-r border-border p-6">
@@ -365,17 +364,16 @@ const UserAccountModal: React.FC<UserAccountModalProps> = ({ isOpen, onClose, on
               <h2 className="text-lg font-semibold text-foreground">Account Settings</h2>
               <p className="text-sm text-muted-foreground mt-1">Manage your account and preferences</p>
             </div>
-            
+
             <nav className="space-y-2">
               {sidebarItems.map((item) => (
                 <button
                   key={item.id}
                   onClick={() => setActiveTab(item.id)}
-                  className={`w-full flex items-center space-x-3 px-3 py-2.5 text-sm font-medium rounded-md transition-colors ${
-                    activeTab === item.id
-                      ? 'bg-primary text-primary-foreground'
-                      : 'text-muted-foreground hover:text-foreground hover:bg-accent'
-                  }`}
+                  className={`w-full flex items-center space-x-3 px-3 py-2.5 text-sm font-medium rounded-md transition-colors ${activeTab === item.id
+                    ? 'bg-primary text-primary-foreground'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-accent'
+                    }`}
                 >
                   <item.icon className="w-4 h-4" />
                   <span>{item.label}</span>
@@ -396,7 +394,7 @@ const UserAccountModal: React.FC<UserAccountModalProps> = ({ isOpen, onClose, on
           </div>
 
           {/* Main Content */}
-          <div className="flex-1 p-8 overflow-y-auto max-h-full">
+          <div className="flex-1 p-8 overflow-y-auto min-h-[85vh]">
             {activeTab === 'profile' && renderProfileContent()}
             {activeTab === 'subscription' && renderSubscriptionContent()}
             {activeTab === 'plans' && renderPlansContent()}

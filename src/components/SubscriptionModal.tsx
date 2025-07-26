@@ -170,7 +170,7 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, onClose }
   return (
     <>
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="sm:max-w-4xl h-[75vh] max-h-[75vh] w-[90vw] p-0 gap-0 fixed inset-0 m-auto overflow-hidden">
+        <DialogContent className="sm:max-w-5xl max-h-[85vh] p-0 gap-0">
           {/* UX Tester Banner */}
           <div className="bg-primary/5 border-b border-primary/10 p-6">
             <div className="text-center">

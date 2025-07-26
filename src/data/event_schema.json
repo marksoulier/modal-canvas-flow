@@ -230,6 +230,7 @@
             "weight": 1,
             "category": "System",
             "description": "A simple inflow of money into an envelope.",
+            "default_title": "Money Inflow",
             "icon": "arrow-up",
             "parameters": [
                 {
@@ -283,6 +284,7 @@
             "weight": 2,
             "category": "System",
             "description": "A simple outflow of money from an envelope.",
+            "default_title": "Money Outflow",
             "icon": "arrow-down",
             "parameters": [
                 {
@@ -336,6 +338,7 @@
             "weight": 100,
             "category": "System",
             "description": "Declare the initial balances of up to five financial accounts (envelopes) at a specific time.",
+            "default_title": "Initial Account Balances",
             "icon": "list",
             "disclaimer": "This event is used to set the starting balances for up to five envelopes. Use this on todays date to set the account balance for your envelopes.",
             "parameters": [
@@ -454,6 +457,7 @@
             "weight": 80,
             "category": "System",
             "description": "Transfer money between envelopes with optional growth rate for destination.",
+            "default_title": "Money Transfer",
             "icon": "arrow-right-arrow-left",
             "disclaimer": "This event transfers a specified amount between envelopes. It does not simulate transfer fees, delays, or currency conversion.",
             "parameters": [
@@ -747,6 +751,7 @@
             "weight": 10,
             "category": "Debt",
             "description": "Take a personal loan over a specified period. Payed back in monthly payments.",
+            "default_title": "Personal Loan",
             "icon": "credit-card",
             "disclaimer": "This event uses loan amortization, calculating monthly payments and interest. It does not account for missed payments, prepayments, or changes in interest rates.",
             "parameters": [
@@ -817,6 +822,7 @@
             "category": "Living Expenses",
             "weight": 5,
             "description": "Basic purchase or spending of money",
+            "default_title": "Purchase",
             "icon": "shopping-cart",
             "disclaimer": "This event records a one-time purchase or expense from a selected envelope. It does not account for recurring costs, taxes, or the impact on other envelopes.",
             "parameters": [
@@ -871,6 +877,7 @@
             "weight": 10,
             "category": "Living Expenses",
             "description": " gift of money from something",
+            "default_title": "Gift",
             "icon": "gift",
             "disclaimer": "This event adds a one-time monetary gift to a chosen envelope. It does not simulate taxes, recurring gifts, or non-cash gifts.",
             "parameters": [
@@ -1050,6 +1057,7 @@
             "weight": 90,
             "category": "Income & Employment",
             "description": "Start earning a salary from employment.",
+            "default_title": "First Job",
             "icon": "briefcase",
             "disclaimer": "This event simulates salaried employment, calculating net pay after taxes and 401k contributions. It does not model job loss, promotions, or non-salary compensation.",
             "parameters": [
@@ -1199,6 +1207,7 @@
                     "can_be_reocurring": true,
                     "icon": "arrow-up",
                     "description": "Receive an increase in salary.",
+                    "default_title": "Salary Raise",
                     "parameters": [
                         {
                             "type": "start_time",
@@ -1240,6 +1249,7 @@
                     "display_event": true,
                     "icon": "dollar-sign",
                     "description": "Receive a one-time cash bonus.",
+                    "default_title": "Annual Bonus",
                     "parameters": [
                         {
                             "type": "start_time",
@@ -1265,6 +1275,7 @@
                     "display_event": false,
                     "icon": "sliders-horizontal",
                     "description": "Adjust the percentage of income contributed to 401k.",
+                    "default_title": "401k Adjustment",
                     "parameters": [
                         {
                             "type": "start_time",

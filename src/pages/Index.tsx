@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import type { Plan, Envelope } from '../contexts/PlanContext';
 import { Menu, Plus, Save, FileText, FolderOpen, User, Edit3, HelpCircle } from 'lucide-react';
 import { RefreshCw } from 'lucide-react';
@@ -55,6 +55,28 @@ const Index = () => {
 
   const [errorOpen, setErrorOpen] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+
+  const showPostSignInModals = useCallback(() => {
+    if (!localStorage.getItem('has-seen-subscription-modal')) {
+      setUserAccountModalOpen(true);
+      setSubscriptionModalOpen(true);
+      localStorage.setItem('has-seen-subscription-modal', 'true');
+    } else {
+      setUserAccountModalOpen(true);
+    }
+  }, []);
+
+  // Check for first Google sign-in on app startup
+  useEffect(() => {
+    const isFirstGoogleSignin = localStorage.getItem('first-google-signin');
+    console.log('isFirstGoogleSignin', isFirstGoogleSignin);
+    if (isFirstGoogleSignin === 'true' && user) {
+      // Clear the flag immediately
+      localStorage.removeItem('first-google-signin');
+      // Show the subscription modal
+      showPostSignInModals();
+    }
+  }, [user, showPostSignInModals]); // Depend on user state to ensure it runs when user is loaded
 
   const handleAnnotationClick = (eventId: number) => {
     setEditingEventId(eventId);
@@ -175,16 +197,6 @@ const Index = () => {
       handleTitleCancel();
     }
   };
-
-  function showPostSignInModals() {
-    if (!localStorage.getItem('has-seen-subscription-modal')) {
-      setUserAccountModalOpen(true);
-      setSubscriptionModalOpen(true);
-      localStorage.setItem('has-seen-subscription-modal', 'true');
-    } else {
-      setUserAccountModalOpen(true);
-    }
-  }
 
   const handleAccount = () => {
     if (user) {
@@ -346,13 +358,13 @@ const Index = () => {
                 Plan Preferences
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              {/* <DropdownMenuItem
+              <DropdownMenuItem
                 onClick={() => setHelpModalOpen(true)}
                 className="cursor-pointer"
               >
                 <HelpCircle className="mr-2 h-4 w-4" />
                 Help
-              </DropdownMenuItem> */}
+              </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={() => setOnboardingOpen(true)}
                 className="cursor-pointer"

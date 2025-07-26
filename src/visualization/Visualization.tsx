@@ -37,7 +37,7 @@ import type {
 import { getAllEventsByDate } from './Events';
 import type { Plan } from '../contexts/PlanContext';
 
-const DEBUG = true;
+const DEBUG = false;
 
 // Helper function to normalize -0 to 0 and small values near zero
 const normalizeZero = (value: number): number => {
@@ -1211,7 +1211,7 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
                             setEventDescriptionTooltip({
                               left: x + 50, // adjust as needed for best placement
                               top: y,
-                              displayType: getEventDisplayType(event.type),
+                              displayType: event.title || getEventDisplayType(event.type),
                               description: event.description || '',
                             });
                           }}

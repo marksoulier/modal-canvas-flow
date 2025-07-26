@@ -181,6 +181,10 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSignIn, mode, 
         },
       });
       if (error) throw error;
+
+      // Set flag to indicate this is the first Google sign-in
+      localStorage.setItem('first-google-signin', 'true');
+
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
