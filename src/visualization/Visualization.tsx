@@ -10,7 +10,7 @@ import { curveLinear, curveStepAfter } from '@visx/curve';
 import { LinearGradient } from '@visx/gradient';
 import { TooltipWithBounds, defaultStyles } from '@visx/tooltip';
 import { runSimulation } from '../hooks/simulationRunner';
-import { usePlan, getEnvelopeCategory } from '../contexts/PlanContext';
+import { usePlan, getEnvelopeCategory, getEnvelopeDisplayName } from '../contexts/PlanContext';
 import {
   ContextMenu,
   ContextMenuTrigger,
@@ -107,6 +107,7 @@ interface DraggingAnnotation {
 interface VisualizationProps {
   onAnnotationClick?: (eventId: number) => void;
   onAnnotationDelete?: (eventId: number) => void;
+  onNegativeAccountWarning?: (warnings: Array<{ envelopeName: string; category: string; minValue: number; date: number; warningType: 'negative' | 'positive' }>) => void;
 }
 
 // Custom tick renderer for AxisBottom to style age in light gray
@@ -155,8 +156,69 @@ function groupEnvelopesByCategory(plan: Plan | null, envelopeKeys: string[]): Re
   return categoryMap;
 }
 
+// Helper function to detect account warnings (negative non-debt accounts and positive debt accounts)
+const detectAccountWarnings = (netWorthData: Datum[], plan: Plan | null): Array<{ envelopeName: string; category: string; minValue: number; date: number; warningType: 'negative' | 'positive' }> => {
+  if (!plan || !netWorthData.length) return [];
 
-export function Visualization({ onAnnotationClick, onAnnotationDelete }: VisualizationProps) {
+  const warnings: Array<{ envelopeName: string; category: string; minValue: number; date: number; warningType: 'negative' | 'positive' }> = [];
+
+  // Get all envelope names from the data
+  const envelopeNames = Object.keys(netWorthData[0]?.parts || {});
+
+  // For each envelope, check if it goes negative or positive (for debt)
+  envelopeNames.forEach(envelopeName => {
+    // Find the envelope in the plan to get its category and account_type
+    const envelope = plan.envelopes.find(e => e.name === envelopeName);
+    if (!envelope) return;
+
+    // Check each data point for this envelope
+    let minValue = Infinity;
+    let maxValue = -Infinity;
+    let minDate = 0;
+    let maxDate = 0;
+
+    netWorthData.forEach(datum => {
+      const value = datum.parts[envelopeName] || 0;
+      if (value < minValue) {
+        minValue = value;
+        minDate = datum.date;
+      }
+      if (value > maxValue) {
+        maxValue = value;
+        maxDate = datum.date;
+      }
+    });
+    console.log("minValue: ", minValue);
+    console.log("maxValue: ", maxValue);
+
+    // For non-debt accounts: check if they go negative
+    if (envelope.category !== 'Debt' && minValue < 0) {
+      warnings.push({
+        envelopeName,
+        category: envelope.category,
+        minValue,
+        date: minDate,
+        warningType: 'negative'
+      });
+    }
+
+    // For debt accounts: check if they go positive
+    if (envelope.category === 'Debt' && maxValue > 0) {
+      warnings.push({
+        envelopeName,
+        category: envelope.category,
+        minValue: maxValue, // Use maxValue for debt warnings
+        date: maxDate,
+        warningType: 'positive'
+      });
+    }
+  });
+
+  return warnings;
+};
+
+
+export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativeAccountWarning }: VisualizationProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const [cursorPos, setCursorPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
@@ -276,6 +338,12 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
         );
         //console.log('Loaded Financial Results:', result);
         setNetWorthData(result);
+
+        // Check for negative accounts and trigger warning
+        const negativeWarnings = detectAccountWarnings(result, plan);
+        if (negativeWarnings.length > 0 && onNegativeAccountWarning) {
+          onNegativeAccountWarning(negativeWarnings);
+        }
       } catch (err) {
         console.error('Simulation failed:', err);
       } finally {
@@ -284,7 +352,7 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
     };
 
     loadSchemaAndRunSim();
-  }, [timeInterval, plan, schema, currentDay]); // Re-run when time interval, plan, schema, or currentDay changes
+  }, [timeInterval, plan, schema, currentDay, onNegativeAccountWarning]); // Re-run when time interval, plan, schema, or currentDay changes
 
   // Calculate stacked data from simulation results
   const stackedData = useMemo(() => {
@@ -357,7 +425,7 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete }: Visuali
   }, [plan, schema, allEnvelopeKeys, categoryMap]);
 
   return (
-    <div className="relative w-full h-full">
+    <div className="relative w-full h-full visualization-container">
       <Zoom
         width={width}
         height={height}

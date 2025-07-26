@@ -9,7 +9,6 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent } from '@/components/ui/card';
 import { DollarSign, Target, Home, Plane, Users, Coffee, TrendingUp, PiggyBank, Building, CreditCard, Wallet, Shield, Leaf, Mountain, Sparkles } from 'lucide-react';
 import { usePlan } from '../contexts/PlanContext';
-import EventParameterForm from './EventParameterForm'; // adjust path as needed
 import { useAuth } from '../contexts/AuthContext';
 
 interface OnboardingFlowProps {
@@ -71,7 +70,8 @@ const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ isOpen, onComplete, onA
     _currentStep: 0,
   });
   const [loading, setLoading] = useState(true);
-  const { upsertAnonymousOnboarding, fetchAnonymousOnboarding } = useAuth();
+  const { upsertAnonymousOnboarding, fetchAnonymousOnboarding, logAnonymousButtonClick } = useAuth();
+  const { addEvent, hasEventType, plan, getEventDisplayType, getEventIcon, updateBirthDate } = usePlan();
 
   // Fetch onboarding data on mount
   React.useEffect(() => {
@@ -79,11 +79,11 @@ const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ isOpen, onComplete, onA
     (async () => {
       setLoading(true);
       const anonData = await fetchAnonymousOnboarding();
-      if (anonData && mounted) {
-        setData((prev) => ({ ...prev, ...anonData }));
+      if (anonData && mounted && anonData.onboarding_data) {
+        setData((prev) => ({ ...prev, ...anonData.onboarding_data }));
         // If the fetched data has a _currentStep, set the step
-        if (typeof anonData._currentStep === 'number') {
-          setCurrentStep(anonData._currentStep);
+        if (typeof anonData.onboarding_data._currentStep === 'number') {
+          setCurrentStep(anonData.onboarding_data._currentStep);
         }
       }
       setLoading(false);
@@ -94,12 +94,11 @@ const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ isOpen, onComplete, onA
   // Save onboarding data on every change, including currentStep
   React.useEffect(() => {
     if (!loading) {
-      upsertAnonymousOnboarding({ ...data, _currentStep: currentStep });
+      const { onboarding_data, extra_data, ...flatData } = data;
+      upsertAnonymousOnboarding({ ...flatData, _currentStep: currentStep });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data, currentStep]);
-
-  const { addEvent } = usePlan();
 
   const handleAddInitialEvent = (eventType: string) => {
     onAddEventAndEditParams(eventType);
@@ -107,7 +106,26 @@ const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ isOpen, onComplete, onA
 
   const totalSteps = 8;
 
-  const handleNext = () => {
+  const handleNext = async () => {
+
+    // After modal 3 I want to save their birthdate to the plan and then save their location to usa_tax_
+    
+    if (currentStep === 3) {
+
+      // Update birth date in plan
+      //Calculate days from current birth date to the new birth date
+      const currentBirthDate = new Date(plan?.birth_date || new Date());
+      const newBirthDate = new Date(data.birthDate);
+      const daysFromCurrentBirthDate = Math.floor((newBirthDate.getTime() - currentBirthDate.getTime()) / (1000 * 60 * 60 * 24));
+      console.log("daysFromCurrentBirthDate", daysFromCurrentBirthDate);
+      updateBirthDate(daysFromCurrentBirthDate);
+
+      // Add usa_tax_system event
+      addEvent("usa_tax_system", {
+        start_time: 0,
+        location: data.location
+      }, true);
+    }
     // After monthly budget step (step 5, index 4)
     if (currentStep === 4) {
       const monthlyBudgetingParams = {
@@ -126,7 +144,9 @@ const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ isOpen, onComplete, onA
         personal_care: 0,
         miscellaneous: data.budgetCategories.other
       };
-      addEvent("monthly_budgeting", monthlyBudgetingParams);
+      // Check if monthly_budgeting event already exists and replace it
+      // The third parameter (true) tells addEvent to delete existing events of this type first
+      addEvent("monthly_budgeting", monthlyBudgetingParams, true);
     }
 
     // After account balances step (step 6, index 5)
@@ -146,13 +166,18 @@ const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ isOpen, onComplete, onA
         amount5: data.accounts.debt,
         envelope5: "Other (Debt)"
       };
-      addEvent("declare_accounts", declareAccountsParams);
+      // Check if declare_accounts event already exists and replace it
+      // The third parameter (true) tells addEvent to delete existing events of this type first
+      addEvent("declare_accounts", declareAccountsParams, true);
     }
 
     // Move to next step or finish
     if (currentStep < totalSteps - 1) {
       setCurrentStep(currentStep + 1);
     } else {
+      if (logAnonymousButtonClick) {
+        await logAnonymousButtonClick('create_account');
+      }
       onAuthRequired();
     }
   };
@@ -582,51 +607,65 @@ const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ isOpen, onComplete, onA
         </div>
       )
     },
-    // Step 7: Add Initial Events (NEW)
+    // Step 7: Add Initial Events (UPDATED)
     {
       title: "Add Initial Events",
       content: (
-        <div className="space-y-6">
-          <p className="text-muted-foreground text-center mb-6">
-            Add your first events to get started. You can edit their details after adding.
-          </p>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <Card className="cursor-pointer hover:ring-2 hover:ring-primary transition-all">
-              <CardContent className="flex flex-col items-center p-6">
-                <button
-                  className="w-full flex flex-col items-center gap-2"
-                  onClick={() => handleAddInitialEvent('get_job')}
-                >
-                  <span className="font-semibold">Add Salary Employment</span>
-                  <span className="text-xs text-muted-foreground">Add a salaried job</span>
-                  <Button className="mt-2">Add Event</Button>
-                </button>
-              </CardContent>
-            </Card>
-            <Card className="cursor-pointer hover:ring-2 hover:ring-primary transition-all">
-              <CardContent className="flex flex-col items-center p-6">
-                <button
-                  className="w-full flex flex-col items-center gap-2"
-                  onClick={() => handleAddInitialEvent('get_wage_job')}
-                >
-                  <span className="font-semibold">Add Wage Employment</span>
-                  <span className="text-xs text-muted-foreground">Add an hourly job</span>
-                  <Button className="mt-2">Add Event</Button>
-                </button>
-              </CardContent>
-            </Card>
-            <Card className="cursor-pointer hover:ring-2 hover:ring-primary transition-all">
-              <CardContent className="flex flex-col items-center p-6">
-                <button
-                  className="w-full flex flex-col items-center gap-2"
-                  onClick={() => handleAddInitialEvent('buy_house')}
-                >
-                  <span className="font-semibold">Add House</span>
-                  <span className="text-xs text-muted-foreground">Add a home purchase</span>
-                  <Button className="mt-2">Add Event</Button>
-                </button>
-              </CardContent>
-            </Card>
+        <div className="space-y-8">
+          <div>
+            <p className="text-muted-foreground text-center mb-6">
+              Add your first events to get started. You can edit their details after adding.
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {[{
+                type: 'get_job',
+                label: 'Add Salary Employment',
+                sub: 'Add a salaried job'
+              }, {
+                type: 'get_wage_job',
+                label: 'Add Wage Employment',
+                sub: 'Add an hourly job'
+              }, {
+                type: 'buy_house',
+                label: 'Add House',
+                sub: 'Add a home purchase'
+              }].map(({ type, label, sub }) => (
+                <Card key={type} className="cursor-pointer hover:ring-2 hover:ring-primary transition-all flex flex-col items-center p-6">
+                  <CardContent className="flex flex-col items-center p-0 w-full">
+                    <div className="flex flex-col items-center gap-2 w-full">
+                      <span className="font-semibold">{label}</span>
+                      <span className="text-xs text-muted-foreground">{sub}</span>
+                      <Button className="mt-4 w-full" onClick={() => handleAddInitialEvent(type)}>
+                        Add Event
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+          {/* Display current events in the plan */}
+          <div className="mt-8">
+            <h3 className="text-lg font-semibold mb-4 text-center">Current Events in Your Plan</h3>
+            {plan && plan.events.length > 0 ? (
+              <div className="max-h-64 overflow-y-auto pr-1">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {plan.events.map(event => (
+                    <Card key={event.id} className="border border-border/30">
+                      <CardContent className="flex items-center gap-4 p-4">
+                        <div>{getEventIcon(event.type)}</div>
+                        <div>
+                          <div className="font-medium">{getEventDisplayType(event.type)}</div>
+                          <div className="text-xs text-muted-foreground">{event.description}</div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="text-center text-muted-foreground">No events added yet.</div>
+            )}
           </div>
         </div>
       )

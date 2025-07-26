@@ -3,6 +3,8 @@ import * as LucideIcons from 'lucide-react';
 import eventSchemaData from '@/data/event_schema.json';
 import defaultPlanData from '@/data/plan.json';
 import defaultLockedPlanData from '@/data/plan_locked.json';
+import { useAuth } from './AuthContext';
+
 
 // Map of Lucide icon names to schema icon names
 export const iconMap: Record<string, string> = {
@@ -106,6 +108,7 @@ export interface SchemaParameter {
     description: string;
     default: number | string;
     options?: string[];
+    editable?: boolean;
 }
 
 export interface SchemaUpdatingEvent {
@@ -153,7 +156,7 @@ interface PlanContextType {
     savePlanToFile: () => void;
     updateParameter: (eventId: number, parameterType: string, newValue: number | string) => void;
     deleteEvent: (eventId: number) => void;
-    addEvent: (eventType: string) => number;
+    addEvent: (eventType: string, parameterOverrides?: { [type: string]: any }, replaceExisting?: boolean) => number;
     addUpdatingEvent: (mainEventId: number, updatingEventType: string) => number;
     getEventIcon: (eventType: string) => React.ReactNode;
     getEventDisplayType: (eventType: string) => string;
@@ -171,7 +174,11 @@ interface PlanContextType {
     lockPlan: () => void; // <-- add this
     updateRetirementGoal: (newGoal: number) => void; // <-- add this
     canEventBeRecurring: (eventId: number) => boolean; // <-- add this
-    updateEventRecurring: (eventId: number, isRecurring: boolean) => void; // <-- add this
+    updateEventRecurring: (eventId: number, isRecurring: boolean) => void; // <--
+    hasEventType: (eventType: string) => boolean; // <-- add this
+    deleteEventsByType: (eventType: string) => void; // <-- add this
+    getEnvelopeDisplayName: (envelopeName: string) => string;
+    captureVisualizationAsSVG: () => string | null; // <-- add this
 }
 
 // Schema and default data are now imported directly
@@ -218,6 +225,8 @@ export function PlanProvider({ children }: PlanProviderProps) {
     const [plan_locked, setPlanLocked] = useState<Plan | null>(null); // <-- add this
     const [schema, setSchema] = useState<Schema | null>(null);
     const [isInitialized, setIsInitialized] = useState(false);
+
+    const { upsertAnonymousPlan } = useAuth();
 
     // Load schema on mount
     useEffect(() => {
@@ -286,6 +295,13 @@ export function PlanProvider({ children }: PlanProviderProps) {
             localStorage.setItem(LOCALSTORAGE_PLAN_KEY, JSON.stringify(plan));
         } catch (e) {
             console.warn('Failed to save plan to localStorage:', e);
+        }
+
+        // --- Upsert anonymous plan if anon key exists ---
+        const anonId = localStorage.getItem('anon_id');
+        if (anonId && typeof upsertAnonymousPlan === 'function') {
+            const planName = plan.title || 'Anonymous Plan';
+            upsertAnonymousPlan(planName, plan);
         }
     }, [plan]);
 
@@ -416,7 +432,8 @@ export function PlanProvider({ children }: PlanProviderProps) {
 
     const addEvent = useCallback((
         eventType: string,
-        parameterOverrides?: { [type: string]: any }
+        parameterOverrides?: { [type: string]: any },
+        replaceExisting?: boolean
     ) => {
         if (!plan || !schema) {
             throw new Error('No plan or schema data available');
@@ -426,6 +443,11 @@ export function PlanProvider({ children }: PlanProviderProps) {
         const eventSchema = schema.events.find(e => e.type === eventType);
         if (!eventSchema) {
             throw new Error(`Event type ${eventType} not found in schema`);
+        }
+
+        // If replaceExisting is true, delete existing events of this type
+        if (replaceExisting) {
+            deleteEventsByType(eventType);
         }
 
         // --- NEW: Check for envelope parameters and add missing envelopes ---
@@ -461,6 +483,8 @@ export function PlanProvider({ children }: PlanProviderProps) {
             ) {
                 value = value + currentDay;
             }
+
+            console.log("param.type: ", param.type, "value: ", value);
             return {
                 id: index,
                 type: param.type,
@@ -835,6 +859,53 @@ export function PlanProvider({ children }: PlanProviderProps) {
         });
     }, [plan]);
 
+    // Check if plan has events of a specific type
+    const hasEventType = useCallback((eventType: string): boolean => {
+        if (!plan) return false;
+        return plan.events.some(event => event.type === eventType);
+    }, [plan]);
+
+    // Delete all events of a specific type
+    const deleteEventsByType = useCallback((eventType: string) => {
+        if (!plan) {
+            throw new Error('No plan data available');
+        }
+
+        setPlan(prevPlan => {
+            if (!prevPlan) return null;
+            return {
+                ...prevPlan,
+                events: prevPlan.events.filter(event => event.type !== eventType)
+            };
+        });
+    }, [plan]);
+
+    const getEnvelopeDisplayName = useCallback((envelopeName: string): string => {
+        const otherMatch = envelopeName.match(/^Other \((.+)\)$/);
+        return otherMatch ? otherMatch[1] : envelopeName;
+    }, []);
+
+    const captureVisualizationAsSVG = useCallback(() => {
+        if (!plan) return null;
+
+        // Find the visualization SVG element - look for the main visualization SVG
+        const svgElement = document.querySelector('.visualization-container svg') as SVGSVGElement;
+
+        if (!svgElement) {
+            console.warn('Visualization SVG element not found');
+            return null;
+        }
+
+        // Serialize the SVG element to a string directly
+        try {
+            const svgData = new XMLSerializer().serializeToString(svgElement);
+            return svgData;
+        } catch (error) {
+            console.error('Error capturing SVG as string:', error);
+            return null;
+        }
+    }, [plan]);
+
     const value = {
         plan,
         plan_locked, // <-- add to context value
@@ -864,6 +935,10 @@ export function PlanProvider({ children }: PlanProviderProps) {
         updateRetirementGoal, // <-- add to context value
         canEventBeRecurring, // <-- add to context value
         updateEventRecurring, // <-- add to context value
+        hasEventType, // <-- add to context value
+        deleteEventsByType, // <-- add to context value
+        getEnvelopeDisplayName, // <-- add to context value
+        captureVisualizationAsSVG, // <-- add to context value
     };
 
     // Don't render children until we've attempted to load the default plan and schema
@@ -919,4 +994,10 @@ export function getEnvelopeCategory(plan: Plan | null, envelopeName: string): st
     if (!plan) return undefined;
     const env = plan.envelopes.find(e => e.name === envelopeName);
     return env?.category;
+}
+
+// Helper to get the display name for an envelope (handles "Other (category)" format)
+export function getEnvelopeDisplayName(envelopeName: string): string {
+    const otherMatch = envelopeName.match(/^Other \((.+)\)$/);
+    return otherMatch ? otherMatch[1] : envelopeName;
 } 

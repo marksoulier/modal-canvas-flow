@@ -17,7 +17,7 @@ export const formatNumber = (value: { valueOf(): number }): string => {
     if (absNum >= 1000) {
         return `${sign}$${Number(absNum.toFixed(0)).toLocaleString()}`;
     }
-    return `${sign}$${absNum.toFixed(0)}`;
+    return `${sign}$${absNum.toFixed(2)}`;
 };
 
 // Helper to calculate age in years from days since birth

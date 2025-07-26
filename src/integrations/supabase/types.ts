@@ -20,6 +20,7 @@ export type Database = {
           id: string
           plan_data: Json
           plan_name: string | null
+          plan_image: string | null
           updated_at: string
           user_id: string
         }
@@ -28,6 +29,7 @@ export type Database = {
           id?: string
           plan_data: Json
           plan_name?: string | null
+          plan_image?: string | null
           updated_at?: string
           user_id: string
         }
@@ -36,6 +38,7 @@ export type Database = {
           id?: string
           plan_data?: Json
           plan_name?: string | null
+          plan_image?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -49,6 +52,7 @@ export type Database = {
           subscription_date: string | null
           updated_at: string
           user_id: string
+          anonymous_anon?: string
         }
         Insert: {
           created_at?: string
@@ -57,6 +61,7 @@ export type Database = {
           subscription_date?: string | null
           updated_at?: string
           user_id: string
+          anonymous_anon?: string
         }
         Update: {
           created_at?: string
@@ -65,6 +70,7 @@ export type Database = {
           subscription_date?: string | null
           updated_at?: string
           user_id?: string
+          anonymous_anon?: string
         }
         Relationships: []
       }
@@ -78,6 +84,7 @@ export type Database = {
           user_agent: string | null
           last_ip: string | null
           extra_data: Json | null
+          button_clicks: Json | null
         }
         Insert: {
           id?: string
@@ -88,6 +95,7 @@ export type Database = {
           user_agent?: string | null
           last_ip?: string | null
           extra_data?: Json | null
+          button_clicks?: Json | null
         }
         Update: {
           id?: string
@@ -98,6 +106,7 @@ export type Database = {
           user_agent?: string | null
           last_ip?: string | null
           extra_data?: Json | null
+          button_clicks?: Json | null
         }
         Relationships: [
           {
@@ -107,6 +116,43 @@ export type Database = {
             referencedColumns: ["id"]
           }
         ]
+      }
+      anonymous_plans: {
+        Row: {
+          id: string;
+          anonymous_user_id: string;
+          plan_name: string | null;
+          plan_data: Json | null;
+          plan_image: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          anonymous_user_id: string;
+          plan_name?: string | null;
+          plan_data?: Json | null;
+          plan_image?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          anonymous_user_id?: string;
+          plan_name?: string | null;
+          plan_data?: Json | null;
+          plan_image?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "anonymous_plans_anonymous_user_id_fkey";
+            columns: ["anonymous_user_id"];
+            referencedRelation: "anonymous_users";
+            referencedColumns: ["id"];
+          }
+        ];
       }
     }
     Views: {

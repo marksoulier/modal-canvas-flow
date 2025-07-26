@@ -224,7 +224,13 @@ export const f_principal_payment = (theta: Record<string, any>, t: number): numb
 };
 
 export const f_monthly_payment = (theta: Record<string, any>, t: number): number => {
-    return -theta.P * (theta.r / 12) * Math.pow(1 + theta.r / 12, 12 * theta.y) / (Math.pow(1 + theta.r / 12, 12 * theta.y) - 1);
+    if (theta.r === 0) {
+        return +(theta.P / (12 * theta.y)).toFixed(2);
+    }
+    return +(
+        -theta.P * (theta.r / 12) * Math.pow(1 + theta.r / 12, 12 * theta.y) /
+        (Math.pow(1 + theta.r / 12, 12 * theta.y) - 1)
+    ).toFixed(2);
 };
 
 export const f_insurance = (theta: Record<string, any>, t: number): number => {
@@ -532,6 +538,12 @@ export const loan_amortization = (event: any, envelopes: Record<string, any>) =>
         envelopes, params.from_key, params.to_key
     );
 
+    // console.log("Loan interest rate: ", params.interest_rate);
+    // console.log("Loan term years: ", params.loan_term_years);
+    // console.log("Principal: ", params.principal);
+    // const monthly_payment = f_monthly_payment({ P: params.principal, r: params.interest_rate, y: params.loan_term_years }, params.start_time);
+    // console.log("Monthly payment: ", monthly_payment);
+
     // Take out loan so add the amount recieved to cash and the debit to the debt
     const recieved_loan = T(
         { t_k: params.start_time },
@@ -570,7 +582,7 @@ export const loan_amortization = (event: any, envelopes: Record<string, any>) =>
 
     // --- Loan Envelope Correction at End of Payment Cycle ---
     const loan_end_time = params.start_time + params.loan_term_years * 365;
-    const loanEnvelope = envelopes[params.to_key];
+    const loanEnvelope = envelopes[params.from_key];
     let loan_balance = 0.0;
     for (const func of loanEnvelope.functions) {
         loan_balance += func(loan_end_time);
@@ -592,9 +604,93 @@ export const loan_amortization = (event: any, envelopes: Record<string, any>) =>
             P({ b: Math.abs(loan_balance) }),
             theta_growth_source
         );
-        envelopes[params.from_key].functions.push(correction_outflow);
+        envelopes[params.to_key].functions.push(correction_outflow);
     }
 };
+
+export const loan = (event: any, envelopes: Record<string, any>) => {
+    const params = event.parameters;
+
+    // Get growth parameters for source and destination envelopes
+    const [theta_growth_source, theta_growth_dest] = get_growth_parameters(
+        envelopes, params.from_key, params.to_key
+    );
+
+    const loan_interest_rate = theta_growth_source.r;
+    // console.log("Loan interest rate: ", loan_interest_rate);
+    const end_time = params.start_time + params.loan_term_years * 365;
+    // console.log("Start time: ", params.start_time);
+    // console.log("End time: ", end_time);
+    // console.log("Loan term years: ", params.loan_term_years);
+    // console.log("Principal: ", params.principal);
+    // const monthly_payment = f_monthly_payment({ P: params.principal, r: loan_interest_rate, y: params.loan_term_years }, params.start_time);
+    // console.log("Monthly payment: ", monthly_payment);
+
+    // Take out loan so add the amount recieved to cash and the debit to the debt
+    const recieved_loan = T(
+        { t_k: params.start_time },
+        f_in,
+        P({ a: params.principal }),
+        theta_growth_dest
+    );
+    envelopes[params.to_key].functions.push(recieved_loan);
+
+    const loan_debit = T(
+        { t_k: params.start_time },
+        f_out,
+        P({ b: params.principal }),
+        theta_growth_source
+    );
+    envelopes[params.from_key].functions.push(loan_debit);
+
+    // Now pay off the loan in a reoccuring schedule of monthly payments
+    const loan_amortization = R(
+        { t0: params.start_time + 30, dt: 365 / 12, tf: params.start_time + params.loan_term_years * 365 },
+        f_monthly_payment,
+        P({ P: -params.principal, r: loan_interest_rate, y: params.loan_term_years }),
+        theta_growth_source
+    );
+    envelopes[params.from_key].functions.push(loan_amortization);
+
+    // Pay each monthly payment both the interest and the principle
+    const payments_func = R(
+        { t0: params.start_time + 30, dt: 365 / 12, tf: params.start_time + params.loan_term_years * 365 },
+        f_monthly_payment,
+        P({ P: params.principal, r: loan_interest_rate, y: params.loan_term_years }),
+        theta_growth_dest
+    );
+
+    envelopes[params.to_key].functions.push(payments_func);
+
+    // --- Loan Envelope Correction at End of Payment Cycle ---
+    const loan_end_time = params.start_time + params.loan_term_years * 365;
+    const loanEnvelope = envelopes[params.from_key];
+    let loan_balance = 0.0;
+    for (const func of loanEnvelope.functions) {
+        loan_balance += func(loan_end_time);
+    }
+    console.log("Loan balance: ", loan_balance);
+    if (Math.abs(loan_balance)) {
+        const [theta_growth_source, theta_growth_dest] = get_growth_parameters(
+            envelopes, params.from_key, params.to_key
+        );
+        const correction_inflow = T(
+            { t_k: loan_end_time },
+            f_out,
+            P({ b: loan_balance }),
+            theta_growth_source
+        );
+        loanEnvelope.functions.push(correction_inflow);
+        const correction_outflow = T(
+            { t_k: loan_end_time },
+            f_in,
+            P({ a: loan_balance }),
+            theta_growth_dest
+        );
+        envelopes[params.to_key].functions.push(correction_outflow);
+    }
+};
+
 
 export const purchase = (event: any, envelopes: Record<string, any>) => {
     const params = event.parameters;
@@ -754,6 +850,32 @@ export const get_job = (event: any, envelopes: Record<string, any>) => {
         R({ t0: params.start_time, dt: 365 / params.pay_period, tf: params.end_time },
             f_in, P({ a: contribution_amount }), theta_growth_401k)
     );
+
+    // Add withholdings to their respective envelopes
+    const withholdingConfigs = [
+        {
+            key: params.federal_withholdings_key,
+            rate: params.federal_income_tax,
+        },
+        {
+            key: params.state_withholdings_key,
+            rate: params.state_income_tax,
+        },
+        {
+            key: params.local_withholdings_key,
+            rate: params.local_income_tax || 0,
+        }
+    ];
+    for (const config of withholdingConfigs) {
+        if (config.key && envelopes[config.key]) {
+            const [_, theta_growth_withholding] = get_growth_parameters(envelopes, undefined, config.key);
+            const withholding_amount = (params.salary / params.pay_period) * config.rate;
+            envelopes[config.key].functions.push(
+                R({ t0: params.start_time, dt: 365 / params.pay_period, tf: params.end_time },
+                    f_in, P({ a: withholding_amount }), theta_growth_withholding)
+            );
+        }
+    }
 };
 
 export const get_wage_job = (event: any, envelopes: Record<string, any>) => {
@@ -825,7 +947,7 @@ export const buy_house = (event: any, envelopes: Record<string, any>) => {
         envelopes, params.from_key, params.to_key, params.mortgage_envelope
     );
 
-    // Handle downpayment (outflow)
+    // // Handle downpayment (outflow)
     const downpayment_func = T(
         { t_k: params.start_time },
         f_out,
@@ -836,7 +958,7 @@ export const buy_house = (event: any, envelopes: Record<string, any>) => {
     const from_key = params.from_key;
     envelopes[from_key].functions.push(downpayment_func);
 
-
+    console.log("to_key: ", params.to_key);
     // Create house value tracking function with appreciation
     const house_func = T(
         { t_k: params.start_time },
@@ -883,8 +1005,6 @@ export const buy_house = (event: any, envelopes: Record<string, any>) => {
     for (const upd of event.updating_events || []) {
         const upd_type = upd.type;
         const upd_params = upd.parameters || {};
-        const mortgage_key = params.mortgage_envelope;
-
         if (upd_type === "new_appraisal") {
         } else if (upd_type === "extra_mortgage_payment") {
         } else if (upd_type === "late_payment") {
@@ -1059,48 +1179,6 @@ export const buy_car = (event: any, envelopes: Record<string, any>) => {
         );
         envelopes[params.from_key].functions.push(correction_outflow);
     }
-};
-
-export const retirement = (event: any, envelopes: Record<string, any>) => {
-    const params = event.parameters;
-
-    // Get growth parameters for all three envelopes
-    const [theta_growth_401k, theta_growth_dest, theta_growth_taxable] = get_growth_parameters(
-        envelopes, params.p_401k_key, params.to_key, params.taxable_income_key
-    );
-
-    // Create recurring transfer from 401K to cash (outflow from 401K)
-    const withdrawal_func = R(
-        { t0: params.start_time, dt: params.frequency_days, tf: params.end_time },
-        f_out,
-        P({ b: params.amount }),
-        theta_growth_401k
-    );
-
-    // Add withdrawal function to 401K envelope
-    envelopes[params.p_401k_key].functions.push(withdrawal_func);
-
-    // Create recurring inflow to cash envelope
-    const inflow_func = R(
-        { t0: params.start_time, dt: params.frequency_days, tf: params.end_time },
-        f_in,
-        P({ a: params.amount }),
-        theta_growth_dest
-    );
-
-    // Add inflow function to cash envelope
-    envelopes[params.to_key].functions.push(inflow_func);
-
-    // Create recurring taxable income from 401K withdrawals
-    const taxable_income_func = R(
-        { t0: params.start_time, dt: params.frequency_days, tf: params.end_time },
-        f_in,
-        P({ a: params.amount }),
-        theta_growth_taxable
-    );
-
-    // Add taxable income function to taxable income envelope
-    envelopes[params.taxable_income_key].functions.push(taxable_income_func);
 };
 
 
@@ -1700,57 +1778,6 @@ export const buy_groceries = (event: any, envelopes: Record<string, any>) => {
         envelopes[from_key].functions.push(grocery_func);
     }
 };
-export const roth_ira_contribution = (event: any, envelopes: Record<string, any>) => {
-    const params = event.parameters;
-    const from_key = params.from_key;
-    const to_key = params.to_key;
-    const start_time = params.start_time;
-    const end_time = params.end_time;
-    const amount = params.amount;
-
-    // Get growth parameters for both envelopes
-    const [theta_growth_source, theta_growth_dest] = get_growth_parameters(envelopes, from_key, to_key);
-
-    //See if event is recurring or not
-    const is_recurring = event.is_recurring;
-    if (is_recurring) {
-        // Recurring outflow from source envelope
-        const outflow_func = R(
-            { t0: start_time, dt: params.frequency_days, tf: end_time },
-            f_out,
-            P({ b: amount }),
-            theta_growth_source
-        );
-        envelopes[from_key].functions.push(outflow_func);
-
-        // Recurring inflow to Roth IRA envelope
-        const inflow_func = R(
-            { t0: start_time, dt: params.frequency_days, tf: end_time },
-            f_in,
-            P({ a: amount }),
-            theta_growth_dest
-        );
-        envelopes[to_key].functions.push(inflow_func);
-    } else {
-        // One-time outflow from source envelope
-        const outflow_func = T(
-            { t_k: start_time },
-            f_out,
-            P({ b: amount }),
-            theta_growth_source
-        );
-        envelopes[from_key].functions.push(outflow_func);
-
-        // One-time inflow to Roth IRA envelope
-        const inflow_func = T(
-            { t_k: start_time },
-            f_in,
-            P({ a: amount }),
-            theta_growth_dest
-        );
-        envelopes[to_key].functions.push(inflow_func);
-    }
-};
 
 export const tax_payment_estimated = (event: any, envelopes: Record<string, any>) => {
     const params = event.parameters;
@@ -2101,40 +2128,110 @@ const getYearEndDays = (birthDate: Date, startTime: number, endTime: number): nu
 };
 
 // Helper function to calculate taxes based on taxable income using tax brackets
-const calculateTaxes = (taxableIncome: number): number => {
-    if (taxableIncome <= 0) return 0;
+const calculateTaxes = (params: Record<string, any>): number => {
+    // Extract parameters from the dictionary
+    let taxable_income = params.taxable_income ?? 0;
+    const p_401k_withdraw = params.p_401k_withdraw ?? 0;
+    const p_401k_withdraw_withholding = params.p_401k_withdraw_withholding ?? 0;
+    const roth_ira_withdraw = params.roth_ira_withdraw ?? 0;
+    let roth_ira_principle = params.roth_ira_principle ?? 0;
+    const federal_withholding = params.federal_withholding ?? 0;
+    const state_withholding = params.state_withholding ?? 0;
+    const local_withholding = params.local_withholding ?? 0;
+    const ira_contributions = params.ira_contributions ?? 0;
+    const real_estate_tax = params.real_estate_tax ?? 0;
+    const filing_status = params.filing_status || "Single";
+    const age = params.age ?? 0;
+    const dependents = params.dependents ?? 0;
+    const location = params.location || "City, State";
+    const tax_year = params.tax_year || new Date().getFullYear();
 
-    // Simplified federal tax brackets for 2023 (single filer)
-    const federalBrackets = [
-        { min: 0, max: 11000, rate: 0.10 },
-        { min: 11000, max: 44725, rate: 0.12 },
-        { min: 44725, max: 95375, rate: 0.22 },
-        { min: 95375, max: 182050, rate: 0.24 },
-        { min: 182050, max: 231250, rate: 0.32 },
-        { min: 231250, max: 578125, rate: 0.35 },
-        { min: 578125, max: Infinity, rate: 0.37 }
-    ];
+
+    // use the rothIRA principle and see the withdrawals. 
+    // Add the difference to the taxable income if greater than 0
+    // You are only taxed on the interest not on the principle amount.
+    // Set ROTHIRA principle to 0 if it is negative
+    if (roth_ira_principle < 0) {
+        roth_ira_principle = 0;
+    }
+
+    if (roth_ira_withdraw > roth_ira_principle && age <= 59.5) {
+        const roth_ira_withdraw_difference = roth_ira_withdraw - roth_ira_principle;
+        taxable_income += roth_ira_withdraw_difference;
+    }
+
+    taxable_income += p_401k_withdraw;
+
+    if (taxable_income <= 0) return 0;
+
+    // Define federal tax brackets for different filing statuses (2023 as example)
+    const federalBracketsByStatus: Record<string, { min: number, max: number, rate: number }[]> = {
+        "Single": [
+            { min: 0, max: 11000, rate: 0.10 },
+            { min: 11000, max: 44725, rate: 0.12 },
+            { min: 44725, max: 95375, rate: 0.22 },
+            { min: 95375, max: 182050, rate: 0.24 },
+            { min: 182050, max: 231250, rate: 0.32 },
+            { min: 231250, max: 578125, rate: 0.35 },
+            { min: 578125, max: Infinity, rate: 0.37 }
+        ],
+        "Married Filing Jointly": [
+            { min: 0, max: 22000, rate: 0.10 },
+            { min: 22000, max: 89450, rate: 0.12 },
+            { min: 89450, max: 190750, rate: 0.22 },
+            { min: 190750, max: 364200, rate: 0.24 },
+            { min: 364200, max: 462500, rate: 0.32 },
+            { min: 462500, max: 693750, rate: 0.35 },
+            { min: 693750, max: Infinity, rate: 0.37 }
+        ]
+        // Add more statuses as needed
+    };
+
+    // Select brackets based on filing status, default to 'Single' if not found
+    const federalBrackets = federalBracketsByStatus[filing_status] || federalBracketsByStatus["Single"];
 
     // Simplified state tax (flat rate - adjust as needed)
     const stateRate = 0.05; // 5% flat state tax
+    // Local tax (for demonstration, set to 0.01 or 1%)
+    const localRate = 0.01;
 
     let federalTax = 0;
-    let remainingIncome = taxableIncome;
+    let remainingIncome = taxable_income;
 
     // Calculate federal tax using brackets
     for (const bracket of federalBrackets) {
         if (remainingIncome <= 0) break;
-
         const taxableInBracket = Math.min(remainingIncome, bracket.max - bracket.min);
         federalTax += taxableInBracket * bracket.rate;
         remainingIncome -= taxableInBracket;
     }
 
-    // Calculate state tax (flat rate on full taxable income)
-    const stateTax = taxableIncome * stateRate;
+    // Calculate state and local tax
+    const stateTax = taxable_income * stateRate;
+    const localTax = taxable_income * localRate;
 
-    // Return total tax (federal + state)
-    return federalTax + stateTax;
+    // Subtract withholdings and IRA contributions
+    let totalTax = federalTax + stateTax + localTax + real_estate_tax;
+    totalTax -= federal_withholding;
+    totalTax -= state_withholding;
+    totalTax -= local_withholding;
+    totalTax -= p_401k_withdraw_withholding;
+    totalTax -= ira_contributions; // If deductible
+
+    // Subtract dependent credits (roughly, $2000 per dependent)
+    totalTax -= dependents * 2000;
+    if (totalTax < 0) totalTax = 0;
+
+    // If under the age of 59.5, add a 10% penalty to the tax for the 401k withdrawals  
+    if (age < 59.5) {
+        totalTax += p_401k_withdraw * 0.1;
+        totalTax += roth_ira_withdraw * 0.1;
+    }
+
+    // Optionally use location, tax_year for future logic
+    // console.log({ location, tax_year });
+
+    return totalTax;
 };
 
 export const usa_tax_system = (event: any, envelopes: Record<string, any>) => {
@@ -2142,15 +2239,34 @@ export const usa_tax_system = (event: any, envelopes: Record<string, any>) => {
     const simulation_settings = envelopes.simulation_settings;
 
     // Get growth parameters for the envelopes
-    const [theta_growth_taxable_income, theta_growth_penalty_401k, theta_growth_taxes_401k, theta_growth_roth, theta_growth_401k] = get_growth_parameters(
-        envelopes, params.taxable_income_key, params.penalty_401k_key, params.taxes_401k_key, params.roth_key, params.p_401k_key
+    const [theta_growth_taxable_income, theta_growth_penalty_401k, theta_growth_taxes_401k, theta_growth_roth, theta_growth_penalty_roth, theta_growth_401k, theta_growth_irs_registered_account] = get_growth_parameters(
+        envelopes, params.taxable_income_key, params.penalty_401k_key, params.taxes_401k_key, params.roth_key, params.penalty_roth_key, params.p_401k_key, params.irs_registered_account_key
     );
+
+    //calcualte taxes owned just on the 401K balance part
+    const taxParams = {
+        taxable_income: 0,
+        federal_withholding: 0,
+        state_withholding: 0,
+        local_withholding: 0,
+        ira_contributions: 0,
+        real_estate_tax: 0,
+        roth_ira_withdraw: 0,
+        p_401k_withdraw: 0,
+        p_401k_withdraw_withholding: 0,
+        filing_status: params.filing_status || "Single",
+        dependents: params.dependents ?? 0,
+        location: params.location || "City, State",
+        tax_year: params.tax_year || new Date().getFullYear()
+    };
 
     // Get the relevant envelopes
     const envelope401k = envelopes[params.p_401k_key];
     const penaltyEnvelope = envelopes[params.penalty_401k_key];
     const taxableIncomeEnvelope = envelopes[params.taxable_income_key];
     const taxesEnvelope = envelopes[params.taxes_401k_key];
+    const envelopeRothIra = envelopes[params.roth_key];
+    const penaltyEnvelopeRothIra = envelopes[params.penalty_roth_key];
 
     // Create time range based on simulation settings
     const startTime = simulation_settings.start_time;
@@ -2186,33 +2302,116 @@ export const usa_tax_system = (event: any, envelopes: Record<string, any>) => {
 
     // Process taxable income corrections on year-end days
     yearEndDays.forEach(yearEndDay => {
-        // Evaluate taxable income envelope balance at year-end day
-        let taxableIncomeBalance = 0.0;
-        for (const func of taxableIncomeEnvelope.functions) {
-            taxableIncomeBalance += func(yearEndDay);
+        // --- Reset taxable income and additional envelopes at year end ---
+
+        // Before year end, evalute value of all tax related envelopes
+        const taxEnvelopes = [
+            params.taxable_income_key,
+            params.federal_withholdings_key,
+            params.state_withholdings_key,
+            params.local_withholdings_key,
+            params.ira_contributions_key,
+            params.penalty_401k_key,
+            params.taxes_401k_key,
+            params.roth_key,
+            params.penalty_roth_key,
+            params.roth_ira_principle_key,
+            params.roth_ira_withdraw_key, //The amount withdrawn from the ROTH IRA
+            params.p_401k_key, //Actual account value of 401k
+            params.p_401k_withdraw_key, //Withholding from 401k this year
+            params.p_401k_withdraw_withholding_key //Withholding from 401k this year
+        ];
+
+        //Dictionary for saving relevant balances
+        const taxEnvelopesBalances: Record<string, number> = {};
+
+        for (const key of taxEnvelopes) {
+            if (key && envelopes[key]) {
+                let envBalance = 0.0;
+                for (const func of envelopes[key].functions) {
+                    envBalance += func(yearEndDay);
+                }
+                taxEnvelopesBalances[key] = envBalance;
+            }
         }
 
-        if (taxableIncomeBalance !== 0) {
-            // Apply difference correction - subtract the current balance to reset it
-            const difference = 0 - taxableIncomeBalance; // Target amount (0) minus current balance
+        //Calculate age and year
+        const age = Math.floor(yearEndDay / 365);
+        const year = birthDate.getFullYear() + age;
+        console.log("Age", age);
+        console.log("Year", year);
 
-            // Create correction function following manual_correction pattern
-            const correctionFunc = T(
-                { t_k: yearEndDay },
-                difference > 0 ? f_in : f_out,
-                P(difference > 0 ? { a: Math.abs(difference) } : { b: Math.abs(difference) }),
-                theta_growth_taxable_income
-            );
+        //Evaluate taxes paid on these amounts
+        const taxParams_tax_season = {
+            ...taxParams,
+            age: age,
+            tax_year: year,
+            taxable_income: taxEnvelopesBalances[params.taxable_income_key],
+            p_401k_withdraw: taxEnvelopesBalances[params.p_401k_withdraw_key],
+            p_401k_withdraw_withholding: taxEnvelopesBalances[params.p_401k_withdraw_withholding_key],
+            roth_ira_withdraw: taxEnvelopesBalances[params.roth_ira_withdraw_key],
+            roth_ira_principle: taxEnvelopesBalances[params.roth_ira_principle_key],
+            federal_withholding: taxEnvelopesBalances[params.federal_withholdings_key],
+            state_withholding: taxEnvelopesBalances[params.state_withholdings_key],
+            local_withholding: taxEnvelopesBalances[params.local_withholdings_key],
+        };
 
-            // Add the correction to taxable income envelope
-            taxableIncomeEnvelope.functions.push(correctionFunc);
+        const taxesOwed = calculateTaxes(taxParams_tax_season);
+        console.log("Tax Params", taxParams_tax_season);
+        console.log("Taxes Owed", taxesOwed);
 
-            // console.log(`Applied taxable income correction of ${difference} at year-end day ${yearEndDay}`);
+        // Withdraw the taxes withhed from irs_registered_account_key
+        const irsRegisteredAccountEnvelope = envelopes[params.irs_registered_account_key];
+        const pay_taxes_func = T(
+            { t_k: yearEndDay + 105 }, // 105 days from the end of the year is tax day.
+            f_out,
+            P({ b: taxesOwed }),
+            theta_growth_irs_registered_account
+        );
+        irsRegisteredAccountEnvelope.functions.push(pay_taxes_func);
+
+        const resetEnvelopes = [
+            params.taxable_income_key,
+            params.federal_withholdings_key,
+            params.state_withholdings_key,
+            params.local_withholdings_key,
+            params.ira_contributions_key,
+            params.p_401k_withdraw_key,
+            params.p_401k_withdraw_withholding_key,
+            params.roth_ira_withdraw_key,
+        ];
+        for (const key of resetEnvelopes) {
+            if (key && envelopes[key]) {
+                let envBalance = 0.0;
+                for (const func of envelopes[key].functions) {
+                    envBalance += func(yearEndDay);
+                }
+                if (envBalance !== 0) {
+                    // Get growth parameters for this envelope
+                    const [_, theta_growth_env] = get_growth_parameters(envelopes, undefined, key);
+                    const diff = 0 - envBalance;
+                    const correctionFunc = T(
+                        { t_k: yearEndDay },
+                        diff > 0 ? f_in : f_out,
+                        P(diff > 0 ? { a: Math.abs(diff) } : { b: Math.abs(diff) }),
+                        theta_growth_env
+                    );
+                    envelopes[key].functions.push(correctionFunc);
+                }
+            }
         }
     });
 
     // For each time point, evaluate the 401K balance and create penalty functions
     timePoints.forEach(t => {
+
+        // Evaluate ROTH IRA balance at time t
+        let balanceRothIra = 0.0;
+        for (const func of envelopeRothIra.functions) {
+            balanceRothIra += func(t);
+        }
+
+
         // Evaluate 401K envelope balance at time t
         let balance401k = 0.0;
         for (const func of envelope401k.functions) {
@@ -2223,6 +2422,9 @@ export const usa_tax_system = (event: any, envelopes: Record<string, any>) => {
         if (!age59HalfDay || t < age59HalfDay) {
             // Calculate 10% penalty
             const penaltyAmount = balance401k * 0.10;
+
+            // Calculate ROTH IRA penalty
+            const penaltyAmountRothIra = balanceRothIra * 0.10;
 
             // Create an impulse function at time t for the penalty amount
             if (penaltyAmount > 0) {
@@ -2237,6 +2439,20 @@ export const usa_tax_system = (event: any, envelopes: Record<string, any>) => {
                 // Add the penalty function to the penalty envelope
                 penaltyEnvelope.functions.push(penaltyFunc);
             }
+
+            if (penaltyAmountRothIra > 0) {
+
+                //Roth IRA penalty
+                const penaltyRothIraFunc = impulse_T(
+                    { t_k: t },
+                    f_out, // Using outflow function since it's a penalty (negative)
+                    P({ b: penaltyAmountRothIra }),
+                    theta_growth_penalty_roth,
+                    0
+                );
+                // Add the penalty function to the penalty envelope
+                penaltyEnvelopeRothIra.functions.push(penaltyRothIraFunc);
+            }
         }
 
         // Evaluate taxable income envelope balance at time t
@@ -2244,9 +2460,15 @@ export const usa_tax_system = (event: any, envelopes: Record<string, any>) => {
         for (const func of taxableIncomeEnvelope.functions) {
             taxableIncomeBalance += func(t);
         }
-
-        //calcualte taxes owned just on the 401K balance part
-        const taxesOwed = calculateTaxes(taxableIncomeBalance + balance401k) - calculateTaxes(taxableIncomeBalance);
+        const taxParams_401K_included = {
+            ...taxParams,
+            taxable_income: taxableIncomeBalance + balance401k
+        };
+        const taxParamsBase = {
+            ...taxParams,
+            taxable_income: taxableIncomeBalance
+        };
+        const taxesOwed = calculateTaxes(taxParams_401K_included) - calculateTaxes(taxParamsBase);
 
         // Create an impulse function at time t for the tax amount
         const taxFunc = impulse_T(
@@ -2293,4 +2515,184 @@ export const usa_tax_system = (event: any, envelopes: Record<string, any>) => {
     // console.log('USA Tax System event processed with parameters:', params);
     // console.log(`Applied 401K penalties at ${timePoints.length} time points`);
     //console.log(`Applied taxable income corrections at ${yearEndDays.length} year-end days:`, yearEndDays);
-}; 
+};
+
+
+export const retirement = (event: any, envelopes: Record<string, any>) => {
+    const params = event.parameters;
+
+    console.log("Retirement event processed with parameters:", envelopes);
+    // Get growth parameters for all three envelopes
+    const [theta_growth_401k, theta_growth_roth, theta_growth_dest] = get_growth_parameters(
+        envelopes, params.p_401k_key, params.roth_ira_key, params.to_key
+    );
+
+    // Create recurring transfer from 401K to cash (outflow from 401K)
+    const withdrawal_func = R(
+        { t0: params.start_time, dt: params.frequency_days, tf: params.end_time },
+        f_out,
+        P({ b: params.amount }),
+        theta_growth_401k
+    );
+
+    // Add withdrawal function to 401K envelope
+    envelopes[params.p_401k_key].functions.push(withdrawal_func);
+
+    // Create recurring inflow to cash envelope
+    const inflow_func = R(
+        { t0: params.start_time, dt: params.frequency_days, tf: params.end_time },
+        f_in,
+        P({ a: (params.amount - params.amount * 0.25) }),
+        theta_growth_dest
+    );
+
+    // Add inflow function to cash envelope
+    envelopes[params.to_key].functions.push(inflow_func);
+
+
+    // Create recurring transfer from ROTH IRA to cash (outflow from ROTH IRA)
+    const withdrawal_func_roth = R(
+        { t0: params.start_time, dt: params.frequency_days, tf: params.end_time },
+        f_out,
+        P({ b: params.amount_roth_ira }),
+        theta_growth_roth
+    );
+
+    // Add withdrawal function to ROTH IRA envelope
+    envelopes[params.roth_ira_key].functions.push(withdrawal_func_roth);
+
+    // Create recurring inflow to cash envelope
+    const inflow_func_roth = R(
+        { t0: params.start_time, dt: params.frequency_days, tf: params.end_time },
+        f_in,
+        P({ a: (params.amount_roth_ira) }),
+        theta_growth_dest
+    );
+
+    // Add inflow function to cash envelope
+    envelopes[params.to_key].functions.push(inflow_func_roth);
+
+
+    // Get growth rate for all tax accounts
+    const [theta_growth_p_401k_withdraw_withholding, theta_growth_p_401k_withdraw, theta_growth_roth_ira_principle, theta_growth_roth_ira_withdraw] = get_growth_parameters(
+        envelopes, params.p_401k_withdraw_withholding_key, params.p_401k_withdraw_key, params.roth_ira_principle_key, params.roth_ira_withdraw_key
+    );
+
+    // Create recurring taxable income from 401K withdrawals
+    const func_401K_withdrawals = R(
+        { t0: params.start_time, dt: params.frequency_days, tf: params.end_time },
+        f_in,
+        P({ a: params.amount }),
+        theta_growth_p_401k_withdraw
+    );
+
+    // Add taxable income function to taxable income envelope
+    envelopes[params.p_401k_withdraw_key].functions.push(func_401K_withdrawals);
+
+
+    // Typically 20% for federal and 0-10% for state taxes
+
+    const func_401K_witholdings = R(
+        { t0: params.start_time, dt: params.frequency_days, tf: params.end_time },
+        f_in,
+        P({ a: params.amount * 0.25 }),
+        theta_growth_p_401k_withdraw_withholding
+    );
+
+    envelopes[params.p_401k_withdraw_withholding_key].functions.push(func_401K_witholdings);
+
+
+
+    // Reoccuring withdraws from principle envelope
+    const func_roth_ira_principle = R(
+        { t0: params.start_time, dt: params.frequency_days, tf: params.end_time },
+        f_out,
+        P({ b: params.amount_roth_ira }),
+        theta_growth_roth_ira_principle
+    );
+
+    // Add taxable income function to taxable income envelope
+    envelopes[params.roth_ira_principle_key].functions.push(func_roth_ira_principle);
+
+    // Reoccuring withdraws from account
+    const func_roth_ira_withdraw = R(
+        { t0: params.start_time, dt: params.frequency_days, tf: params.end_time },
+        f_in,
+        P({ a: params.amount_roth_ira }),
+        theta_growth_roth_ira_withdraw
+    );
+
+    // Add taxable income function to taxable income envelope
+    envelopes[params.roth_ira_withdraw_key].functions.push(func_roth_ira_withdraw);
+
+};
+
+export const roth_ira_contribution = (event: any, envelopes: Record<string, any>) => {
+    const params = event.parameters;
+    const from_key = params.from_key;
+    const to_key = params.to_key;
+    const start_time = params.start_time;
+    const end_time = params.end_time;
+    const amount = params.amount;
+
+    // Get growth parameters for both envelopes
+    const [theta_growth_source, theta_growth_dest, theta_growth_roth_ira_principle] = get_growth_parameters(envelopes, from_key, to_key, params.roth_ira_principle_key);
+
+    //See if event is recurring or not
+    const is_recurring = event.is_recurring;
+    if (is_recurring) {
+        // Recurring outflow from source envelope
+        const outflow_func = R(
+            { t0: start_time, dt: params.frequency_days, tf: end_time },
+            f_out,
+            P({ b: amount }),
+            theta_growth_source
+        );
+        envelopes[from_key].functions.push(outflow_func);
+
+        // Recurring inflow to Roth IRA envelope
+        const inflow_func = R(
+            { t0: start_time, dt: params.frequency_days, tf: end_time },
+            f_in,
+            P({ a: amount }),
+            theta_growth_dest
+        );
+        envelopes[to_key].functions.push(inflow_func);
+
+        // Reoccuring addition to the principle tracking for the envelope
+        const inflow_func_principle = R(
+            { t0: start_time, dt: params.frequency_days, tf: end_time },
+            f_in,
+            P({ a: amount }),
+            theta_growth_roth_ira_principle
+        );
+        envelopes[params.roth_ira_principle_key].functions.push(inflow_func_principle);
+    } else {
+        // One-time outflow from source envelope
+        const outflow_func = T(
+            { t_k: start_time },
+            f_out,
+            P({ b: amount }),
+            theta_growth_source
+        );
+        envelopes[from_key].functions.push(outflow_func);
+
+        // One-time inflow to Roth IRA envelope
+        const inflow_func = T(
+            { t_k: start_time },
+            f_in,
+            P({ a: amount }),
+            theta_growth_dest
+        );
+        envelopes[to_key].functions.push(inflow_func);
+
+        // One-time inflow to Roth IRA principle envelope
+        const inflow_func_principle = T(
+            { t_k: start_time },
+            f_in,
+            P({ a: amount }),
+            theta_growth_roth_ira_principle
+        );
+        envelopes[params.roth_ira_principle_key].functions.push(inflow_func_principle);
+    }
+};

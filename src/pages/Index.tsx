@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import type { Plan, Envelope } from '../contexts/PlanContext';
 import { Menu, Plus, Save, FileText, FolderOpen, User, Edit3, HelpCircle } from 'lucide-react';
 import { RefreshCw } from 'lucide-react';
@@ -19,18 +19,20 @@ import EventParameterForm from '../components/EventParameterForm';
 import EditEnvelopeModal from '../components/EditEnvelopeModal';
 import EnvelopeManagerModal from '../components/EnvelopeManagerModal';
 import { Visualization } from '../visualization/Visualization';
-import { usePlan } from '../contexts/PlanContext';
+import { usePlan, getEnvelopeDisplayName } from '../contexts/PlanContext';
 import { useAuth } from '../contexts/AuthContext';
 import ErrorToast from '../components/ErrorToast';
 import PlanPreferencesModal from '../components/PlanPreferencesModal';
 import OnboardingFlow from '../components/OnboardingFlow';
 import { extractSchema, validateProblem } from '../hooks/schemaChecker';
+import { formatNumber } from '../visualization/viz_utils';
 
 const Index = () => {
   const [helpModalOpen, setHelpModalOpen] = useState(false);
   const [saveModalOpen, setSaveModalOpen] = useState(false);
   const [eventLibraryOpen, setEventLibraryOpen] = useState(false);
   const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [authModalMode, setAuthModalMode] = useState<'signIn' | 'signUp'>('signIn');
   const [planPreferencesModalOpen, setPlanPreferencesModalOpen] = useState(false);
   const [subscriptionModalOpen, setSubscriptionModalOpen] = useState(false);
   const [userAccountModalOpen, setUserAccountModalOpen] = useState(false);
@@ -47,7 +49,7 @@ const Index = () => {
   const [isAddingEnvelope, setIsAddingEnvelope] = useState(false);
 
   // Use real authentication from AuthContext
-  const { user, signOut: authSignOut } = useAuth();
+  const { user, signOut: authSignOut, logAnonymousButtonClick } = useAuth();
 
   const { plan, schema, loadPlanFromFile, savePlanToFile, updatePlanTitle, loadPlan, lockPlan, addEvent } = usePlan();
 
@@ -57,6 +59,52 @@ const Index = () => {
   const handleAnnotationClick = (eventId: number) => {
     setEditingEventId(eventId);
     setEventParametersOpen(true);
+  };
+
+  // Handle account warnings (negative non-debt accounts and positive debt accounts)
+  const handleNegativeAccountWarning = (warnings: Array<{ envelopeName: string; category: string; minValue: number; date: number; warningType: 'negative' | 'positive' }>) => {
+    if (warnings.length === 0) {
+      // If no warnings, close the error modal if it's open
+      if (errorOpen) {
+        setErrorOpen(false);
+      }
+      return;
+    }
+
+    const negativeWarnings = warnings.filter(w => w.warningType === 'negative');
+    const positiveWarnings = warnings.filter(w => w.warningType === 'positive');
+
+    let message = '';
+
+    if (negativeWarnings.length > 0 && positiveWarnings.length > 0) {
+      // Both types of warnings
+      const negativeMessages = negativeWarnings.map(warning =>
+        `${getEnvelopeDisplayName(warning.envelopeName)}: ${formatNumber({ valueOf: () => warning.minValue })}`
+      );
+      const positiveMessages = positiveWarnings.map(warning =>
+        `${getEnvelopeDisplayName(warning.envelopeName)}: ${formatNumber({ valueOf: () => warning.minValue })}`
+      );
+      message = `Warnings:\n${negativeWarnings.length} accounts go negative:\n${negativeMessages.join('\n')}\n\n${positiveWarnings.length} debt accounts go positive:\n${positiveMessages.join('\n')}`;
+    } else if (negativeWarnings.length > 0) {
+      // Only negative warnings
+      const warningMessages = negativeWarnings.map(warning =>
+        `${getEnvelopeDisplayName(warning.envelopeName)}: ${formatNumber({ valueOf: () => warning.minValue })}`
+      );
+      message = negativeWarnings.length === 1
+        ? `Warning: ${warningMessages[0]} goes negative`
+        : `Warning: ${negativeWarnings.length} accounts go negative:\n${warningMessages.join('\n')}`;
+    } else if (positiveWarnings.length > 0) {
+      // Only positive warnings
+      const warningMessages = positiveWarnings.map(warning =>
+        `${getEnvelopeDisplayName(warning.envelopeName)}: ${formatNumber({ valueOf: () => warning.minValue })}`
+      );
+      message = positiveWarnings.length === 1
+        ? `Warning: ${warningMessages[0]} goes positive (debt should be negative)`
+        : `Warning: ${positiveWarnings.length} debt accounts go positive:\n${warningMessages.join('\n')}`;
+    }
+
+    setErrorMessage(message);
+    setErrorOpen(true);
   };
 
   // Use the context's savePlanToFile for export
@@ -128,9 +176,19 @@ const Index = () => {
     }
   };
 
+  function showPostSignInModals() {
+    if (!localStorage.getItem('has-seen-subscription-modal')) {
+      setUserAccountModalOpen(true);
+      setSubscriptionModalOpen(true);
+      localStorage.setItem('has-seen-subscription-modal', 'true');
+    } else {
+      setUserAccountModalOpen(true);
+    }
+  }
+
   const handleAccount = () => {
     if (user) {
-      setUserAccountModalOpen(true);
+      showPostSignInModals();
     } else {
       setAuthModalOpen(true);
     }
@@ -202,7 +260,10 @@ const Index = () => {
 
       {/* Visualization as background layer */}
       <div className="absolute inset-0 z-0">
-        <Visualization onAnnotationClick={handleAnnotationClick} />
+        <Visualization
+          onAnnotationClick={handleAnnotationClick}
+          onNegativeAccountWarning={handleNegativeAccountWarning}
+        />
       </div>
 
       {/* Overlay elements with higher z-index */}
@@ -232,13 +293,13 @@ const Index = () => {
                     placeholder="Enter plan title..."
                   />
                   {/* Switch button next to input */}
-                  {/* <button
+                  <button
                     onClick={lockPlan}
                     title="Switch with locked plan"
                     className="ml-1 p-1 rounded hover:bg-gray-100 transition-colors"
                   >
                     <RefreshCw size={18} className="text-gray-400 hover:text-gray-700" />
-                  </button> */}
+                  </button>
                 </div>
               ) : (
                 <div className="flex items-center gap-2">
@@ -252,13 +313,13 @@ const Index = () => {
                     <Edit3 size={16} className="opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
                   </button>
                   {/* Switch button next to title */}
-                  {/* <button
+                  <button
                     onClick={lockPlan}
                     title="Switch with locked plan"
                     className="ml-1 p-1 rounded hover:bg-gray-100 transition-colors"
                   >
                     <RefreshCw size={18} className="text-gray-400 hover:text-gray-700" />
-                  </button> */}
+                  </button>
                 </div>
               )}
             </div>
@@ -312,7 +373,12 @@ const Index = () => {
 
         {/* Add Event Button - Bottom Center (more subtle and higher up) */}
         <button
-          onClick={() => setEventLibraryOpen(true)}
+          onClick={async () => {
+            if (logAnonymousButtonClick) {
+              await logAnonymousButtonClick('add_event');
+            }
+            setEventLibraryOpen(true);
+          }}
           className="fixed bottom-16 left-1/2 transform -translate-x-1/2 bg-[#03c6fc]/10 backdrop-blur-sm hover:bg-[#03c6fc]/20 text-slate-700 px-5 py-2.5 rounded-lg shadow-sm border border-[#03c6fc]/20 hover:border-[#03c6fc]/40 transition-all duration-200 flex items-center gap-2 text-sm font-medium"
         >
           <Plus size={18} className="" />
@@ -343,19 +409,19 @@ const Index = () => {
         onClose={() => setAuthModalOpen(false)}
         onSignIn={() => {
           setAuthModalOpen(false);
-          setUserAccountModalOpen(true);
-          console.log('✅ User signed in successfully - opening account modal');
+          setTimeout(() => {
+            showPostSignInModals();
+          }, 100);
         }}
-        onUpgrade={() => {
-          setAuthModalOpen(false);
-          setSubscriptionModalOpen(true);
-        }}
+        mode={authModalMode}
+        setMode={setAuthModalMode}
       />
 
       <UserAccountModal
         isOpen={userAccountModalOpen}
         onClose={() => setUserAccountModalOpen(false)}
         onSignOut={handleSignOut}
+        onOpenSubscription={() => setSubscriptionModalOpen(true)}
       />
 
       <SubscriptionModal
@@ -422,6 +488,7 @@ const Index = () => {
         onAuthRequired={() => {
           localStorage.setItem('onboarding-completed', 'true');
           setOnboardingOpen(false);
+          setAuthModalMode('signUp'); // <-- set to sign up
           setAuthModalOpen(true);
         }}
         onAddEventAndEditParams={(eventType) => {

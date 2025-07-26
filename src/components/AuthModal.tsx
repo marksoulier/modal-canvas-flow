@@ -14,23 +14,22 @@ interface AuthModalProps {
   onClose: () => void;
   onSignIn: () => void;
   onUpgrade?: () => void;
+  mode?: 'signIn' | 'signUp';
+  setMode?: (mode: 'signIn' | 'signUp') => void;
 }
 
-const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSignIn, onUpgrade }) => {
-  const [isSignUp, setIsSignUp] = useState(false);
+const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSignIn, mode, setMode }) => {
   const [showEmailConfirmation, setShowEmailConfirmation] = useState(false);
   const [userEmail, setUserEmail] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
-  const [birthDate, setBirthDate] = useState('');
-  const [location, setLocation] = useState('');
-  const [education, setEducation] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const { signIn, signUp } = useAuth();
+  const { signIn, signUp, logAnonymousButtonClick } = useAuth();
+
+  const internalIsSignUp = typeof mode === 'string' ? mode === 'signUp' : false;
+  const setIsSignUp = setMode || (() => { });
 
   // Password strength validation
   const getPasswordStrength = (password: string) => {
@@ -63,17 +62,12 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSignIn, onUpgr
     setEmail('');
     setPassword('');
     setConfirmPassword('');
-    setFirstName('');
-    setLastName('');
-    setBirthDate('');
-    setLocation('');
-    setEducation('');
   };
 
   // Handle going to sign in from email confirmation modal
   const handleGoToSignIn = () => {
     setShowEmailConfirmation(false);
-    setIsSignUp(false);
+    setIsSignUp('signIn');
     clearForm();
     setError(null);
   };
@@ -89,8 +83,17 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSignIn, onUpgr
     e.preventDefault();
     setError(null);
 
+    // Log button click for analytics
+    if (logAnonymousButtonClick) {
+      if (internalIsSignUp) {
+        await logAnonymousButtonClick('sign_up');
+      } else {
+        await logAnonymousButtonClick('sign_in');
+      }
+    }
+
     // Additional validation for sign up
-    if (isSignUp) {
+    if (internalIsSignUp) {
       if (password !== confirmPassword) {
         setError('Passwords do not match');
         return;
@@ -104,16 +107,10 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSignIn, onUpgr
     setIsLoading(true);
 
     try {
-      console.log(`🔄 ${isSignUp ? 'Sign up' : 'Sign in'} attempt for:`, email);
+      console.log(`🔄 ${internalIsSignUp ? 'Sign up' : 'Sign in'} attempt for:`, email);
 
-      if (isSignUp) {
-        const profileData = {
-          first_name: firstName.trim() || undefined,
-          last_name: lastName.trim() || undefined,
-          birth_date: birthDate || undefined,
-          location: location.trim() || undefined,
-          education: education.trim() || undefined,
-        };
+      if (internalIsSignUp) {
+        const profileData = {};
 
         const result = await signUp(email, password, profileData) as any;
         console.log('📝 Sign up result:', result);
@@ -150,10 +147,10 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSignIn, onUpgr
       let errorMessage = 'An error occurred';
       if (err?.message) {
         if (err.message.includes('Invalid login credentials')) {
-          errorMessage = isSignUp ? 'Failed to create account. Please try again.' : 'Invalid email or password. Please try again.';
+          errorMessage = internalIsSignUp ? 'Failed to create account. Please try again.' : 'Invalid email or password. Please try again.';
         } else if (err.message.includes('User already registered')) {
           errorMessage = 'An account with this email already exists. Please sign in instead.';
-          setIsSignUp(false); // Switch to sign in mode
+          setIsSignUp('signIn'); // Switch to sign in mode
         } else if (err.message.includes('Email not confirmed')) {
           errorMessage = 'Please check your email for a confirmation link.';
         } else {
@@ -170,9 +167,18 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSignIn, onUpgr
     setError(null);
     setIsLoading(true);
 
+    if (logAnonymousButtonClick) {
+      await logAnonymousButtonClick('google_sign_in');
+    }
+
     try {
+      console.log('🔄 Google sign in attempt');
+      console.log('🔄 Window location origin:', window.location.origin + '/modal-canvas-flow/');
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
+        options: {
+          redirectTo: window.location.origin + '/modal-canvas-flow/',
+        },
       });
       if (error) throw error;
       onClose();
@@ -234,79 +240,13 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSignIn, onUpgr
       }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>{isSignUp ? 'Create Account' : 'Welcome Back'}</DialogTitle>
+            <DialogTitle>{internalIsSignUp ? 'Create Account' : 'Welcome Back'}</DialogTitle>
           </DialogHeader>
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            {isSignUp && (
+            {internalIsSignUp && (
               <>
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="space-y-2">
-                    <label htmlFor="firstName" className="block text-sm font-medium">
-                      First Name
-                    </label>
-                    <input
-                      id="firstName"
-                      type="text"
-                      value={firstName}
-                      onChange={(e) => setFirstName(e.target.value)}
-                      className="w-full px-3 py-2 border rounded-md"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label htmlFor="lastName" className="block text-sm font-medium">
-                      Last Name
-                    </label>
-                    <input
-                      id="lastName"
-                      type="text"
-                      value={lastName}
-                      onChange={(e) => setLastName(e.target.value)}
-                      className="w-full px-3 py-2 border rounded-md"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <label htmlFor="birthDate" className="block text-sm font-medium">
-                    Birth Date
-                  </label>
-                  <input
-                    id="birthDate"
-                    type="date"
-                    value={birthDate}
-                    onChange={(e) => setBirthDate(e.target.value)}
-                    className="w-full px-3 py-2 border rounded-md"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <label htmlFor="location" className="block text-sm font-medium">
-                    Location
-                  </label>
-                  <input
-                    id="location"
-                    type="text"
-                    value={location}
-                    onChange={(e) => setLocation(e.target.value)}
-                    className="w-full px-3 py-2 border rounded-md"
-                    placeholder="City, Country"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <label htmlFor="education" className="block text-sm font-medium">
-                    Education
-                  </label>
-                  <input
-                    id="education"
-                    type="text"
-                    value={education}
-                    onChange={(e) => setEducation(e.target.value)}
-                    className="w-full px-3 py-2 border rounded-md"
-                    placeholder="Highest degree or current studies"
-                  />
-                </div>
+                {/* Removed firstName, lastName, birthDate, location, education fields */}
               </>
             )}
 
@@ -336,7 +276,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSignIn, onUpgr
                 className="w-full px-3 py-2 border rounded-md"
                 required
               />
-              {isSignUp && password && (
+              {internalIsSignUp && password && (
                 <div className="mt-2">
                   <div className="flex space-x-1">
                     {[1, 2, 3, 4, 5].map((level) => (
@@ -365,7 +305,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSignIn, onUpgr
               )}
             </div>
 
-            {isSignUp && (
+            {internalIsSignUp && (
               <div className="space-y-2">
                 <label htmlFor="confirmPassword" className="block text-sm font-medium">
                   Confirm Password
@@ -399,7 +339,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSignIn, onUpgr
               disabled={isLoading}
               className="w-full"
             >
-              {isLoading ? 'Loading...' : isSignUp ? 'Create Account' : 'Sign In'}
+              {isLoading ? 'Loading...' : internalIsSignUp ? 'Create Account' : 'Sign In'}
             </Button>
 
             <div className="relative">
@@ -442,12 +382,15 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSignIn, onUpgr
               <button
                 type="button"
                 onClick={() => {
-                  console.log('Switching auth mode to:', !isSignUp ? 'sign up' : 'sign in');
-                  setIsSignUp(!isSignUp);
+                  if (internalIsSignUp) {
+                    setIsSignUp('signIn');
+                  } else {
+                    setIsSignUp('signUp');
+                  }
                 }}
                 className="text-sm text-blue-600 hover:text-blue-500"
               >
-                {isSignUp ? 'Already have an account? Sign In' : "Don't have an account? Sign Up"}
+                {internalIsSignUp ? 'Already have an account? Sign In' : "Don't have an account? Sign Up"}
               </button>
             </div>
           </form>

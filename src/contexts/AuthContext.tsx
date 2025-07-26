@@ -3,11 +3,13 @@ import { supabase } from '../integrations/supabase/client';
 import type { User } from '@supabase/supabase-js';
 import { toast } from 'sonner';
 import type { Plan as PlanContextPlan } from './PlanContext';
+import type { TablesInsert } from '../integrations/supabase/types';
 
 interface Plan {
     id: string;
     plan_name: string | null;
     plan_data: any;
+    plan_image?: string | null;
     created_at: string;
     updated_at: string;
 }
@@ -21,11 +23,7 @@ interface UserProfile {
     subscription_canceled_at?: string | null;
     subscription_ends_at?: string | null;
     stripe_subscription_id?: string | null;
-    first_name?: string;
-    last_name?: string;
-    birth_date?: string;
-    location?: string;
-    education?: string;
+    anonymous_anon?: string; // <-- add this
     created_at: string;
     updated_at: string;
 }
@@ -45,10 +43,15 @@ interface AuthContextType {
     signOut: () => Promise<void>;
     togglePremium: () => Promise<void>;
     refreshUserData: () => Promise<void>;
-    savePlanToCloud: (plan: PlanContextPlan) => Promise<{ success: boolean; requiresConfirmation?: boolean; existingPlanName?: string }>;
-    confirmOverwritePlan: (plan: PlanContextPlan, planName: string) => Promise<boolean>;
+    savePlanToCloud: (plan: PlanContextPlan, planImage?: string) => Promise<{ success: boolean; requiresConfirmation?: boolean; existingPlanName?: string }>;
+    confirmOverwritePlan: (plan: PlanContextPlan, planName: string, planImage?: string) => Promise<boolean>;
+    deletePlan: (planId: string) => Promise<boolean>;
+    loadPlanById: (planId: string) => Promise<Plan | null>;
     upsertAnonymousOnboarding: (onboardingData: any) => Promise<boolean>;
     fetchAnonymousOnboarding: () => Promise<any>;
+    upsertAnonymousPlan: (planName: string, planData: any, planImage?: string) => Promise<boolean>;
+    logAnonymousButtonClick: (buttonId: string) => Promise<boolean>;
+    fetchDefaultPlans: () => Promise<{ plan_name: string | null; plan_data: any; plan_image: string | null }[]>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -80,6 +83,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Fetch user data from database
     const fetchUserData = async (userId: string) => {
         try {
+            console.log('🔄 Fetching3 user data for:', userId);
             // Add explicit user_id filter in addition to RLS for performance
             const { data: profile, error: profileError } = await supabase
                 .from('user_profiles')
@@ -106,12 +110,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 plans: plans || [],
             });
 
+            //add anonId to the profile
+            const anonId = getOrCreateAnonId();
+            const { error: updateError } = await supabase
+                .from('user_profiles')
+                .update({ anonymous_anon: anonId })
+                .eq('user_id', userId);
+            if (updateError) throw updateError;
+
             // Create profile if it doesn't exist
             if (!profile || (profileError as any)?.code === 'PGRST116') {
                 try {
+                    console.log('🔄 Creating user profile for:', userId);
+                    const anonId = getOrCreateAnonId();
+                    console.log('🔄 Anon ID:', anonId);
                     const { error: insertError } = await supabase
                         .from('user_profiles')
-                        .insert({ user_id: userId, plan_type: 'free' });
+                        .insert({ user_id: userId, plan_type: 'free', anonymous_anon: anonId });
 
                     if (!insertError) {
                         // Retry fetching after creating profile
@@ -123,28 +138,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             }
         } catch (error: any) {
             console.error('Error fetching user data:', error);
-
-            // Handle specific timeout errors
-            if (error?.message?.includes('timeout') || error?.code === 'PGRST301') {
-                console.error('Database timeout - this suggests RLS performance issues');
-                // Could trigger a retry or show user message
-            }
-
-            // Create profile if it doesn't exist (fallback)
-            if (error?.code === 'PGRST116') {
-                try {
-                    const { error: insertError } = await supabase
-                        .from('user_profiles')
-                        .insert({ user_id: userId, plan_type: 'free' });
-
-                    if (!insertError) {
-                        // Retry fetching after creating profile
-                        setTimeout(() => fetchUserData(userId), 1000);
-                    }
-                } catch (insertError) {
-                    console.error('Error creating user profile:', insertError);
-                }
-            }
         }
     };
 
@@ -159,6 +152,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 // Use setTimeout to avoid deadlock when calling other Supabase functions
                 if (session?.user) {
                     setTimeout(async () => {
+                        console.log('🔄 Fetching user data for:', session.user.id);
                         await fetchUserData(session.user.id);
                     }, 0);
                 } else {
@@ -171,6 +165,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         supabase.auth.getSession().then(({ data: { session } }) => {
             setUser(session?.user ?? null);
             if (session?.user) {
+                console.log('🔄 Fetching2 user data for:', session.user.id);
                 fetchUserData(session.user.id);
             } else {
                 setIsLoading(false);
@@ -199,6 +194,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
 
         console.log('✅ Sign in successful:', data.user?.email);
+        // After successful sign-in, fetch user data (and create profile if needed)
+        if (data.user && data.user.id) {
+            await fetchUserData(data.user.id);
+        }
         return data;
     };
 
@@ -224,28 +223,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
 
         console.log('✅ Sign up successful:', data.user?.email);
-
-        // If user creation was successful and we have a user ID
-        if (data.user && data.user.id) {
-            // Create or update the user profile with additional data
-            const { error: profileError } = await supabase
-                .from('user_profiles')
-                .upsert({
-                    user_id: data.user.id,
-                    first_name: profileData?.first_name,
-                    last_name: profileData?.last_name,
-                    birth_date: profileData?.birth_date,
-                    location: profileData?.location,
-                    education: profileData?.education,
-                    plan_type: 'free'
-                });
-
-            if (profileError) {
-                console.error('Error creating user profile:', profileError);
-                // Don't throw here as the user account was created successfully
-            }
-        }
-
+        // No profile creation here; it will be handled after sign-in
         return data;
     };
 
@@ -300,7 +278,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
 
     // Save plan to cloud with conflict detection
-    const savePlanToCloud = async (plan: PlanContextPlan): Promise<{ success: boolean; requiresConfirmation?: boolean; existingPlanName?: string }> => {
+    const savePlanToCloud = async (plan: PlanContextPlan, planImage?: string): Promise<{ success: boolean; requiresConfirmation?: boolean; existingPlanName?: string }> => {
         if (!user || !plan) {
             toast.error('Unable to save: User not logged in or no plan data');
             return { success: false };
@@ -343,6 +321,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     user_id: user.id,
                     plan_name: planName,
                     plan_data: plan as any, // Type assertion for JSON compatibility
+                    plan_image: planImage || null,
                 });
 
             if (error) {
@@ -367,7 +346,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
 
     // Confirm and overwrite existing plan
-    const confirmOverwritePlan = async (plan: PlanContextPlan, planName: string): Promise<boolean> => {
+    const confirmOverwritePlan = async (plan: PlanContextPlan, planName: string, planImage?: string): Promise<boolean> => {
         if (!user || !plan) {
             toast.error('Unable to save: User not logged in or no plan data');
             return false;
@@ -379,6 +358,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 .from('plans')
                 .update({
                     plan_data: plan as any, // Type assertion for JSON compatibility
+                    plan_image: planImage || null,
                     updated_at: new Date().toISOString(),
                 })
                 .eq('user_id', user.id)
@@ -405,6 +385,61 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
     };
 
+    const deletePlan = async (planId: string): Promise<boolean> => {
+        if (!user) {
+            toast.error('Unable to delete plan: User not logged in');
+            return false;
+        }
+
+        try {
+            const { error } = await supabase
+                .from('plans')
+                .delete()
+                .eq('id', planId)
+                .eq('user_id', user.id);
+
+            if (error) {
+                console.error('Error deleting plan:', error);
+                throw error;
+            }
+
+            toast.success('Plan deleted successfully!');
+            await fetchUserData(user.id); // Refresh user data to update the plans list
+            return true;
+        } catch (error: any) {
+            console.error('Error deleting plan:', error);
+            toast.error('Failed to delete plan. Please try again.');
+            return false;
+        }
+    };
+
+    const loadPlanById = async (planId: string): Promise<Plan | null> => {
+        if (!user) {
+            toast.error('Unable to load plan: User not logged in');
+            return null;
+        }
+
+        try {
+            const { data, error } = await supabase
+                .from('plans')
+                .select('*')
+                .eq('id', planId)
+                .eq('user_id', user.id)
+                .single();
+
+            if (error) {
+                console.error('Error loading plan:', error);
+                throw error;
+            }
+
+            return data;
+        } catch (error: any) {
+            console.error('Error loading plan:', error);
+            toast.error('Failed to load plan. Please try again.');
+            return null;
+        }
+    };
+
     const refreshUserData = async () => {
         if (user) {
             await fetchUserData(user.id);
@@ -428,7 +463,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Fetch geolocation data from ipapi.co if in browser
         if (typeof window !== 'undefined') {
             try {
-                const geoRes = await fetch('https://ipapi.co/json/');
+                // TODO: Replace 'YOUR_TOKEN' with your actual ipinfo.io token
+                const geoRes = await fetch('https://ipinfo.io/json?token=0b68efa9e2d384');
                 if (geoRes.ok) {
                     const geo = await geoRes.json();
                     extraData = {
@@ -485,6 +521,72 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         };
     };
 
+    // Upsert a plan for the anonymous user
+    const upsertAnonymousPlan = async (planName: string, planData: any, planImage?: string) => {
+        const anonId = getOrCreateAnonId();
+        const { error } = await supabase
+            .from('anonymous_plans')
+            .upsert(
+                {
+                    anonymous_user_id: anonId,
+                    plan_name: planName,
+                    plan_data: planData,
+                    plan_image: planImage || null,
+                },
+                { onConflict: 'anonymous_user_id,plan_name' }
+            );
+        if (error) {
+            console.error('Error upserting anonymous plan:', error);
+            toast.error('Failed to save anonymous plan.');
+            return false;
+        }
+        return true;
+    };
+
+    const logAnonymousButtonClick = async (buttonId: string) => {
+        const anonId = getOrCreateAnonId();
+        if (!anonId) return false;
+        // Fetch current button_clicks
+        const { data, error } = await supabase
+            .from('anonymous_users')
+            .select('button_clicks')
+            .eq('id', anonId)
+            .single();
+        if (error) {
+            console.error('Error fetching button_clicks:', error);
+            return false;
+        }
+        let buttonClicks: Record<string, number> = {};
+        if (data?.button_clicks && typeof data.button_clicks === 'object' && !Array.isArray(data.button_clicks)) {
+            buttonClicks = { ...data.button_clicks } as Record<string, number>;
+        }
+        buttonClicks[buttonId] = (buttonClicks[buttonId] || 0) + 1;
+        // Upsert updated button_clicks
+        const { error: upsertError } = await supabase
+            .from('anonymous_users')
+            .update({ button_clicks: buttonClicks })
+            .eq('id', anonId);
+        if (upsertError) {
+            console.error('Error upserting button_clicks:', upsertError);
+            return false;
+        }
+        return true;
+    };
+
+    const fetchDefaultPlans = async () => {
+        // Use a hardcoded anonymous key for default plans that everyone can access
+        const defaultAnonId = '3bca4c8b-36ab-43fc-86b0-e572b14186fa';
+        const { data, error } = await supabase
+            .from('anonymous_plans')
+            .select('plan_name, plan_data, plan_image')
+            .eq('anonymous_user_id', defaultAnonId);
+        if (error) {
+            console.error('Error fetching default plans:', error);
+            return [];
+        }
+        return data || [];
+    };
+
     const value = {
         user,
         userData,
@@ -497,8 +599,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         refreshUserData,
         savePlanToCloud,
         confirmOverwritePlan,
-        upsertAnonymousOnboarding, // <-- add to context
-        fetchAnonymousOnboarding,  // <-- add to context
+        deletePlan,
+        loadPlanById,
+        upsertAnonymousOnboarding,
+        fetchAnonymousOnboarding,
+        upsertAnonymousPlan,
+        logAnonymousButtonClick,
+        fetchDefaultPlans,
     };
 
     return (

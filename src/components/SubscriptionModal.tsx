@@ -24,7 +24,7 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, onClose }
   const [canceling, setCanceling] = useState(false);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [income, setIncome] = useState([65000]);
-  const { userData, isPremium, user, refreshUserData } = useAuth();
+  const { userData, isPremium, user, refreshUserData, logAnonymousButtonClick } = useAuth();
 
   // Handle success/cancel from Stripe checkout
   useEffect(() => {
@@ -55,6 +55,14 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, onClose }
   const isPremiumCanceled = currentPlan === 'premium' && subscriptionStatus === 'canceled';
 
   const handleSelectPlan = async (planType: 'free' | 'premium') => {
+    if (logAnonymousButtonClick) {
+      if (planType === 'free') {
+        await logAnonymousButtonClick('select_free_plan');
+      } else if (planType === 'premium') {
+        await logAnonymousButtonClick('select_premium_plan');
+      }
+    }
+
     if (planType === 'free') {
       console.log('Selected free plan');
       onClose();
@@ -104,7 +112,11 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, onClose }
     }
   };
 
-  const handleCancelSubscription = () => {
+  const handleCancelSubscription = async () => {
+    if (logAnonymousButtonClick) {
+      await logAnonymousButtonClick('cancel_subscription');
+    }
+
     if (!user) {
       toast.error('Please sign in to cancel subscription');
       return;

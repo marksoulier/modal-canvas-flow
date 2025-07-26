@@ -162,7 +162,7 @@ const PlanPreferencesModal: React.FC<PlanPreferencesModalProps> = ({
                     {/* Inflation Adjustment Section */}
                     <div className="space-y-3">
                         <h3 className="text-lg font-medium text-gray-900">Inflation Adjustment</h3>
-                        {/* <div className="flex items-center gap-2 select-none">
+                        <div className="flex items-center gap-2 select-none">
                             <input
                                 type="checkbox"
                                 checked={!!plan?.adjust_for_inflation}
@@ -172,7 +172,7 @@ const PlanPreferencesModal: React.FC<PlanPreferencesModalProps> = ({
                             <span className="text-gray-700 cursor-default">
                                 Adjust for inflation
                             </span>
-                        </div> */}
+                        </div>
                         <div className="flex items-center gap-2 mt-2">
                             <span className="text-gray-600 text-sm">Inflation Rate:</span>
                             <input

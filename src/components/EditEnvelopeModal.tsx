@@ -16,8 +16,9 @@ interface EditEnvelopeModalProps {
     growth: string;
     rate: number;
     days_of_usefulness?: number;
+    account_type: string;
   } | null;
-  onSave: (envelope: { name: string; category: string; growth: string; rate: number; days_of_usefulness?: number }) => void;
+  onSave: (envelope: { name: string; category: string; growth: string; rate: number; days_of_usefulness?: number; account_type: string }) => void;
 }
 
 const EditEnvelopeModal: React.FC<EditEnvelopeModalProps> = ({ isOpen, onClose, envelope = null, onSave }) => {
@@ -40,11 +41,12 @@ const EditEnvelopeModal: React.FC<EditEnvelopeModalProps> = ({ isOpen, onClose, 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || !category) return;
-    const payload: { name: string; category: string; growth: string; rate: number; days_of_usefulness?: number } = {
+    const payload: { name: string; category: string; growth: string; rate: number; days_of_usefulness?: number; account_type: string } = {
       name: name.trim(),
       category,
       growth,
-      rate: rate / 100
+      rate: rate / 100,
+      account_type: envelope?.account_type || 'regular'
     };
     if (growth === 'Depreciation (Days)') {
       payload.days_of_usefulness = daysOfUsefulness;
@@ -62,6 +64,7 @@ const EditEnvelopeModal: React.FC<EditEnvelopeModalProps> = ({ isOpen, onClose, 
     { value: 'None', label: 'None' },
     { value: 'Appreciation', label: 'Appreciation' },
     { value: 'Daily Compound', label: 'Daily Compound' },
+    { value: 'Monthly Compound', label: 'Monthly Compound' },
     { value: 'Yearly Compound', label: 'Yearly Compound' },
     { value: 'Depreciation', label: 'Depreciation (Rate)' },
     { value: 'Depreciation (Days)', label: 'Depreciation (Days)' }

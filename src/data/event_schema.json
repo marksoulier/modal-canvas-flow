@@ -6,7 +6,7 @@
             "name": "Other (Cash)",
             "category": "Cash",
             "growth": "None",
-            "rate": 0.0,
+            "rate": 0,
             "account_type": "regular"
         },
         {
@@ -20,7 +20,7 @@
             "name": "Other (Debt)",
             "category": "Debt",
             "growth": "None",
-            "rate": 0.0,
+            "rate": 0,
             "account_type": "regular"
         },
         {
@@ -49,28 +49,28 @@
             "category": "Retirement",
             "growth": "Yearly Compound",
             "rate": 0.06,
-            "account_type": "401k"
+            "account_type": "system-controlled"
         },
         {
             "name": "House",
             "category": "Assets",
             "growth": "Appreciation",
             "rate": 0.03,
-            "account_type": "regular"
+            "account_type": "system-controlled"
         },
         {
             "name": "RothIRA",
             "category": "Retirement",
             "growth": "Yearly Compound",
             "rate": 0.07,
-            "account_type": "rothira"
+            "account_type": "system-controlled"
         },
         {
             "name": "Car",
             "category": "Assets",
             "growth": "Depreciation",
             "rate": -0.15,
-            "account_type": "regular"
+            "account_type": "system-controlled"
         },
         {
             "name": "Laptop",
@@ -83,61 +83,118 @@
             "name": "Car Loan",
             "category": "Debt",
             "growth": "None",
-            "rate": 0.0,
-            "account_type": "regular"
+            "rate": 0,
+            "account_type": "system-controlled"
         },
         {
             "name": "Home Mortgage",
             "category": "Debt",
             "growth": "None",
-            "rate": 0.0,
-            "account_type": "regular"
+            "rate": 0,
+            "account_type": "system-controlled"
         },
         {
             "name": "Student Loans Public (During School)",
             "category": "Debt",
             "growth": "Daily Compound",
             "rate": 0.045,
-            "account_type": "regular"
+            "account_type": "system-controlled"
         },
         {
             "name": "Student Loans Private (During School)",
             "category": "Debt",
             "growth": "Daily Compound",
             "rate": 0.065,
-            "account_type": "regular"
+            "account_type": "system-controlled"
         },
         {
             "name": "Student Loans",
             "category": "Debt",
             "growth": "None",
-            "rate": 0.0,
-            "account_type": "regular"
+            "rate": 0,
+            "account_type": "system-controlled"
         },
         {
             "name": "Taxable Income",
             "category": "Debt",
             "growth": "None",
-            "rate": 0.0,
+            "rate": 0,
             "account_type": "non-networth-account"
         },
         {
             "name": "401K Penalty",
             "category": "Debt",
             "growth": "None",
-            "rate": 0.0,
-            "account_type": "regular"
+            "rate": 0,
+            "account_type": "system-controlled"
         },
         {
             "name": "401K Taxes",
             "category": "Debt",
             "growth": "None",
-            "rate": 0.0,
-            "account_type": "regular"
+            "rate": 0,
+            "account_type": "system-controlled"
+        },
+        {
+            "name": "Federal Withholdings",
+            "category": "Debt",
+            "growth": "None",
+            "rate": 0,
+            "account_type": "non-networth-account"
+        },
+        {
+            "name": "State Withholdings",
+            "category": "Debt",
+            "growth": "None",
+            "rate": 0,
+            "account_type": "non-networth-account"
+        },
+        {
+            "name": "Local Withholdings",
+            "category": "Debt",
+            "growth": "None",
+            "rate": 0,
+            "account_type": "non-networth-account"
+        },
+        {
+            "name": "401K Withdraw Withholding",
+            "category": "Debt",
+            "growth": "None",
+            "rate": 0,
+            "account_type": "non-networth-account"
+        },
+        {
+            "name": "401K Withdraw",
+            "category": "Debt",
+            "growth": "None",
+            "rate": 0,
+            "account_type": "non-networth-account"
+        },
+        {
+            "name": "ROTH IRA Withdraw",
+            "category": "Debt",
+            "growth": "None",
+            "rate": 0,
+            "account_type": "non-networth-account"
+        },
+        {
+            "name": "ROTH IRA Principle",
+            "category": "Debt",
+            "growth": "None",
+            "rate": 0,
+            "account_type": "non-networth-account"
+        },
+        {
+            "name": "ROTH IRA Penalty",
+            "category": "Debt",
+            "growth": "None",
+            "rate": 0,
+            "account_type": "system-controlled"
         }
     ],
     "account_types": [
         "regular",
+        "system-controlled",
         "rothira",
         "401k",
         "non-networth-account"
@@ -180,35 +237,40 @@
                     "display_name": "Date",
                     "parameter_units": "date",
                     "description": "When the inflow occurs",
-                    "default": 0
+                    "default": 0,
+                    "editable": true
                 },
                 {
                     "type": "end_time",
                     "display_name": "End Date",
                     "parameter_units": "date",
                     "description": "When the recurring inflow ends (only used if recurring)",
-                    "default": 3650
+                    "default": 3650,
+                    "editable": true
                 },
                 {
                     "type": "frequency_days",
                     "display_name": "Frequency (Days)",
                     "parameter_units": "days",
                     "description": "Number of days between each inflow (only used if recurring)",
-                    "default": 30
+                    "default": 30,
+                    "editable": true
                 },
                 {
                     "type": "amount",
                     "display_name": "Amount",
                     "parameter_units": "usd",
                     "description": "Amount of money received",
-                    "default": 20
+                    "default": 20,
+                    "editable": true
                 },
                 {
                     "type": "to_key",
                     "display_name": "To Envelope",
                     "parameter_units": "envelope",
                     "description": "Envelope where the money is deposited",
-                    "default": "Other (Cash)"
+                    "default": "Other (Cash)",
+                    "editable": true
                 }
             ]
         },
@@ -228,35 +290,40 @@
                     "display_name": "Date",
                     "parameter_units": "date",
                     "description": "When the outflow occurs",
-                    "default": 0
+                    "default": 0,
+                    "editable": true
                 },
                 {
                     "type": "end_time",
                     "display_name": "End Date",
                     "parameter_units": "date",
                     "description": "When the recurring outflow ends (only used if recurring)",
-                    "default": 3650
+                    "default": 3650,
+                    "editable": true
                 },
                 {
                     "type": "frequency_days",
                     "display_name": "Frequency (Days)",
                     "parameter_units": "days",
                     "description": "Number of days between each outflow (only used if recurring)",
-                    "default": 30
+                    "default": 30,
+                    "editable": true
                 },
                 {
                     "type": "amount",
                     "display_name": "Amount",
                     "parameter_units": "usd",
                     "description": "Amount of money spent",
-                    "default": 20
+                    "default": 20,
+                    "editable": true
                 },
                 {
                     "type": "from_key",
                     "display_name": "From Envelope",
                     "parameter_units": "envelope",
                     "description": "Envelope from which the money is withdrawn",
-                    "default": "Other (Cash)"
+                    "default": "Other (Cash)",
+                    "editable": true
                 }
             ]
         },
@@ -277,91 +344,104 @@
                     "display_name": "Declaration Date",
                     "parameter_units": "date",
                     "description": "When the account balances are declared",
-                    "default": 0
+                    "default": 0,
+                    "editable": true
                 },
                 {
                     "type": "end_time",
                     "display_name": "End Date",
                     "parameter_units": "date",
                     "description": "When the recurring declaration ends (only used if recurring)",
-                    "default": 3650
+                    "default": 3650,
+                    "editable": true
                 },
                 {
                     "type": "frequency_days",
                     "display_name": "Frequency (Days)",
                     "parameter_units": "days",
                     "description": "Number of days between each declaration (only used if recurring)",
-                    "default": 365
+                    "default": 365,
+                    "editable": true
                 },
                 {
                     "type": "amount1",
                     "display_name": "Amount 1",
                     "parameter_units": "usd",
                     "description": "Initial balance for Envelope 1.",
-                    "default": 0
+                    "default": 0,
+                    "editable": true
                 },
                 {
                     "type": "envelope1",
                     "display_name": "Envelope 1",
                     "parameter_units": "envelope",
                     "description": "First envelope/account name.",
-                    "default": "Other (Cash)"
+                    "default": "Other (Cash)",
+                    "editable": true
                 },
                 {
                     "type": "amount2",
                     "display_name": "Amount 2",
                     "parameter_units": "usd",
                     "description": "Initial balance for Envelope 2.",
-                    "default": 0
+                    "default": 0,
+                    "editable": true
                 },
                 {
                     "type": "envelope2",
                     "display_name": "Envelope 2",
                     "parameter_units": "envelope",
                     "description": "Second envelope/account name.",
-                    "default": "Other (Savings)"
+                    "default": "Other (Savings)",
+                    "editable": true
                 },
                 {
                     "type": "amount3",
                     "display_name": "Amount 3",
                     "parameter_units": "usd",
                     "description": "Initial balance for Envelope 3.",
-                    "default": 0
+                    "default": 0,
+                    "editable": true
                 },
                 {
                     "type": "envelope3",
                     "display_name": "Envelope 3",
                     "parameter_units": "envelope",
                     "description": "Third envelope/account name.",
-                    "default": "Other (Investments)"
+                    "default": "Other (Investments)",
+                    "editable": true
                 },
                 {
                     "type": "amount4",
                     "display_name": "Amount 4",
                     "parameter_units": "usd",
                     "description": "Initial balance for Envelope 4.",
-                    "default": 0
+                    "default": 0,
+                    "editable": true
                 },
                 {
                     "type": "envelope4",
                     "display_name": "Envelope 4",
                     "parameter_units": "envelope",
                     "description": "Fourth envelope/account name.",
-                    "default": "Other (Retirement)"
+                    "default": "Other (Retirement)",
+                    "editable": true
                 },
                 {
                     "type": "amount5",
                     "display_name": "Amount 5",
                     "parameter_units": "usd",
                     "description": "Initial balance for Envelope 5.",
-                    "default": 0
+                    "default": 0,
+                    "editable": true
                 },
                 {
                     "type": "envelope5",
                     "display_name": "Envelope 5",
                     "parameter_units": "envelope",
                     "description": "Fifth envelope/account name.",
-                    "default": "Other (Debt)"
+                    "default": "Other (Debt)",
+                    "editable": true
                 }
             ]
         },
@@ -382,42 +462,48 @@
                     "display_name": "Transfer Date",
                     "parameter_units": "date",
                     "description": "When the transfer occurs",
-                    "default": 0
+                    "default": 0,
+                    "editable": true
                 },
                 {
                     "type": "end_time",
                     "display_name": "End Date",
                     "parameter_units": "date",
                     "description": "When the recurring transfer ends (only used if recurring)",
-                    "default": 3650
+                    "default": 3650,
+                    "editable": true
                 },
                 {
                     "type": "frequency_days",
                     "display_name": "Frequency (Days)",
                     "parameter_units": "days",
                     "description": "Number of days between each transfer (only used if recurring)",
-                    "default": 30
+                    "default": 30,
+                    "editable": true
                 },
                 {
                     "type": "amount",
                     "display_name": "Transfer Amount",
                     "parameter_units": "usd",
                     "description": "Amount of money to transfer",
-                    "default": 10000
+                    "default": 10000,
+                    "editable": true
                 },
                 {
                     "type": "from_key",
                     "display_name": "From Envelope",
                     "parameter_units": "envelope",
                     "description": "Source envelope for the transfer",
-                    "default": "Other (Cash)"
+                    "default": "Other (Cash)",
+                    "editable": true
                 },
                 {
                     "type": "to_key",
                     "display_name": "To Envelope",
                     "parameter_units": "envelope",
                     "description": "Destination envelope for the transfer",
-                    "default": "Other (Investments)"
+                    "default": "Other (Investments)",
+                    "editable": true
                 }
             ]
         },
@@ -438,35 +524,40 @@
                     "display_name": "Start Date",
                     "parameter_units": "date",
                     "description": "When the recurring income begins",
-                    "default": 0
+                    "default": 0,
+                    "editable": true
                 },
                 {
                     "type": "end_time",
                     "display_name": "End Date",
                     "parameter_units": "date",
                     "description": "When the recurring income ends.",
-                    "default": 3650
+                    "default": 3650,
+                    "editable": true
                 },
                 {
                     "type": "frequency_days",
                     "display_name": "Frequency (Days)",
                     "parameter_units": "days",
                     "description": "Number of days between each income payment.",
-                    "default": 30
+                    "default": 30,
+                    "editable": true
                 },
                 {
                     "type": "amount",
                     "display_name": "Amount",
                     "parameter_units": "usd",
                     "description": "Amount received each interval.",
-                    "default": 1000
+                    "default": 1000,
+                    "editable": true
                 },
                 {
                     "type": "to_key",
                     "display_name": "To Envelope",
                     "parameter_units": "envelope",
                     "description": "Envelope where income is deposited.",
-                    "default": "Other (Cash)"
+                    "default": "Other (Cash)",
+                    "editable": true
                 }
             ],
             "updating_events": [
@@ -484,28 +575,32 @@
                             "display_name": "Start Date",
                             "parameter_units": "date",
                             "description": "When the recurring income begins",
-                            "default": 0
+                            "default": 0,
+                            "editable": true
                         },
                         {
                             "type": "end_time",
                             "display_name": "End Date",
                             "parameter_units": "date",
                             "description": "When the recurring update ends (only used if recurring)",
-                            "default": 3650
+                            "default": 3650,
+                            "editable": true
                         },
                         {
                             "type": "frequency_days",
                             "display_name": "Frequency (Days)",
                             "parameter_units": "days",
                             "description": "Number of days between each update (only used if recurring)",
-                            "default": 365
+                            "default": 365,
+                            "editable": true
                         },
                         {
                             "type": "amount",
                             "display_name": "Amount",
                             "parameter_units": "usd",
                             "description": "Amount received each interval.",
-                            "default": 1000
+                            "default": 1000,
+                            "editable": true
                         }
                     ]
                 }
@@ -528,35 +623,40 @@
                     "display_name": "Adjustment Date",
                     "parameter_units": "date",
                     "description": "When the correction is applied",
-                    "default": 0
+                    "default": 0,
+                    "editable": true
                 },
                 {
                     "type": "end_time",
                     "display_name": "End Date",
                     "parameter_units": "date",
                     "description": "When the recurring adjustment ends (only used if recurring)",
-                    "default": 3650
+                    "default": 3650,
+                    "editable": true
                 },
                 {
                     "type": "frequency_days",
                     "display_name": "Frequency (Days)",
                     "parameter_units": "days",
                     "description": "Number of days between each adjustment (only used if recurring)",
-                    "default": 30
+                    "default": 30,
+                    "editable": true
                 },
                 {
                     "type": "amount",
                     "display_name": "Adjustment Amount",
                     "parameter_units": "usd",
                     "description": "The value added or subtracted (negative values allowed).",
-                    "default": 1000
+                    "default": 1000,
+                    "editable": true
                 },
                 {
                     "type": "to_key",
                     "display_name": "Target Envelope",
                     "parameter_units": "envelope",
                     "description": "Envelope to be adjusted.",
-                    "default": "Other (Cash)"
+                    "default": "Other (Cash)",
+                    "editable": true
                 }
             ]
         },
@@ -577,56 +677,134 @@
                     "display_name": "Start Date",
                     "parameter_units": "date",
                     "description": "When the loan starts",
-                    "default": 0
+                    "default": 0,
+                    "editable": true
                 },
                 {
                     "type": "end_time",
                     "display_name": "End Date",
                     "parameter_units": "date",
                     "description": "When the recurring loan ends (only used if recurring)",
-                    "default": 3650
+                    "default": 3650,
+                    "editable": true
                 },
                 {
                     "type": "frequency_days",
                     "display_name": "Frequency (Days)",
                     "parameter_units": "days",
                     "description": "Number of days between each loan occurrence (only used if recurring)",
-                    "default": 365
+                    "default": 365,
+                    "editable": true
                 },
                 {
                     "type": "principal",
                     "display_name": "Principal",
                     "parameter_units": "usd",
                     "description": "Principal amount of the loan",
-                    "default": 10000
+                    "default": 10000,
+                    "editable": true
                 },
                 {
                     "type": "interest_rate",
                     "display_name": "Interest Rate (APR%)",
                     "parameter_units": "percentage",
                     "description": "Interest rate of the loan",
-                    "default": 0.05
+                    "default": 0.05,
+                    "editable": true
                 },
                 {
                     "type": "loan_term_years",
                     "display_name": "Loan Term (Years)",
                     "parameter_units": "years",
                     "description": "Number of years to pay off the loan",
-                    "default": 30
+                    "default": 30,
+                    "editable": true
                 },
                 {
                     "type": "to_key",
                     "display_name": "To Envelope",
                     "parameter_units": "envelope",
                     "description": "Envelope where the loan is deposited",
-                    "default": "Other (Cash)"
+                    "default": "Other (Cash)",
+                    "editable": true
                 },
                 {
                     "type": "from_key",
                     "display_name": "From Envelope",
                     "parameter_units": "envelope",
                     "description": "Debt Envelope for tracking debt",
-                    "default": "Other (Debt)"
+                    "default": "Other (Debt)",
+                    "editable": true
+                }
+            ]
+        },
+        {
+            "type": "loan",
+            "display_type": "Loan",
+            "display_event": false,
+            "is_recurring": false,
+            "can_be_reocurring": true,
+            "weight": 10,
+            "category": "Debt",
+            "description": "Take a personal loan over a specified period. Payed back in monthly payments.",
+            "icon": "credit-card",
+            "disclaimer": "This event uses loan amortization, calculating monthly payments and interest. It does not account for missed payments, prepayments, or changes in interest rates.",
+            "parameters": [
+                {
+                    "type": "start_time",
+                    "display_name": "Start Date",
+                    "parameter_units": "date",
+                    "description": "When the loan starts",
+                    "default": 0,
+                    "editable": true
+                },
+                {
+                    "type": "end_time",
+                    "display_name": "End Date",
+                    "parameter_units": "date",
+                    "description": "When the recurring loan ends (only used if recurring)",
+                    "default": 3650,
+                    "editable": true
+                },
+                {
+                    "type": "frequency_days",
+                    "display_name": "Frequency (Days)",
+                    "parameter_units": "days",
+                    "description": "Number of days between each loan occurrence (only used if recurring)",
+                    "default": 365,
+                    "editable": true
+                },
+                {
+                    "type": "principal",
+                    "display_name": "Principal",
+                    "parameter_units": "usd",
+                    "description": "Principal amount of the loan",
+                    "default": 10000,
+                    "editable": true
+                },
+                {
+                    "type": "loan_term_years",
+                    "display_name": "Loan Term (Years)",
+                    "parameter_units": "years",
+                    "description": "Number of years to pay off the loan",
+                    "default": 30,
+                    "editable": true
+                },
+                {
+                    "type": "to_key",
+                    "display_name": "To Envelope",
+                    "parameter_units": "envelope",
+                    "description": "Envelope where the loan is deposited",
+                    "default": "Other (Cash)",
+                    "editable": true
+                },
+                {
+                    "type": "from_key",
+                    "display_name": "From Envelope",
+                    "parameter_units": "envelope",
+                    "description": "Debt Envelope for tracking debt",
+                    "default": "Other (Debt)",
+                    "editable": true
                 }
             ]
         },
@@ -647,35 +825,40 @@
                     "display_name": "Purchase Date",
                     "parameter_units": "date",
                     "description": "When the purchase occurs",
-                    "default": 0
+                    "default": 0,
+                    "editable": true
                 },
                 {
                     "type": "end_time",
                     "display_name": "End Date",
                     "parameter_units": "date",
                     "description": "When the recurring purchase ends (only used if recurring)",
-                    "default": 3650
+                    "default": 3650,
+                    "editable": true
                 },
                 {
                     "type": "frequency_days",
                     "display_name": "Frequency (Days)",
                     "parameter_units": "days",
                     "description": "Number of days between each purchase (only used if recurring)",
-                    "default": 30
+                    "default": 30,
+                    "editable": true
                 },
                 {
                     "type": "money",
                     "display_name": "Amount",
                     "parameter_units": "usd",
                     "description": "Amount of money spent",
-                    "default": 20
+                    "default": 20,
+                    "editable": true
                 },
                 {
                     "type": "from_key",
                     "display_name": "From Envelope",
                     "parameter_units": "envelope",
                     "description": "Which envelope the money comes from",
-                    "default": "Other (Cash)"
+                    "default": "Other (Cash)",
+                    "editable": true
                 }
             ]
         },
@@ -696,35 +879,40 @@
                     "display_name": "Gift Date",
                     "parameter_units": "date",
                     "description": "When the gift is recieved",
-                    "default": 0
+                    "default": 0,
+                    "editable": true
                 },
                 {
                     "type": "end_time",
                     "display_name": "End Date",
                     "parameter_units": "date",
                     "description": "When the recurring gift ends (only used if recurring)",
-                    "default": 3650
+                    "default": 3650,
+                    "editable": true
                 },
                 {
                     "type": "frequency_days",
                     "display_name": "Frequency (Days)",
                     "parameter_units": "days",
                     "description": "Number of days between each gift (only used if recurring)",
-                    "default": 365
+                    "default": 365,
+                    "editable": true
                 },
                 {
                     "type": "money",
                     "display_name": "Amount",
                     "parameter_units": "usd",
                     "description": "Amount of money gained",
-                    "default": 20
+                    "default": 20,
+                    "editable": true
                 },
                 {
                     "type": "to_key",
                     "display_name": "To Envelope",
                     "parameter_units": "envelope",
                     "description": "Which envelope the money goes to",
-                    "default": "Other (Cash)"
+                    "default": "Other (Cash)",
+                    "editable": true
                 }
             ]
         },
@@ -736,7 +924,7 @@
             "category": "Living Expenses",
             "weight": 20,
             "description": "Set your typical monthly budget for common expense categories.",
-            "icon": "list",
+            "icon": "dollar-bill",
             "disclaimer": "This event allows you to set up recurring monthly expenses for common budget categories.",
             "parameters": [
                 {
@@ -744,98 +932,112 @@
                     "display_name": "Start Date",
                     "parameter_units": "date",
                     "description": "When the monthly budgeting starts.",
-                    "default": 0
+                    "default": 0,
+                    "editable": true
                 },
                 {
                     "type": "end_time",
                     "display_name": "End Date",
                     "parameter_units": "date",
                     "description": "When the monthly budgeting ends.",
-                    "default": 29200
+                    "default": 29200,
+                    "editable": true
                 },
                 {
                     "type": "frequency_days",
                     "display_name": "Frequency (Days)",
                     "parameter_units": "days",
                     "description": "Number of days between each budgeting event.",
-                    "default": 30
+                    "default": 30,
+                    "editable": true
                 },
                 {
                     "type": "from_key",
                     "display_name": "From Envelope",
                     "parameter_units": "envelope",
                     "description": "Envelope from which funds are spent.",
-                    "default": "Other (Cash)"
+                    "default": "Other (Cash)",
+                    "editable": true
                 },
                 {
                     "type": "groceries",
                     "display_name": "Groceries",
                     "parameter_units": "usd",
                     "description": "Monthly spending on groceries and food at home.",
-                    "default": 600
+                    "default": 600,
+                    "editable": true
                 },
                 {
                     "type": "utilities",
                     "display_name": "Utilities",
                     "parameter_units": "usd",
                     "description": "Monthly cost for electricity, water, gas, etc.",
-                    "default": 200
+                    "default": 200,
+                    "editable": true
                 },
                 {
                     "type": "rent",
                     "display_name": "Rent",
                     "parameter_units": "usd",
                     "description": "Monthly rent or housing payment.",
-                    "default": 1200
+                    "default": 1200,
+                    "editable": true
                 },
                 {
                     "type": "transportation",
                     "display_name": "Transportation",
                     "parameter_units": "usd",
                     "description": "Monthly spending on public transit, gas, car payment, etc.",
-                    "default": 300
+                    "default": 300,
+                    "editable": true
                 },
                 {
                     "type": "insurance",
                     "display_name": "Insurance",
                     "parameter_units": "usd",
                     "description": "Monthly insurance premiums (health, auto, etc.).",
-                    "default": 250
+                    "default": 250,
+                    "editable": true
                 },
                 {
                     "type": "healthcare",
                     "display_name": "Healthcare",
                     "parameter_units": "usd",
                     "description": "Monthly out-of-pocket healthcare costs.",
-                    "default": 100
+                    "default": 100,
+                    "editable": true
                 },
                 {
                     "type": "dining_out",
                     "display_name": "Dining Out",
                     "parameter_units": "usd",
                     "description": "Monthly spending on restaurants, takeout, and coffee shops.",
-                    "default": 200
+                    "default": 200,
+                    "editable": true
                 },
                 {
                     "type": "entertainment",
                     "display_name": "Entertainment",
                     "parameter_units": "usd",
                     "description": "Monthly spending on movies, streaming, events, etc.",
-                    "default": 100
+                    "default": 100,
+                    "editable": true
                 },
                 {
                     "type": "personal_care",
                     "display_name": "Personal Care",
                     "parameter_units": "usd",
                     "description": "Monthly spending on haircuts, toiletries, gym, etc.",
-                    "default": 75
+                    "default": 75,
+                    "editable": true
                 },
                 {
                     "type": "miscellaneous",
                     "display_name": "Miscellaneous",
                     "parameter_units": "usd",
                     "description": "Other monthly expenses not listed above.",
-                    "default": 100
+                    "default": 100,
+                    "editable": true
                 }
             ]
         },
@@ -856,98 +1058,136 @@
                     "display_name": "Start Date",
                     "parameter_units": "date",
                     "description": "When the job starts",
-                    "default": 0
+                    "default": 0,
+                    "editable": true
                 },
                 {
                     "type": "end_time",
                     "display_name": "End Date",
                     "parameter_units": "date",
                     "description": "When the job ends (optional)",
-                    "default": 3650
+                    "default": 3650,
+                    "editable": true
                 },
                 {
                     "type": "frequency_days",
                     "display_name": "Frequency (Days)",
                     "parameter_units": "days",
                     "description": "Number of days between each pay period",
-                    "default": 14
+                    "default": 14,
+                    "editable": true
                 },
                 {
                     "type": "salary",
                     "display_name": "Annual Salary",
                     "parameter_units": "usd",
                     "description": "Annual salary before taxes.",
-                    "default": 60000
+                    "default": 60000,
+                    "editable": true
                 },
                 {
                     "type": "pay_period",
                     "display_name": "Pay Periods per Year",
                     "parameter_units": "number_per_year",
                     "description": "Number of pay periods per year.",
-                    "default": 26
+                    "default": 26,
+                    "editable": true
                 },
                 {
                     "type": "federal_income_tax",
                     "display_name": "Federal Tax Rate",
                     "parameter_units": "percentage",
                     "description": "Federal income tax rate.",
-                    "default": 0.12
+                    "default": 0.12,
+                    "editable": true
                 },
                 {
                     "type": "state_income_tax",
                     "display_name": "State Tax Rate",
                     "parameter_units": "percentage",
                     "description": "State income tax rate.",
-                    "default": 0.05
+                    "default": 0.05,
+                    "editable": true
                 },
                 {
                     "type": "social_security_tax",
                     "display_name": "Social Security Tax Rate",
                     "parameter_units": "percentage",
                     "description": "Social Security tax rate.",
-                    "default": 0.062
+                    "default": 0.062,
+                    "editable": true
                 },
                 {
                     "type": "medicare_tax",
                     "display_name": "Medicare Tax Rate",
                     "parameter_units": "percentage",
                     "description": "Medicare tax rate.",
-                    "default": 0.0145
+                    "default": 0.0145,
+                    "editable": true
                 },
                 {
                     "type": "p_401k_contribution",
                     "display_name": "401k Contribution Rate",
                     "parameter_units": "percentage",
                     "description": "Percent of salary contributed to 401k.",
-                    "default": 0.05
+                    "default": 0.05,
+                    "editable": true
                 },
                 {
                     "type": "p_401k_match",
                     "display_name": "401k Match Rate",
                     "parameter_units": "percentage",
                     "description": "Employer match percent for 401k.",
-                    "default": 0.05
+                    "default": 0.05,
+                    "editable": true
                 },
                 {
                     "type": "to_key",
                     "display_name": "Deposit Envelope",
                     "parameter_units": "envelope",
                     "description": "Envelope where salary is deposited",
-                    "default": "Other (Cash)"
+                    "default": "Other (Cash)",
+                    "editable": true
                 },
                 {
                     "type": "p_401k_key",
                     "display_name": "401k Envelope",
                     "parameter_units": "envelope",
                     "description": "Envelope where 401k contributions are tracked",
-                    "default": "Other (Retirement)"
+                    "default": "Other (Retirement)",
+                    "editable": false
                 },
                 {
                     "type": "taxable_income_key",
                     "display_name": "Taxable Income Envelope",
                     "parameter_units": "envelope",
                     "description": "Envelope where taxable income is tracked",
-                    "default": "Taxable Income"
+                    "default": "Taxable Income",
+                    "editable": false
+                },
+                {
+                    "type": "federal_withholdings_key",
+                    "display_name": "Federal Withholdings Envelope",
+                    "parameter_units": "envelope",
+                    "description": "Envelope where federal withholdings are tracked",
+                    "default": "Federal Withholdings",
+                    "editable": false
+                },
+                {
+                    "type": "state_withholdings_key",
+                    "display_name": "State Withholdings Envelope",
+                    "parameter_units": "envelope",
+                    "description": "Envelope where state withholdings are tracked",
+                    "default": "State Withholdings",
+                    "editable": false
+                },
+                {
+                    "type": "local_withholdings_key",
+                    "display_name": "Local Withholdings Envelope",
+                    "parameter_units": "envelope",
+                    "description": "Envelope where local withholdings are tracked",
+                    "default": "Local Withholdings",
+                    "editable": false
                 }
             ],
             "updating_events": [
@@ -965,28 +1205,32 @@
                             "display_name": "Raise Effective Date",
                             "parameter_units": "date",
                             "description": "When the raise takes effect",
-                            "default": 365
+                            "default": 365,
+                            "editable": true
                         },
                         {
                             "type": "end_time",
                             "display_name": "End Date",
                             "parameter_units": "date",
                             "description": "When the recurring raise ends (only used if recurring)",
-                            "default": 3650
+                            "default": 3650,
+                            "editable": true
                         },
                         {
                             "type": "frequency_days",
                             "display_name": "Frequency (Days)",
                             "parameter_units": "days",
                             "description": "Number of days between each raise (only used if recurring)",
-                            "default": 365
+                            "default": 365,
+                            "editable": true
                         },
                         {
                             "type": "salary",
                             "display_name": "New Annual Salary",
                             "parameter_units": "usd",
                             "description": "New annual salary after raise.",
-                            "default": 65000
+                            "default": 65000,
+                            "editable": true
                         }
                     ]
                 },
@@ -1002,14 +1246,16 @@
                             "display_name": "Bonus Date",
                             "parameter_units": "date",
                             "description": "When the bonus is received",
-                            "default": 365
+                            "default": 365,
+                            "editable": true
                         },
                         {
                             "type": "bonus",
                             "display_name": "Bonus Amount",
                             "parameter_units": "usd",
                             "description": "Bonus amount received.",
-                            "default": 5000
+                            "default": 5000,
+                            "editable": true
                         }
                     ]
                 },
@@ -1025,14 +1271,16 @@
                             "display_name": "Change Effective Date",
                             "parameter_units": "date",
                             "description": "When the new contribution rate takes effect",
-                            "default": 0
+                            "default": 0,
+                            "editable": true
                         },
                         {
                             "type": "p_401k_contribution",
                             "display_name": "New 401k Contribution %",
                             "parameter_units": "percentage",
                             "description": "New 401k contribution percentage.",
-                            "default": 0.1
+                            "default": 0.1,
+                            "editable": true
                         }
                     ]
                 }
@@ -1055,91 +1303,104 @@
                     "display_name": "Start Date",
                     "parameter_units": "date",
                     "description": "When the job starts",
-                    "default": 0
+                    "default": 0,
+                    "editable": true
                 },
                 {
                     "type": "end_time",
                     "display_name": "End Date",
                     "parameter_units": "date",
                     "description": "When the job ends (optional)",
-                    "default": 3650
+                    "default": 3650,
+                    "editable": true
                 },
                 {
                     "type": "frequency_days",
                     "display_name": "Frequency (Days)",
                     "parameter_units": "days",
                     "description": "Number of days between each pay period",
-                    "default": 14
+                    "default": 14,
+                    "editable": true
                 },
                 {
                     "type": "hourly_wage",
                     "display_name": "Hourly Wage",
                     "parameter_units": "usd",
                     "description": "Hourly wage rate.",
-                    "default": 25
+                    "default": 25,
+                    "editable": true
                 },
                 {
                     "type": "hours_per_week",
                     "display_name": "Hours per Week",
                     "parameter_units": "hours",
                     "description": "Number of hours worked per week.",
-                    "default": 40
+                    "default": 40,
+                    "editable": true
                 },
                 {
                     "type": "pay_period",
                     "display_name": "Pay Periods per Year",
                     "parameter_units": "number_per_year",
                     "description": "Number of pay periods per year.",
-                    "default": 26
+                    "default": 26,
+                    "editable": true
                 },
                 {
                     "type": "federal_income_tax",
                     "display_name": "Federal Tax Rate",
                     "parameter_units": "percentage",
                     "description": "Federal income tax rate.",
-                    "default": 0.12
+                    "default": 0.12,
+                    "editable": true
                 },
                 {
                     "type": "social_security_tax",
                     "display_name": "Social Security Tax Rate",
                     "parameter_units": "percentage",
                     "description": "Social Security tax rate.",
-                    "default": 0.062
+                    "default": 0.062,
+                    "editable": true
                 },
                 {
                     "type": "medicare_tax",
                     "display_name": "Medicare Tax Rate",
                     "parameter_units": "percentage",
                     "description": "Medicare tax rate.",
-                    "default": 0.0145
+                    "default": 0.0145,
+                    "editable": true
                 },
                 {
                     "type": "p_401k_contribution",
                     "display_name": "401k Contribution Rate",
                     "parameter_units": "percentage",
                     "description": "Percent of wages contributed to 401k.",
-                    "default": 0.04
+                    "default": 0.04,
+                    "editable": true
                 },
                 {
                     "type": "employer_match",
                     "display_name": "401k Match Rate",
                     "parameter_units": "percentage",
                     "description": "Employer match percent for 401k.",
-                    "default": 0.04
+                    "default": 0.04,
+                    "editable": true
                 },
                 {
                     "type": "to_key",
                     "display_name": "Deposit Envelope",
                     "parameter_units": "envelope",
                     "description": "Envelope where wages are deposited",
-                    "default": "Other (Cash)"
+                    "default": "Other (Cash)",
+                    "editable": true
                 },
                 {
                     "type": "p_401k_key",
                     "display_name": "401k Envelope",
                     "parameter_units": "envelope",
                     "description": "Envelope where 401k contributions are tracked",
-                    "default": "Other (Retirement)"
+                    "default": "Other (Retirement)",
+                    "editable": true
                 }
             ],
             "updating_events": [
@@ -1155,14 +1416,16 @@
                             "display_name": "Raise Effective Date",
                             "parameter_units": "date",
                             "description": "When the raise takes effect",
-                            "default": 365
+                            "default": 365,
+                            "editable": true
                         },
                         {
                             "type": "new_hourly_wage",
                             "display_name": "New Hourly Wage",
                             "parameter_units": "usd",
                             "description": "New hourly wage rate after raise.",
-                            "default": 27
+                            "default": 27,
+                            "editable": true
                         }
                     ]
                 },
@@ -1178,14 +1441,16 @@
                             "display_name": "Change Effective Date",
                             "parameter_units": "date",
                             "description": "When the new hours take effect",
-                            "default": 365
+                            "default": 365,
+                            "editable": true
                         },
                         {
                             "type": "new_hours",
                             "display_name": "New Hours per Week",
                             "parameter_units": "hours",
                             "description": "New number of hours per week.",
-                            "default": 35
+                            "default": 35,
+                            "editable": true
                         }
                     ]
                 },
@@ -1201,14 +1466,16 @@
                             "display_name": "Change Effective Date",
                             "parameter_units": "date",
                             "description": "When the new contribution rate takes effect",
-                            "default": 0
+                            "default": 0,
+                            "editable": true
                         },
                         {
                             "type": "p_401k_contribution",
                             "display_name": "New 401k Contribution %",
                             "parameter_units": "percentage",
                             "description": "New 401k contribution percentage.",
-                            "default": 0.06
+                            "default": 0.06,
+                            "editable": true
                         }
                     ]
                 },
@@ -1224,14 +1491,16 @@
                             "display_name": "Change Effective Date",
                             "parameter_units": "date",
                             "description": "When the new match rate takes effect",
-                            "default": 0
+                            "default": 0,
+                            "editable": true
                         },
                         {
                             "type": "new_match_rate",
                             "display_name": "New Employer Match %",
                             "parameter_units": "percentage",
                             "description": "New employer match percentage.",
-                            "default": 0.05
+                            "default": 0.05,
+                            "editable": true
                         }
                     ]
                 }
@@ -1252,28 +1521,32 @@
                     "display_name": "Start Date",
                     "parameter_units": "date",
                     "description": "When the business starts",
-                    "default": 0
+                    "default": 0,
+                    "editable": true
                 },
                 {
                     "type": "initial_investment",
                     "display_name": "Initial Investment",
                     "parameter_units": "usd",
                     "description": "Amount of money invested initially.",
-                    "default": 50000
+                    "default": 50000,
+                    "editable": true
                 },
                 {
                     "type": "from_key",
                     "display_name": "From Envelope",
                     "parameter_units": "envelope",
                     "description": "Which envelope the money comes from.",
-                    "default": "Other (Cash)"
+                    "default": "Other (Cash)",
+                    "editable": true
                 },
                 {
                     "type": "to_key",
                     "display_name": "To Envelope",
                     "parameter_units": "envelope",
                     "description": "Envelope where business assets are tracked",
-                    "default": "Other (Investments)"
+                    "default": "Other (Investments)",
+                    "editable": true
                 }
             ],
             "updating_events": [
@@ -1289,28 +1562,32 @@
                             "display_name": "Income Start Date",
                             "parameter_units": "date",
                             "description": "When business income starts",
-                            "default": 0
+                            "default": 0,
+                            "editable": true
                         },
                         {
                             "type": "end_time",
                             "display_name": "Income End Date",
                             "parameter_units": "date",
                             "description": "When business income ends",
-                            "default": 0
+                            "default": 0,
+                            "editable": true
                         },
                         {
                             "type": "monthly_income",
                             "display_name": "Monthly Income",
                             "parameter_units": "usd",
                             "description": "Monthly income earned by the business.",
-                            "default": 5000
+                            "default": 5000,
+                            "editable": true
                         },
                         {
                             "type": "to_key",
                             "display_name": "Deposit Envelope",
                             "parameter_units": "envelope",
                             "description": "Envelope where business income is deposited",
-                            "default": "Other (Cash)"
+                            "default": "Other (Cash)",
+                            "editable": true
                         }
                     ]
                 },
@@ -1326,21 +1603,24 @@
                             "display_name": "Loss Date",
                             "parameter_units": "date",
                             "description": "When the loss occurs",
-                            "default": 0
+                            "default": 0,
+                            "editable": true
                         },
                         {
                             "type": "loss_amount",
                             "display_name": "Loss Amount",
                             "parameter_units": "usd",
                             "description": "Amount lost due to business expense or failure.",
-                            "default": 20000
+                            "default": 20000,
+                            "editable": true
                         },
                         {
                             "type": "from_key",
                             "display_name": "From Envelope",
                             "parameter_units": "envelope",
                             "description": "Envelope where loss is deducted from",
-                            "default": "Other (Cash)"
+                            "default": "Other (Cash)",
+                            "editable": true
                         }
                     ]
                 }
@@ -1354,58 +1634,105 @@
             "can_be_reocurring": false,
             "weight": 70,
             "category": "Income & Employment",
-            "description": "Transition from employment to retirement with recurring transfers from 401K to cash, including taxable income tracking.",
+            "description": "Transition from employment to retirement with recurring transfers from 401K and ROTH IRA to cash, including taxable income tracking.",
             "icon": "moon",
-            "disclaimer": "This event simulates regular transfers from a 401K retirement envelope to cash, with corresponding taxable income tracking. It does not account for complex tax implications or required minimum distributions.",
+            "disclaimer": "This event simulates regular transfers from a 401K and ROTH IRA retirement envelope to cash, with corresponding taxable income tracking. It does not account for complex tax implications or required minimum distributions. This does account for a 25% tax 401K withholding when transfering.",
             "parameters": [
                 {
                     "type": "start_time",
                     "display_name": "Start Date",
                     "parameter_units": "date",
                     "description": "When retirement begins",
-                    "default": 0
+                    "default": 0,
+                    "editable": true
                 },
                 {
                     "type": "end_time",
                     "display_name": "End Date",
                     "parameter_units": "date",
                     "description": "When retirement ends",
-                    "default": 29200
+                    "default": 29200,
+                    "editable": true
                 },
                 {
                     "type": "amount",
-                    "display_name": "Transfer Amount",
+                    "display_name": "Transfer Amount from 401K",
                     "parameter_units": "usd",
                     "description": "Amount transferred from 401K to cash each period",
-                    "default": 3000
+                    "default": 3000,
+                    "editable": true
+                },
+                {
+                    "type": "amount_roth_ira",
+                    "display_name": "Transfer Amount from ROTH IRA",
+                    "parameter_units": "usd",
+                    "description": "Amount transferred from ROTH IRA to cash each period",
+                    "default": 3000,
+                    "editable": true
                 },
                 {
                     "type": "frequency_days",
                     "display_name": "Transfer Frequency",
                     "parameter_units": "days",
                     "description": "How often transfers happen",
-                    "default": 30
+                    "default": 30,
+                    "editable": true
                 },
                 {
                     "type": "p_401k_key",
                     "display_name": "401K Envelope",
                     "parameter_units": "envelope",
                     "description": "401K envelope to transfer from",
-                    "default": "Other (Retirement)"
+                    "default": "Other (Retirement)",
+                    "editable": true
+                },
+                {
+                    "type": "roth_ira_key",
+                    "display_name": "ROTH IRA Envelope",
+                    "parameter_units": "envelope",
+                    "description": "Envelope where ROTH IRA is tracked",
+                    "default": "RothIRA",
+                    "editable": true
                 },
                 {
                     "type": "to_key",
                     "display_name": "To Envelope",
                     "parameter_units": "envelope",
                     "description": "Envelope where transfers are deposited",
-                    "default": "Other (Cash)"
+                    "default": "Other (Cash)",
+                    "editable": true
                 },
                 {
-                    "type": "taxable_income_key",
-                    "display_name": "Taxable Income Envelope",
+                    "type": "p_401k_withdraw_withholding_key",
+                    "display_name": "401K Withdraw Withholding Envelope",
                     "parameter_units": "envelope",
-                    "description": "Envelope where taxable income from 401K withdrawals is tracked",
-                    "default": "Taxable Income"
+                    "description": "Tax Envelope where 401K withdrawals are withheld",
+                    "default": "401K Withdraw Withholding",
+                    "editable": true
+                },
+                {
+                    "type": "p_401k_withdraw_key",
+                    "display_name": "401K Withdraw Envelope",
+                    "parameter_units": "envelope",
+                    "description": "Tax Envelope where 401K withdrawals are deposited",
+                    "default": "401K Withdraw",
+                    "editable": true
+                },
+                {
+                    "type": "roth_ira_withdraw_key",
+                    "display_name": "ROTH IRA Withdraw Envelope",
+                    "parameter_units": "envelope",
+                    "description": "Tax Envelope where ROTH IRA withdrawals are deposited",
+                    "default": "ROTH IRA Withdraw",
+                    "editable": true
+                },
+                {
+                    "type": "roth_ira_principle_key",
+                    "display_name": "ROTH IRA Principle Envelope",
+                    "parameter_units": "envelope",
+                    "description": "Tax Envelope where ROTH IRA principle is tracked",
+                    "default": "ROTH IRA Principle",
+                    "editable": true
                 }
             ]
         },
@@ -1426,77 +1753,88 @@
                     "display_name": "Purchase Date",
                     "parameter_units": "date",
                     "description": "When the house is purchased",
-                    "default": 0
+                    "default": 0,
+                    "editable": true
                 },
                 {
                     "type": "end_time",
                     "display_name": "End Date",
                     "parameter_units": "date",
                     "description": "When the recurring purchase ends (only used if recurring)",
-                    "default": 3650
+                    "default": 3650,
+                    "editable": true
                 },
                 {
                     "type": "frequency_days",
                     "display_name": "Frequency (Days)",
                     "parameter_units": "days",
                     "description": "Number of days between each purchase (only used if recurring)",
-                    "default": 365
+                    "default": 365,
+                    "editable": true
                 },
                 {
                     "type": "home_value",
                     "display_name": "Home Value",
                     "parameter_units": "usd",
                     "description": "Total price of the house.",
-                    "default": 300000
+                    "default": 300000,
+                    "editable": true
                 },
                 {
                     "type": "loan_term_years",
                     "display_name": "Loan Term",
                     "parameter_units": "years",
                     "description": "Length of mortgage in years.",
-                    "default": 30
+                    "default": 30,
+                    "editable": true
                 },
                 {
                     "type": "loan_rate",
                     "display_name": "Interest Rate",
                     "parameter_units": "apy",
                     "description": "Annual interest rate on the mortgage.",
-                    "default": 0.03
+                    "default": 0.03,
+                    "editable": true
                 },
                 {
                     "type": "downpayment",
                     "display_name": "Down Payment",
                     "parameter_units": "usd",
                     "description": "Amount paid upfront.",
-                    "default": 60000
+                    "default": 60000,
+                    "editable": true
                 },
                 {
                     "type": "from_key",
                     "display_name": "From Envelope",
                     "parameter_units": "envelope",
                     "description": "Envelope where downpayment comes from",
-                    "default": "Other (Cash)"
+                    "default": "Other (Cash)",
+                    "editable": true
                 },
                 {
                     "type": "to_key",
                     "display_name": "To Envelope",
                     "parameter_units": "envelope",
                     "description": "Envelope where house value is tracked",
-                    "default": "House"
+                    "default": "House",
+                    "editable": false
                 },
                 {
                     "type": "mortgage_envelope",
                     "display_name": "Mortgage Envelope",
                     "parameter_units": "envelope",
                     "description": "Envelope where the home mortgage debt is tracked.",
-                    "default": "Home Mortgage"
+                    "default": "Home Mortgage",
+                    "editable": false
                 },
                 {
                     "type": "property_tax_rate",
                     "display_name": "Property Tax Rate",
                     "parameter_units": "percentage",
                     "description": "Annual tax as a percentage of home value.",
-                    "default": 0.015
+                    "default": 0.015,
+                    "editable": true
                 }
             ],
             "updating_events": [
@@ -1512,14 +1850,16 @@
                             "display_name": "Appraisal Date",
                             "parameter_units": "date",
                             "description": "When the new appraisal takes effect",
-                            "default": 0
+                            "default": 0,
+                            "editable": true
                         },
                         {
                             "type": "appraised_value",
                             "display_name": "Appraised Value",
                             "parameter_units": "usd",
                             "description": "New home valuation.",
-                            "default": 450000
+                            "default": 450000,
+                            "editable": true
                         }
                     ]
                 },
@@ -1535,28 +1875,32 @@
                             "display_name": "Payment Date",
                             "parameter_units": "date",
                             "description": "When the extra payment is made",
-                            "default": 0
+                            "default": 0,
+                            "editable": true
                         },
                         {
                             "type": "amount",
                             "display_name": "Extra Payment Amount",
                             "parameter_units": "usd",
                             "description": "Extra amount paid.",
-                            "default": 10000
+                            "default": 10000,
+                            "editable": true
                         },
                         {
                             "type": "from_key",
                             "display_name": "From Envelope",
                             "parameter_units": "envelope",
                             "description": "Envelope where payment comes from",
-                            "default": "Other (Cash)"
+                            "default": "Other (Cash)",
+                            "editable": true
                         },
                         {
                             "type": "month_index",
                             "display_name": "Month Index",
                             "parameter_units": "days",
                             "description": "Which month the payment applies to.",
-                            "default": 60
+                            "default": 60,
+                            "editable": true
                         }
                     ]
                 },
@@ -1572,28 +1916,32 @@
                             "display_name": "Late Payment Date",
                             "parameter_units": "date",
                             "description": "When the late payment occurs",
-                            "default": 0
+                            "default": 0,
+                            "editable": true
                         },
                         {
                             "type": "amount",
                             "display_name": "Missed Payment Amount",
                             "parameter_units": "usd",
                             "description": "Missed payment amount.",
-                            "default": 1500
+                            "default": 1500,
+                            "editable": true
                         },
                         {
                             "type": "from_key",
                             "display_name": "From Envelope",
                             "parameter_units": "envelope",
                             "description": "Envelope where payment comes from",
-                            "default": "Other (Cash)"
+                            "default": "Other (Cash)",
+                            "editable": true
                         },
                         {
                             "type": "month_index",
                             "display_name": "Month Index",
                             "parameter_units": "days",
                             "description": "Which month was missed.",
-                            "default": 85
+                            "default": 85,
+                            "editable": true
                         }
                     ]
                 },
@@ -1609,28 +1957,32 @@
                             "display_name": "Sale Date",
                             "parameter_units": "date",
                             "description": "When the house is sold",
-                            "default": 0
+                            "default": 0,
+                            "editable": true
                         },
                         {
                             "type": "sale_price",
                             "display_name": "Sale Price",
                             "parameter_units": "usd",
                             "description": "Final sale value of the house.",
-                            "default": 400000
+                            "default": 400000,
+                            "editable": true
                         },
                         {
                             "type": "from_key",
                             "display_name": "From Envelope",
                             "parameter_units": "envelope",
                             "description": "Envelope where house value is tracked",
-                            "default": "Other (House)"
+                            "default": "Other (House)",
+                            "editable": true
                         },
                         {
                             "type": "to_key",
                             "display_name": "To Envelope",
                             "parameter_units": "envelope",
                             "description": "Envelope where sale proceeds are deposited",
-                            "default": "Other (Cash)"
+                            "default": "Other (Cash)",
+                            "editable": true
                         }
                     ]
                 },
@@ -1646,35 +1998,40 @@
                             "display_name": "Coverage Start Date",
                             "parameter_units": "date",
                             "description": "When insurance coverage begins",
-                            "default": 0
+                            "default": 0,
+                            "editable": true
                         },
                         {
                             "type": "monthly_premium",
                             "display_name": "Monthly Premium",
                             "parameter_units": "usd",
                             "description": "Monthly cost of the insurance.",
-                            "default": 100
+                            "default": 100,
+                            "editable": true
                         },
                         {
                             "type": "deductible",
                             "display_name": "Deductible",
                             "parameter_units": "usd",
                             "description": "Out-of-pocket amount before coverage.",
-                            "default": 2000
+                            "default": 2000,
+                            "editable": true
                         },
                         {
                             "type": "coverage_percentage",
                             "display_name": "Coverage Percentage",
                             "parameter_units": "percentage",
                             "description": "Percentage of damage the policy covers.",
-                            "default": 0.9
+                            "default": 0.9,
+                            "editable": true
                         },
                         {
                             "type": "from_key",
                             "display_name": "From Envelope",
                             "parameter_units": "envelope",
                             "description": "Envelope where premiums are paid from",
-                            "default": "Other (Cash)"
+                            "default": "Other (Cash)",
+                            "editable": true
                         }
                     ],
                     "updating_events": [
@@ -1800,70 +2157,80 @@
                     "display_name": "Purchase Date",
                     "parameter_units": "date",
                     "description": "When the car is purchased",
-                    "default": 0
+                    "default": 0,
+                    "editable": true
                 },
                 {
                     "type": "end_time",
                     "display_name": "End Date",
                     "parameter_units": "date",
                     "description": "When the recurring purchase ends (only used if recurring)",
-                    "default": 3650
+                    "default": 3650,
+                    "editable": true
                 },
                 {
                     "type": "frequency_days",
                     "display_name": "Frequency (Days)",
                     "parameter_units": "days",
                     "description": "Number of days between each purchase (only used if recurring)",
-                    "default": 365
+                    "default": 365,
+                    "editable": true
                 },
                 {
                     "type": "car_value",
                     "display_name": "Car Value",
                     "parameter_units": "usd",
                     "description": "Price of the car.",
-                    "default": 35000
+                    "default": 35000,
+                    "editable": true
                 },
                 {
                     "type": "loan_term_years",
                     "display_name": "Loan Term",
                     "parameter_units": "years",
                     "description": "Length of car loan in years.",
-                    "default": 5
+                    "default": 5,
+                    "editable": true
                 },
                 {
                     "type": "loan_rate",
                     "display_name": "Interest Rate",
                     "parameter_units": "apy",
                     "description": "Annual interest rate for the loan.",
-                    "default": 0.045
+                    "default": 0.045,
+                    "editable": true
                 },
                 {
                     "type": "downpayment",
                     "display_name": "Down Payment",
                     "parameter_units": "usd",
                     "description": "Upfront payment toward the car.",
-                    "default": 7000
+                    "default": 7000,
+                    "editable": true
                 },
                 {
                     "type": "from_key",
                     "display_name": "From Envelope",
                     "parameter_units": "envelope",
                     "description": "Which envelope the money comes from.",
-                    "default": "Other (Cash)"
+                    "default": "Other (Cash)",
+                    "editable": true
                 },
                 {
                     "type": "to_key",
                     "display_name": "To Envelope",
                     "parameter_units": "envelope",
                     "description": "Envelope where car value is tracked",
-                    "default": "Car"
+                    "default": "Car",
+                    "editable": true
                 },
                 {
                     "type": "car_loan_envelope",
                     "display_name": "Car Loan Envelope",
                     "parameter_units": "envelope",
                     "description": "Envelope where the car loan debt is tracked.",
-                    "default": "Car Loan"
+                    "default": "Car Loan",
+                    "editable": true
                 }
             ],
             "updating_events": [
@@ -1881,21 +2248,24 @@
                             "display_name": "Early Payment Date",
                             "parameter_units": "date",
                             "description": "When the early payment is made",
-                            "default": 0
+                            "default": 0,
+                            "editable": true
                         },
                         {
                             "type": "amount",
                             "display_name": "Payoff Amount",
                             "parameter_units": "usd",
                             "description": "Remaining balance paid off.",
-                            "default": 20000
+                            "default": 20000,
+                            "editable": true
                         },
                         {
                             "type": "from_key",
                             "display_name": "From Envelope",
                             "parameter_units": "envelope",
                             "description": "Envelope where payment comes from",
-                            "default": "Other (Cash)"
+                            "default": "Other (Cash)",
+                            "editable": true
                         }
                     ]
                 },
@@ -1913,21 +2283,24 @@
                             "display_name": "Repair Date",
                             "parameter_units": "date",
                             "description": "When the repair occurs",
-                            "default": 0
+                            "default": 0,
+                            "editable": true
                         },
                         {
                             "type": "cost",
                             "display_name": "Repair Cost",
                             "parameter_units": "usd",
                             "description": "Repair bill total.",
-                            "default": 3000
+                            "default": 3000,
+                            "editable": true
                         },
                         {
                             "type": "from_key",
                             "display_name": "From Envelope",
                             "parameter_units": "envelope",
                             "description": "Envelope where repair cost is paid from",
-                            "default": "Other (Cash)"
+                            "default": "Other (Cash)",
+                            "editable": true
                         }
                     ]
                 }
@@ -1950,21 +2323,24 @@
                     "display_name": "Birth Date",
                     "parameter_units": "date",
                     "description": "When the child is born",
-                    "default": 0
+                    "default": 0,
+                    "editable": true
                 },
                 {
                     "type": "initial_costs",
                     "display_name": "Initial Costs",
                     "parameter_units": "usd",
                     "description": "One-time costs for childbirth, setup, etc.",
-                    "default": 15000
+                    "default": 15000,
+                    "editable": true
                 },
                 {
                     "type": "from_key",
                     "display_name": "From Envelope",
                     "parameter_units": "envelope",
                     "description": "Which envelope the cost is paid from.",
-                    "default": "Other (Cash)"
+                    "default": "Other (Cash)",
+                    "editable": true
                 }
             ],
             "updating_events": [
@@ -1982,28 +2358,32 @@
                             "display_name": "Childcare Start Date",
                             "parameter_units": "date",
                             "description": "When childcare costs begin",
-                            "default": 0
+                            "default": 0,
+                            "editable": true
                         },
                         {
                             "type": "monthly_cost",
                             "display_name": "Monthly Childcare Cost",
                             "parameter_units": "usd",
                             "description": "Monthly cost for daycare or other care.",
-                            "default": 1200
+                            "default": 1200,
+                            "editable": true
                         },
                         {
                             "type": "from_key",
                             "display_name": "From Envelope",
                             "parameter_units": "envelope",
                             "description": "Envelope where childcare costs are paid from",
-                            "default": "Other (Cash)"
+                            "default": "Other (Cash)",
+                            "editable": true
                         },
                         {
                             "type": "end_time",
                             "display_name": "End Date",
                             "parameter_units": "date",
                             "description": "When childcare costs end.",
-                            "default": 2190
+                            "default": 2190,
+                            "editable": true
                         }
                     ]
                 },
@@ -2021,42 +2401,48 @@
                             "display_name": "Contribution Start Date",
                             "parameter_units": "date",
                             "description": "When college fund contributions begin",
-                            "default": 0
+                            "default": 0,
+                            "editable": true
                         },
                         {
                             "type": "initial_contribution",
                             "display_name": "Initial Contribution",
                             "parameter_units": "usd",
                             "description": "Starting amount deposited.",
-                            "default": 5000
+                            "default": 5000,
+                            "editable": true
                         },
                         {
                             "type": "monthly_contribution",
                             "display_name": "Monthly Contribution",
                             "parameter_units": "usd",
                             "description": "Recurring monthly contribution.",
-                            "default": 200
+                            "default": 200,
+                            "editable": true
                         },
                         {
                             "type": "from_key",
                             "display_name": "From Envelope",
                             "parameter_units": "envelope",
                             "description": "Envelope where contributions come from",
-                            "default": "Other (Cash)"
+                            "default": "Other (Cash)",
+                            "editable": true
                         },
                         {
                             "type": "to_key",
                             "display_name": "To Envelope",
                             "parameter_units": "envelope",
                             "description": "Envelope where college fund is tracked",
-                            "default": "Other (Savings)"
+                            "default": "Other (Savings)",
+                            "editable": true
                         },
                         {
                             "type": "end_time",
                             "display_name": "End Date",
                             "parameter_units": "date",
                             "description": "End of contribution period.",
-                            "default": 6570
+                            "default": 6570,
+                            "editable": true
                         }
                     ]
                 }
@@ -2079,21 +2465,24 @@
                     "display_name": "Wedding Date",
                     "parameter_units": "date",
                     "description": "When the marriage occurs",
-                    "default": 0
+                    "default": 0,
+                    "editable": true
                 },
                 {
                     "type": "cost",
                     "display_name": "Wedding Cost",
                     "parameter_units": "usd",
                     "description": "Total cost of wedding and related expenses.",
-                    "default": 30000
+                    "default": 30000,
+                    "editable": true
                 },
                 {
                     "type": "from_key",
                     "display_name": "From Envelope",
                     "parameter_units": "envelope",
                     "description": "Envelope where wedding costs are paid from",
-                    "default": "Other (Cash)"
+                    "default": "Other (Cash)",
+                    "editable": true
                 }
             ]
         },
@@ -2114,28 +2503,32 @@
                     "display_name": "Divorce Date",
                     "parameter_units": "date",
                     "description": "When the divorce occurs",
-                    "default": 0
+                    "default": 0,
+                    "editable": true
                 },
                 {
                     "type": "settlement_amount",
                     "display_name": "Settlement Amount",
                     "parameter_units": "usd",
                     "description": "Lump sum paid in settlement.",
-                    "default": 25000
+                    "default": 25000,
+                    "editable": true
                 },
                 {
                     "type": "attorney_fees",
                     "display_name": "Attorney Fees",
                     "parameter_units": "usd",
                     "description": "Legal costs paid to attorneys.",
-                    "default": 10000
+                    "default": 10000,
+                    "editable": true
                 },
                 {
                     "type": "from_key",
                     "display_name": "From Envelope",
                     "parameter_units": "envelope",
                     "description": "Envelope where divorce costs are paid from",
-                    "default": "Other (Cash)"
+                    "default": "Other (Cash)",
+                    "editable": true
                 }
             ]
         },
@@ -2156,7 +2549,8 @@
                     "display_name": "Date of Death",
                     "parameter_units": "date",
                     "description": "When death occurs",
-                    "default": 0
+                    "default": 0,
+                    "editable": true
                 }
             ]
         },
@@ -2177,35 +2571,40 @@
                     "display_name": "Start Date",
                     "parameter_units": "date",
                     "description": "When health insurance coverage begins",
-                    "default": 0
+                    "default": 0,
+                    "editable": true
                 },
                 {
                     "type": "monthly_premium",
                     "display_name": "Monthly Premium",
                     "parameter_units": "usd",
                     "description": "Cost of health insurance per month.",
-                    "default": 500
+                    "default": 500,
+                    "editable": true
                 },
                 {
                     "type": "deductible",
                     "display_name": "Deductible",
                     "parameter_units": "usd",
                     "description": "Amount paid out-of-pocket before insurance applies.",
-                    "default": 2000
+                    "default": 2000,
+                    "editable": true
                 },
                 {
                     "type": "coverage_percentage",
                     "display_name": "Coverage Percentage",
                     "parameter_units": "percentage",
                     "description": "Percent of expenses covered after deductible.",
-                    "default": 0.8
+                    "default": 0.8,
+                    "editable": true
                 },
                 {
                     "type": "from_key",
                     "display_name": "From Envelope",
                     "parameter_units": "envelope",
                     "description": "Envelope where premiums are paid from",
-                    "default": "Other (Cash)"
+                    "default": "Other (Cash)",
+                    "editable": true
                 }
             ],
             "updating_events": [
@@ -2223,35 +2622,40 @@
                             "display_name": "Expense Date",
                             "parameter_units": "date",
                             "description": "When the medical expense occurs",
-                            "default": 0
+                            "default": 0,
+                            "editable": true
                         },
                         {
                             "type": "total_cost",
                             "display_name": "Total Cost",
                             "parameter_units": "usd",
                             "description": "Full amount billed by the hospital or provider.",
-                            "default": 25000
+                            "default": 25000,
+                            "editable": true
                         },
                         {
                             "type": "from_key",
                             "display_name": "From Envelope",
                             "parameter_units": "envelope",
                             "description": "Envelope to cover the out-of-pocket portion.",
-                            "default": "Other (Cash)"
+                            "default": "Other (Cash)",
+                            "editable": true
                         },
                         {
                             "type": "insurance_coverage",
                             "display_name": "Insurance Coverage %",
                             "parameter_units": "percentage",
                             "description": "Insurance reimbursement percentage.",
-                            "default": 0.8
+                            "default": 0.8,
+                            "editable": true
                         },
                         {
                             "type": "deductible",
                             "display_name": "Deductible",
                             "parameter_units": "usd",
                             "description": "How much must be paid first by the user.",
-                            "default": 2000
+                            "default": 2000,
+                            "editable": true
                         }
                     ]
                 }
@@ -2274,35 +2678,40 @@
                     "display_name": "Start Date",
                     "parameter_units": "date",
                     "description": "When life insurance coverage begins",
-                    "default": 0
+                    "default": 0,
+                    "editable": true
                 },
                 {
                     "type": "coverage_amount",
                     "display_name": "Coverage Amount",
                     "parameter_units": "usd",
                     "description": "Total coverage paid out upon death.",
-                    "default": 500000
+                    "default": 500000,
+                    "editable": true
                 },
                 {
                     "type": "monthly_premium",
                     "display_name": "Monthly Premium",
                     "parameter_units": "usd",
                     "description": "Recurring payment for the policy.",
-                    "default": 100
+                    "default": 100,
+                    "editable": true
                 },
                 {
                     "type": "term_years",
                     "display_name": "Term Length",
                     "parameter_units": "years",
                     "description": "Duration of the term policy in years.",
-                    "default": 20
+                    "default": 20,
+                    "editable": true
                 },
                 {
                     "type": "from_key",
                     "display_name": "From Envelope",
                     "parameter_units": "envelope",
                     "description": "Funding envelope for premium payments.",
-                    "default": "Other (Cash)"
+                    "default": "Other (Cash)",
+                    "editable": true
                 }
             ],
             "updating_events": [
@@ -2320,21 +2729,24 @@
                             "display_name": "Coverage Increase Date",
                             "parameter_units": "date",
                             "description": "When the coverage increase takes effect",
-                            "default": 0
+                            "default": 0,
+                            "editable": true
                         },
                         {
                             "type": "new_coverage_amount",
                             "display_name": "New Coverage Amount",
                             "parameter_units": "usd",
                             "description": "Updated payout amount.",
-                            "default": 750000
+                            "default": 750000,
+                            "editable": true
                         },
                         {
                             "type": "new_monthly_premium",
                             "display_name": "New Monthly Premium",
                             "parameter_units": "usd",
                             "description": "New monthly cost of policy.",
-                            "default": 150
+                            "default": 150,
+                            "editable": true
                         }
                     ]
                 }
@@ -2357,35 +2769,40 @@
                     "display_name": "Start Date",
                     "parameter_units": "date",
                     "description": "When government aid begins",
-                    "default": 0
+                    "default": 0,
+                    "editable": true
                 },
                 {
                     "type": "amount",
                     "display_name": "Benefit Amount",
                     "parameter_units": "usd",
                     "description": "Amount received per interval.",
-                    "default": 600
+                    "default": 600,
+                    "editable": true
                 },
                 {
                     "type": "frequency_days",
                     "display_name": "Payment Frequency",
                     "parameter_units": "days",
                     "description": "Number of days between each benefit payment.",
-                    "default": 30
+                    "default": 30,
+                    "editable": true
                 },
                 {
                     "type": "to_key",
                     "display_name": "To Envelope",
                     "parameter_units": "envelope",
                     "description": "Envelope where aid payments are received",
-                    "default": "Other (Cash)"
+                    "default": "Other (Cash)",
+                    "editable": true
                 },
                 {
                     "type": "end_time",
                     "display_name": "End Date",
                     "parameter_units": "date",
                     "description": "When the payments end.",
-                    "default": 730
+                    "default": 730,
+                    "editable": true
                 }
             ]
         },
@@ -2406,28 +2823,32 @@
                     "display_name": "Investment Date",
                     "parameter_units": "date",
                     "description": "When the investment is made",
-                    "default": 0
+                    "default": 0,
+                    "editable": true
                 },
                 {
                     "type": "amount",
                     "display_name": "Investment Amount",
                     "parameter_units": "usd",
                     "description": "Amount of money to invest.",
-                    "default": 10000
+                    "default": 10000,
+                    "editable": true
                 },
                 {
                     "type": "from_key",
                     "display_name": "From Envelope",
                     "parameter_units": "envelope",
                     "description": "Envelope where funds come from.",
-                    "default": "Other (Cash)"
+                    "default": "Other (Cash)",
+                    "editable": true
                 },
                 {
                     "type": "to_key",
                     "display_name": "To Envelope",
                     "parameter_units": "envelope",
                     "description": "Envelope to which the investment is applied.",
-                    "default": "Other (Investments)"
+                    "default": "Other (Investments)",
+                    "editable": true
                 }
             ],
             "updating_events": [
@@ -2445,28 +2866,32 @@
                             "display_name": "Dividend Start Date",
                             "parameter_units": "date",
                             "description": "When dividend payments begin",
-                            "default": 0
+                            "default": 0,
+                            "editable": true
                         },
                         {
                             "type": "end_time",
                             "display_name": "Dividend End Date",
                             "parameter_units": "date",
                             "description": "When dividend payments end",
-                            "default": 3650
+                            "default": 3650,
+                            "editable": true
                         },
                         {
                             "type": "frequency_days",
                             "display_name": "Dividend Frequency",
                             "parameter_units": "days",
                             "description": "Number of days between each dividend payment.",
-                            "default": 30
+                            "default": 30,
+                            "editable": true
                         },
                         {
                             "type": "amount",
                             "display_name": "Dividend Amount",
                             "parameter_units": "usd",
                             "description": "Dividend amount received.",
-                            "default": 200
+                            "default": 200,
+                            "editable": true
                         }
                     ]
                 },
@@ -2484,28 +2909,32 @@
                             "display_name": "Contribution Start Date",
                             "parameter_units": "date",
                             "description": "When reoccuring payments begin",
-                            "default": 0
+                            "default": 0,
+                            "editable": true
                         },
                         {
                             "type": "end_time",
                             "display_name": "Contribution End Date",
                             "parameter_units": "date",
                             "description": "When reoccuring payments end",
-                            "default": 3650
+                            "default": 3650,
+                            "editable": true
                         },
                         {
                             "type": "frequency_days",
                             "display_name": "Contribution Frequency",
                             "parameter_units": "days",
                             "description": "Number of days between each contribution.",
-                            "default": 30
+                            "default": 30,
+                            "editable": true
                         },
                         {
                             "type": "amount",
                             "display_name": "Contribution Amount",
                             "parameter_units": "usd",
                             "description": "Amount put in.",
-                            "default": 200
+                            "default": 200,
+                            "editable": true
                         }
                     ]
                 }
@@ -2514,7 +2943,7 @@
         {
             "type": "high_yield_savings_account",
             "display_type": "High Yield Savings",
-            "display_event": true,
+            "display_event": false,
             "is_recurring": true,
             "can_be_reocurring": true,
             "weight": 50,
@@ -2528,42 +2957,47 @@
                     "display_name": "Start Date",
                     "parameter_units": "date",
                     "description": "When the savings account is opened",
-                    "default": 0
+                    "default": 0,
+                    "editable": true
                 },
                 {
                     "type": "interest_rate",
                     "display_name": "Interest Rate",
                     "parameter_units": "apy",
                     "description": "Annual percentage yield (APY).",
-                    "default": 0.045
+                    "default": 0.045,
+                    "editable": true
                 },
                 {
                     "type": "amount",
                     "display_name": "Initial Deposit",
                     "parameter_units": "usd",
                     "description": "Initial deposit into the account.",
-                    "default": 10000
+                    "default": 10000,
+                    "editable": true
                 },
                 {
                     "type": "from_key",
                     "display_name": "From Envelope",
                     "parameter_units": "envelope",
                     "description": "Envelope where funds originate.",
-                    "default": "Other (Cash)"
+                    "default": "Other (Cash)",
+                    "editable": true
                 },
                 {
                     "type": "to_key",
                     "display_name": "To Envelope",
                     "parameter_units": "envelope",
                     "description": "Envelope for savings balance.",
-                    "default": "Other (Savings)"
+                    "default": "Other (Savings)",
+                    "editable": true
                 }
             ]
         },
         {
             "type": "pay_taxes",
             "display_type": "Tax Payment",
-            "display_event": true,
+            "display_event": false,
             "is_recurring": false,
             "can_be_reocurring": false,
             "weight": 30,
@@ -2577,21 +3011,24 @@
                     "display_name": "Payment Date",
                     "parameter_units": "date",
                     "description": "When the tax payment is made",
-                    "default": 0
+                    "default": 0,
+                    "editable": true
                 },
                 {
                     "type": "total_tax_due",
                     "display_name": "Tax Amount",
                     "parameter_units": "usd",
                     "description": "Amount owed in taxes. Add updating event of a tax refund.",
-                    "default": 8000
+                    "default": 8000,
+                    "editable": true
                 },
                 {
                     "type": "from_key",
                     "display_name": "From Envelope",
                     "parameter_units": "envelope",
                     "description": "Envelope where taxes are paid from",
-                    "default": "Other (Cash)"
+                    "default": "Other (Cash)",
+                    "editable": true
                 }
             ],
             "updating_events": [
@@ -2609,21 +3046,24 @@
                             "display_name": "Refund Date",
                             "parameter_units": "date",
                             "description": "When the tax refund is received",
-                            "default": 0
+                            "default": 0,
+                            "editable": true
                         },
                         {
                             "type": "amount",
                             "display_name": "Refund Amount",
                             "parameter_units": "usd",
                             "description": "Amount of tax refund received.",
-                            "default": 1500
+                            "default": 1500,
+                            "editable": true
                         },
                         {
                             "type": "to_key",
                             "display_name": "To Envelope",
                             "parameter_units": "envelope",
                             "description": "Envelope where refund is received",
-                            "default": "Other (Cash)"
+                            "default": "Other (Cash)",
+                            "editable": true
                         }
                     ]
                 }
@@ -2646,28 +3086,32 @@
                     "display_name": "Start Date",
                     "parameter_units": "date",
                     "description": "When grocery expenses begin",
-                    "default": 0
+                    "default": 0,
+                    "editable": true
                 },
                 {
                     "type": "monthly_amount",
                     "display_name": "Monthly Amount",
                     "parameter_units": "usd",
                     "description": "Average grocery bill each month.",
-                    "default": 800
+                    "default": 800,
+                    "editable": true
                 },
                 {
                     "type": "from_key",
                     "display_name": "From Envelope",
                     "parameter_units": "envelope",
                     "description": "Envelope where grocery costs are paid from",
-                    "default": "Other (Cash)"
+                    "default": "Other (Cash)",
+                    "editable": true
                 },
                 {
                     "type": "end_time",
                     "display_name": "End Date",
                     "parameter_units": "date",
                     "description": "When the expense stops recurring.",
-                    "default": 29200
+                    "default": 29200,
+                    "editable": true
                 }
             ],
             "updating_events": []
@@ -2689,42 +3133,56 @@
                     "display_name": "Start Date",
                     "parameter_units": "date",
                     "description": "When the contribution starts.",
-                    "default": 0
+                    "default": 0,
+                    "editable": true
                 },
                 {
                     "type": "end_time",
                     "display_name": "End Date",
                     "parameter_units": "date",
                     "description": "When the contribution ends.",
-                    "default": 29200
+                    "default": 29200,
+                    "editable": true
                 },
                 {
                     "type": "frequency_days",
                     "display_name": "Contribution Frequency",
                     "parameter_units": "days",
                     "description": "Number of days between each contribution.",
-                    "default": 365
+                    "default": 365,
+                    "editable": true
                 },
                 {
                     "type": "amount",
                     "display_name": "Contribution Amount",
                     "parameter_units": "usd",
                     "description": "Amount to contribute.",
-                    "default": 6000
+                    "default": 6000,
+                    "editable": true
                 },
                 {
                     "type": "from_key",
                     "display_name": "From Envelope",
                     "parameter_units": "envelope",
                     "description": "Envelope from which funds are contributed.",
-                    "default": "Other (Cash)"
+                    "default": "Other (Cash)",
+                    "editable": true
                 },
                 {
                     "type": "to_key",
                     "display_name": "To Envelope",
                     "parameter_units": "envelope",
                     "description": "Envelope where Roth IRA is tracked.",
-                    "default": "RothIRA"
+                    "default": "RothIRA",
+                    "editable": false
+                },
+                {
+                    "type": "roth_ira_principle_key",
+                    "display_name": "ROTH IRA Principle Envelope",
+                    "parameter_units": "envelope",
+                    "description": "Envelope where ROTH IRA principle is tracked.",
+                    "default": "ROTH IRA Principle",
+                    "editable": false
                 }
             ]
         },
@@ -2745,21 +3203,24 @@
                     "display_name": "Tax Year Start",
                     "parameter_units": "date",
                     "description": "Start of the tax year.",
-                    "default": 0
+                    "default": 0,
+                    "editable": true
                 },
                 {
                     "type": "end_time",
                     "display_name": "Tax Year End",
                     "parameter_units": "date",
                     "description": "End of the tax year.",
-                    "default": 29200
+                    "default": 29200,
+                    "editable": true
                 },
                 {
                     "type": "yearly_income",
                     "display_name": "Taxable yearly income",
                     "parameter_units": "usd",
                     "description": "Total taxable income.",
-                    "default": 60000
+                    "default": 60000,
+                    "editable": true
                 },
                 {
                     "type": "filing_status",
@@ -2773,70 +3234,80 @@
                         "Married Filing Separately",
                         "Head of Household",
                         "Qualifying Widow(er)"
-                    ]
+                    ],
+                    "editable": true
                 },
                 {
                     "type": "number_of_dependents",
                     "display_name": "Number of Dependents",
                     "parameter_units": "number",
                     "description": "Number of dependents claimed.",
-                    "default": 0
+                    "default": 0,
+                    "editable": true
                 },
                 {
                     "type": "retirement_contributions",
                     "display_name": "Retirement Contributions",
                     "parameter_units": "usd",
                     "description": "Total tax-deductible retirement contributions.",
-                    "default": 0
+                    "default": 0,
+                    "editable": true
                 },
                 {
                     "type": "itemized_deductions",
                     "display_name": "Itemized Deductions",
                     "parameter_units": "usd",
                     "description": "Total itemized deductions claimed.",
-                    "default": 0
+                    "default": 0,
+                    "editable": true
                 },
                 {
                     "type": "capital_gains",
                     "display_name": "Capital Gains",
                     "parameter_units": "usd",
                     "description": "Total taxable capital gains.",
-                    "default": 0
+                    "default": 0,
+                    "editable": true
                 },
                 {
                     "type": "federal_tax_rate",
                     "display_name": "Federal Tax Rate",
                     "parameter_units": "percentage",
                     "description": "Estimated federal tax rate.",
-                    "default": 0.12
+                    "default": 0.12,
+                    "editable": true
                 },
                 {
                     "type": "state_tax_rate",
                     "display_name": "State Tax Rate",
                     "parameter_units": "percentage",
                     "description": "Estimated state tax rate.",
-                    "default": 0.05
+                    "default": 0.05,
+                    "editable": true
                 },
                 {
                     "type": "federal_income_tax_withheld",
                     "display_name": "Federal Income Tax Withheld",
                     "parameter_units": "usd",
                     "description": "Total federal income tax already withheld.",
-                    "default": 0
+                    "default": 0,
+                    "editable": true
                 },
                 {
                     "type": "state_income_tax_withheld",
                     "display_name": "State Income Tax Withheld",
                     "parameter_units": "usd",
                     "description": "Total state income tax already withheld.",
-                    "default": 0
+                    "default": 0,
+                    "editable": true
                 },
                 {
                     "type": "from_key",
                     "display_name": "From Envelope",
                     "parameter_units": "envelope",
                     "description": "Envelope where estimated taxes are paid from.",
-                    "default": "Other (Cash)"
+                    "default": "Other (Cash)",
+                    "editable": true
                 }
             ]
         },
@@ -2857,56 +3328,64 @@
                     "display_name": "Loan Origination Date",
                     "parameter_units": "date",
                     "description": "When the loan is first disbursed",
-                    "default": 0
+                    "default": 0,
+                    "editable": true
                 },
                 {
                     "type": "end_time",
                     "display_name": "End Date",
                     "parameter_units": "date",
                     "description": "When the recurring loan ends (only used if recurring)",
-                    "default": 3650
+                    "default": 3650,
+                    "editable": true
                 },
                 {
                     "type": "frequency_days",
                     "display_name": "Frequency (Days)",
                     "parameter_units": "days",
                     "description": "Number of days between each loan occurrence (only used if recurring)",
-                    "default": 365
+                    "default": 365,
+                    "editable": true
                 },
                 {
                     "type": "amount",
                     "display_name": "Loan Amount",
                     "parameter_units": "usd",
                     "description": "Total amount borrowed",
-                    "default": 25000
+                    "default": 25000,
+                    "editable": true
                 },
                 {
                     "type": "graduation_date",
                     "display_name": "Graduation Date",
                     "parameter_units": "date",
                     "description": "Number of days from start when graduation occurs",
-                    "default": 1460
+                    "default": 1460,
+                    "editable": true
                 },
                 {
                     "type": "loan_term_years",
                     "display_name": "Loan Term (Years)",
                     "parameter_units": "years",
                     "description": "Number of years after graduation to repay the loan",
-                    "default": 10
+                    "default": 10,
+                    "editable": true
                 },
                 {
                     "type": "from_key",
                     "display_name": "From Envelope",
                     "parameter_units": "envelope",
                     "description": "Envelope where loan funds are received",
-                    "default": "Other (Cash)"
+                    "default": "Other (Cash)",
+                    "editable": true
                 },
                 {
                     "type": "to_key",
                     "display_name": "Loan Tracking Envelope",
                     "parameter_units": "envelope",
                     "description": "Envelope where loan balance is tracked",
-                    "default": "Student Loans"
+                    "default": "Student Loans",
+                    "editable": true
                 }
             ]
         },
@@ -2927,63 +3406,72 @@
                     "display_name": "Loan Origination Date",
                     "parameter_units": "date",
                     "description": "When the loan is first disbursed",
-                    "default": 0
+                    "default": 0,
+                    "editable": true
                 },
                 {
                     "type": "end_time",
                     "display_name": "End Date",
                     "parameter_units": "date",
                     "description": "When the recurring loan ends (only used if recurring)",
-                    "default": 3650
+                    "default": 3650,
+                    "editable": true
                 },
                 {
                     "type": "frequency_days",
                     "display_name": "Frequency (Days)",
                     "parameter_units": "days",
                     "description": "Number of days between each loan occurrence (only used if recurring)",
-                    "default": 365
+                    "default": 365,
+                    "editable": true
                 },
                 {
                     "type": "amount",
                     "display_name": "Loan Amount",
                     "parameter_units": "usd",
                     "description": "Total amount borrowed",
-                    "default": 30000
+                    "default": 30000,
+                    "editable": true
                 },
                 {
                     "type": "graduation_date",
                     "display_name": "Graduation Date",
                     "parameter_units": "date",
                     "description": "Number of days from start when graduation occurs",
-                    "default": 1460
+                    "default": 1460,
+                    "editable": true
                 },
                 {
                     "type": "loan_term_years",
                     "display_name": "Loan Term (Years)",
                     "parameter_units": "years",
                     "description": "Number of years after graduation to repay the loan",
-                    "default": 10
+                    "default": 10,
+                    "editable": true
                 },
                 {
                     "type": "from_key",
                     "display_name": "From Envelope",
                     "parameter_units": "envelope",
                     "description": "Envelope where loan funds are received",
-                    "default": "Other (Cash)"
+                    "default": "Other (Cash)",
+                    "editable": true
                 },
                 {
                     "type": "to_key",
                     "display_name": "Loan Tracking Envelope",
                     "parameter_units": "envelope",
                     "description": "Envelope where loan balance is tracked",
-                    "default": "Student Loans Public (During School)"
+                    "default": "Student Loans Public (During School)",
+                    "editable": true
                 },
                 {
                     "type": "after_school_key",
                     "display_name": "After School Loan Tracking Envelope",
                     "parameter_units": "envelope",
                     "description": "Envelope where loan balance is tracked after school",
-                    "default": "Student Loans"
+                    "default": "Student Loans",
+                    "editable": true
                 }
             ]
         },
@@ -3004,63 +3492,72 @@
                     "display_name": "Loan Origination Date",
                     "parameter_units": "date",
                     "description": "When the loan is first disbursed",
-                    "default": 0
+                    "default": 0,
+                    "editable": true
                 },
                 {
                     "type": "end_time",
                     "display_name": "End Date",
                     "parameter_units": "date",
                     "description": "When the recurring loan ends (only used if recurring)",
-                    "default": 3650
+                    "default": 3650,
+                    "editable": true
                 },
                 {
                     "type": "frequency_days",
                     "display_name": "Frequency (Days)",
                     "parameter_units": "days",
                     "description": "Number of days between each loan occurrence (only used if recurring)",
-                    "default": 365
+                    "default": 365,
+                    "editable": true
                 },
                 {
                     "type": "amount",
                     "display_name": "Loan Amount",
                     "parameter_units": "usd",
                     "description": "Total amount borrowed",
-                    "default": 40000
+                    "default": 40000,
+                    "editable": true
                 },
                 {
                     "type": "graduation_date",
                     "display_name": "Graduation Date",
                     "parameter_units": "date",
                     "description": "Number of days from start when graduation occurs",
-                    "default": 1460
+                    "default": 1460,
+                    "editable": true
                 },
                 {
                     "type": "loan_term_years",
                     "display_name": "Loan Term (Years)",
                     "parameter_units": "years",
                     "description": "Number of years after graduation to repay the loan",
-                    "default": 10
+                    "default": 10,
+                    "editable": true
                 },
                 {
                     "type": "from_key",
                     "display_name": "From Envelope",
                     "parameter_units": "envelope",
                     "description": "Envelope where loan funds are received",
-                    "default": "Other (Cash)"
+                    "default": "Other (Cash)",
+                    "editable": true
                 },
                 {
                     "type": "to_key",
                     "display_name": "Loan Tracking Envelope",
                     "parameter_units": "envelope",
                     "description": "Envelope where loan balance is tracked",
-                    "default": "Student Loans Private (During School)"
+                    "default": "Student Loans Private (During School)",
+                    "editable": true
                 },
                 {
                     "type": "after_school_key",
                     "display_name": "After School Loan Tracking Envelope",
                     "parameter_units": "envelope",
                     "description": "Envelope where loan balance is tracked after school",
-                    "default": "Student Loans"
+                    "default": "Student Loans",
+                    "editable": true
                 }
             ]
         },
@@ -3080,49 +3577,167 @@
                     "display_name": "Start Date",
                     "parameter_units": "date",
                     "description": "When the tax system starts",
-                    "default": 0
+                    "default": 0,
+                    "editable": true
                 },
                 {
                     "type": "taxable_income_key",
                     "display_name": "Taxable Income Envelope",
                     "parameter_units": "envelope",
                     "description": "Envelope where taxable income is tracked",
-                    "default": "Taxable Income"
+                    "default": "Taxable Income",
+                    "editable": false
                 },
                 {
                     "type": "penalty_401k_key",
                     "display_name": "401K Penalty Envelope",
                     "parameter_units": "envelope",
                     "description": "Envelope where 401K penalties are tracked",
-                    "default": "401K Penalty"
+                    "default": "401K Penalty",
+                    "editable": false
                 },
                 {
                     "type": "taxes_401k_key",
                     "display_name": "401K Taxes Envelope",
                     "parameter_units": "envelope",
                     "description": "Envelope where 401K taxes are tracked",
-                    "default": "401K Taxes"
+                    "default": "401K Taxes",
+                    "editable": false
                 },
                 {
                     "type": "roth_key",
                     "display_name": "ROTH Envelope",
                     "parameter_units": "envelope",
                     "description": "Envelope where ROTH contributions are tracked",
-                    "default": "RothIRA"
+                    "default": "RothIRA",
+                    "editable": false
                 },
                 {
                     "type": "p_401k_key",
                     "display_name": "401K Envelope",
                     "parameter_units": "envelope",
                     "description": "Envelope where 401K contributions are tracked",
-                    "default": "Other (Retirement)"
+                    "default": "Other (Retirement)",
+                    "editable": false
                 },
                 {
                     "type": "taxable_home_value_key",
                     "display_name": "Taxable Home Value Envelope",
                     "parameter_units": "envelope",
                     "description": "Envelope where taxable home value is tracked",
-                    "default": "House"
+                    "default": "House",
+                    "editable": false
+                },
+                {
+                    "type": "federal_withholdings_key",
+                    "display_name": "Federal Withholdings Envelope",
+                    "parameter_units": "envelope",
+                    "description": "Envelope where federal withholdings are tracked",
+                    "default": "Federal Withholdings",
+                    "editable": false
+                },
+                {
+                    "type": "state_withholdings_key",
+                    "display_name": "State Withholdings Envelope",
+                    "parameter_units": "envelope",
+                    "description": "Envelope where state withholdings are tracked",
+                    "default": "State Withholdings",
+                    "editable": false
+                },
+                {
+                    "type": "local_withholdings_key",
+                    "display_name": "Local Withholdings Envelope",
+                    "parameter_units": "envelope",
+                    "description": "Envelope where local withholdings are tracked",
+                    "default": "Local Withholdings",
+                    "editable": false
+                },
+                {
+                    "type": "ira_contributions_key",
+                    "display_name": "IRA Contributions Envelope",
+                    "parameter_units": "envelope",
+                    "description": "Envelope where IRA contributions are tracked",
+                    "default": "IRA Contributions",
+                    "editable": false
+                },
+                {
+                    "type": "p_401k_withdraw_withholding_key",
+                    "display_name": "401K Withdraw Withholding Envelope",
+                    "parameter_units": "envelope",
+                    "description": "Envelope where 401K withdrawals taxes are withheld",
+                    "default": "401K Withdraw Withholding",
+                    "editable": false
+                },
+                {
+                    "type": "p_401k_withdraw_key",
+                    "display_name": "401K Withdraw Envelope",
+                    "parameter_units": "envelope",
+                    "description": "Envelope where 401K withdrawals are deposited",
+                    "default": "401K Withdraw",
+                    "editable": false
+                },
+                {
+                    "type": "roth_ira_withdraw_key",
+                    "display_name": "ROTH IRA Withdraw Envelope",
+                    "parameter_units": "envelope",
+                    "description": "Envelope where ROTH IRA withdrawals are deposited",
+                    "default": "ROTH IRA Withdraw",
+                    "editable": false
+                },
+                {
+                    "type": "roth_ira_principle_key",
+                    "display_name": "ROTH IRA Principle Envelope",
+                    "parameter_units": "envelope",
+                    "description": "Envelope where ROTH IRA principle is tracked",
+                    "default": "ROTH IRA Principle",
+                    "editable": false
+                },
+                {
+                    "type": "penalty_roth_key",
+                    "display_name": "ROTH IRA Penalty Envelope",
+                    "parameter_units": "envelope",
+                    "description": "Envelope where ROTH IRA penalties are tracked",
+                    "default": "ROTH IRA Penalty",
+                    "editable": false
+                },
+                {
+                    "type": "irs_registered_account_key",
+                    "display_name": "IRS Registered Account Envelope",
+                    "parameter_units": "envelope",
+                    "description": "Envelope where IRS registered account is tracked",
+                    "default": "Other (Cash)",
+                    "editable": false
+                },
+                {
+                    "type": "filing_status",
+                    "display_name": "Filing Status",
+                    "parameter_units": "enum",
+                    "description": "Tax filing status.",
+                    "default": "Single",
+                    "options": [
+                        "Single",
+                        "Married Filing Jointly",
+                        "Married Filing Separately",
+                        "Head of Household",
+                        "Qualifying Widow(er)"
+                    ],
+                    "editable": true
+                },
+                {
+                    "type": "dependents",
+                    "display_name": "Number of Dependents",
+                    "parameter_units": "number",
+                    "description": "Number of dependents claimed.",
+                    "default": 0,
+                    "editable": true
+                },
+                {
+                    "type": "location",
+                    "display_name": "Location",
+                    "parameter_units": "string",
+                    "description": "Location in the format 'City, State' for tax purposes.",
+                    "default": "City, State",
+                    "editable": true
                 }
             ]
         }

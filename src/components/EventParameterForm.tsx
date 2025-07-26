@@ -47,7 +47,7 @@ const EventParametersForm: React.FC<EventParametersFormProps> = ({
     onSelectEvent,
     onOpenEnvelopeModal
 }) => {
-    const { plan, schema, getEventIcon, updateParameter, deleteEvent, getParameterDisplayName, getParameterUnits, getEventDisplayType, addUpdatingEvent, getParameterDescription, updateEventDescription, canEventBeRecurring, updateEventRecurring, getParameterOptions, currentDay } = usePlan();
+    const { plan, schema, getEventIcon, updateParameter, deleteEvent, getParameterDisplayName, getParameterUnits, getEventDisplayType, addUpdatingEvent, getParameterDescription, updateEventDescription, canEventBeRecurring, updateEventRecurring, getParameterOptions, currentDay, getEnvelopeDisplayName } = usePlan();
     // State for local parameter editing (now supports main and updating events)
     const [parameters, setParameters] = useState<Record<number, Record<number, { type: string; value: string | number }>>>({});
     const [loading, setLoading] = useState(false);
@@ -260,30 +260,115 @@ const EventParametersForm: React.FC<EventParametersFormProps> = ({
             }
         }
         const defaultValue = schemaParam?.default;
+        const isEditable = schemaParam?.editable !== false; // Default to true if not specified
 
         if (paramUnits === 'date') {
             return renderDatePicker(param, event);
         }
 
         if (paramUnits === 'envelope') {
-            // Build display map
+            // Build display map for regular envelopes (editable)
             const displayEnvelopeMap: Record<string, string> = {};
             const envelopeCategoryMap: Record<string, string> = {};
             plan?.envelopes.forEach((envelopeObj) => {
-                const envelope = envelopeObj.name;
-                const otherMatch = envelope.match(/^Other \((.+)\)$/);
-                if (otherMatch) {
-                    displayEnvelopeMap[otherMatch[1]] = envelope;
-                    envelopeCategoryMap[envelope] = envelopeObj.category || 'Uncategorized';
-                } else {
-                    displayEnvelopeMap[envelope] = envelope;
+                // Only include regular envelopes for editing
+                if (envelopeObj.account_type === 'regular') {
+                    const envelope = envelopeObj.name;
+                    const displayName = getEnvelopeDisplayName(envelope);
+                    displayEnvelopeMap[displayName] = envelope;
                     envelopeCategoryMap[envelope] = envelopeObj.category || 'Uncategorized';
                 }
             });
 
             const growthRate = plan?.envelopes.find(e => e.name === value)?.rate;
             const growthType = plan?.envelopes.find(e => e.name === value)?.growth;
+            const currentEnvelope = plan?.envelopes.find(e => e.name === value);
+            const isCurrentEnvelopeRegular = currentEnvelope?.account_type === 'regular';
+
             console.log('growthRate: ', growthRate);
+
+            // If parameter is not editable, show as read-only but with pencil button
+            if (!isEditable) {
+                const displayName = getEnvelopeDisplayName(String(value));
+                const category = currentEnvelope?.category || 'Uncategorized';
+
+                return (
+                    <div className="flex flex-col gap-1">
+                        <div className="flex items-center gap-1">
+                            <div className="w-full p-2 bg-gray-50 border border-gray-200 rounded-md text-sm">
+                                {displayName} <span style={{ color: '#888', fontSize: '0.8em' }}>({category})</span>
+                                <span className="ml-2 text-xs text-gray-500">(Read-only)</span>
+                            </div>
+                            {typeof onOpenEnvelopeModal === 'function' && (
+                                <Button
+                                    type="button"
+                                    size="icon"
+                                    variant="ghost"
+                                    className="ml-1 p-1 h-8 w-8 text-gray-400 hover:text-blue-500"
+                                    tabIndex={-1}
+                                    onClick={() => onOpenEnvelopeModal(String(value))}
+                                    aria-label="Manage envelopes"
+                                >
+                                    <Pencil className="w-4 h-4" />
+                                </Button>
+                            )}
+                        </div>
+                        {/* Growth rate display - clickable to open envelope modal */}
+                        {growthType === "None" ? (
+                            <div
+                                className="mt-1 text-xs text-gray-400 bg-gray-50 rounded px-2 py-1 border border-gray-100 cursor-pointer hover:bg-gray-100"
+                                onClick={() => typeof onOpenEnvelopeModal === 'function' && onOpenEnvelopeModal(String(value))}
+                            >
+                                <span className="font-mono">
+                                    No growth over time
+                                </span>
+                            </div>
+                        ) : growthRate !== undefined && growthRate > 0 ? (
+                            <div
+                                className="mt-1 text-xs text-gray-400 bg-gray-50 rounded px-2 py-1 border border-gray-100 cursor-pointer hover:bg-gray-100"
+                                onClick={() => typeof onOpenEnvelopeModal === 'function' && onOpenEnvelopeModal(String(value))}
+                            >
+                                <span className="font-mono">
+                                    {growthType}: {(growthRate * 100).toFixed(2)}%/yr
+                                </span>
+                            </div>
+                        ) : null}
+                    </div>
+                );
+            }
+
+            // If current value is a non-regular envelope, show it as read-only
+            if (value && !isCurrentEnvelopeRegular) {
+                const displayName = getEnvelopeDisplayName(String(value));
+                const category = currentEnvelope?.category || 'Uncategorized';
+
+                return (
+                    <div className="flex flex-col gap-1">
+                        <div className="flex items-center gap-1">
+                            <div className="w-full p-2 bg-gray-50 border border-gray-200 rounded-md text-sm">
+                                {displayName} <span style={{ color: '#888', fontSize: '0.8em' }}>({category})</span>
+                                <span className="ml-2 text-xs text-gray-500">(Default)</span>
+                            </div>
+                        </div>
+                        {/* Growth rate display */}
+                        {growthType === "None" ? (
+                            <div className="mt-1 text-xs text-gray-400 bg-gray-50 rounded px-2 py-1 border border-gray-100">
+                                <span className="font-mono">
+                                    No growth over time
+                                </span>
+                            </div>
+                        ) : growthRate !== undefined && growthRate > 0 ? (
+                            <div className="mt-1 text-xs text-gray-400 bg-gray-50 rounded px-2 py-1 border border-gray-100">
+                                <span className="font-mono">
+                                    {growthType}: {(growthRate * 100).toFixed(2)}%/yr
+                                </span>
+                            </div>
+                        ) : null}
+                    </div>
+                );
+            }
+
+            // Otherwise show the regular dropdown for editing
             return (
                 <div className="flex flex-col gap-1">
                     <div className="flex items-center gap-1">
@@ -338,6 +423,19 @@ const EventParametersForm: React.FC<EventParametersFormProps> = ({
         }
 
         if (paramUnits === 'usd') {
+            // If parameter is not editable, show as read-only
+            if (!isEditable) {
+                const formattedValue = value !== '' && value !== '-' && !isNaN(Number(value))
+                    ? Number(value).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                    : String(value);
+
+                return (
+                    <div className="w-full p-2 bg-gray-50 border border-gray-200 rounded-md text-sm">
+                        ${formattedValue} <span className="ml-2 text-xs text-gray-500">(Read-only)</span>
+                    </div>
+                );
+            }
+
             // Show formatted value with commas when not focused, raw when focused
             const isFocused = usdInputFocus[param.id] || false;
             const isTodayMode = usdTodayMode[param.id] || false;
@@ -447,6 +545,19 @@ const EventParametersForm: React.FC<EventParametersFormProps> = ({
         }
 
         if (paramUnits === 'apy' || paramUnits === 'percentage') {
+            // If parameter is not editable, show as read-only
+            if (!isEditable) {
+                const displayValue = paramUnits === 'percentage'
+                    ? `${(Number(value) * 100).toFixed(2)}%`
+                    : `${String(value)}${paramUnits === 'apy' ? ' APY' : '%'}`;
+
+                return (
+                    <div className="w-full p-2 bg-gray-50 border border-gray-200 rounded-md text-sm">
+                        {displayValue} <span className="ml-2 text-xs text-gray-500">(Read-only)</span>
+                    </div>
+                );
+            }
+
             const placeholder = defaultValue ?
                 (paramUnits === 'percentage' ? ((defaultValue as number) * 100).toFixed(2) : String(defaultValue)) :
                 '';
@@ -480,6 +591,15 @@ const EventParametersForm: React.FC<EventParametersFormProps> = ({
         }
 
         if (paramUnits === 'days') {
+            // If parameter is not editable, show as read-only
+            if (!isEditable) {
+                return (
+                    <div className="w-full p-2 bg-gray-50 border border-gray-200 rounded-md text-sm">
+                        {String(value)} days <span className="ml-2 text-xs text-gray-500">(Read-only)</span>
+                    </div>
+                );
+            }
+
             const placeholder = defaultValue ? String(defaultValue) : '';
 
             // Define frequency options with their day mappings
@@ -561,6 +681,15 @@ const EventParametersForm: React.FC<EventParametersFormProps> = ({
         }
 
         if (paramUnits === 'hours') {
+            // If parameter is not editable, show as read-only
+            if (!isEditable) {
+                return (
+                    <div className="w-full p-2 bg-gray-50 border border-gray-200 rounded-md text-sm">
+                        {String(value)} hours <span className="ml-2 text-xs text-gray-500">(Read-only)</span>
+                    </div>
+                );
+            }
+
             const placeholder = defaultValue ? String(defaultValue) : '';
             return (
                 <div className="relative">
@@ -592,6 +721,15 @@ const EventParametersForm: React.FC<EventParametersFormProps> = ({
         }
 
         if (paramUnits === 'years') {
+            // If parameter is not editable, show as read-only
+            if (!isEditable) {
+                return (
+                    <div className="w-full p-2 bg-gray-50 border border-gray-200 rounded-md text-sm">
+                        {String(value)} years <span className="ml-2 text-xs text-gray-500">(Read-only)</span>
+                    </div>
+                );
+            }
+
             const placeholder = defaultValue ? String(defaultValue) : '';
             return (
                 <div className="relative">
@@ -623,6 +761,15 @@ const EventParametersForm: React.FC<EventParametersFormProps> = ({
         }
 
         if (paramUnits === 'number_per_year') {
+            // If parameter is not editable, show as read-only
+            if (!isEditable) {
+                return (
+                    <div className="w-full p-2 bg-gray-50 border border-gray-200 rounded-md text-sm">
+                        {String(value)} per year <span className="ml-2 text-xs text-gray-500">(Read-only)</span>
+                    </div>
+                );
+            }
+
             const placeholder = defaultValue ? String(defaultValue) : '';
 
             // Define pay frequency options with their annual counts
@@ -707,6 +854,15 @@ const EventParametersForm: React.FC<EventParametersFormProps> = ({
         }
 
         if (paramUnits === 'enum') {
+            // If parameter is not editable, show as read-only
+            if (!isEditable) {
+                return (
+                    <div className="w-full p-2 bg-gray-50 border border-gray-200 rounded-md text-sm">
+                        {String(value)} <span className="ml-2 text-xs text-gray-500">(Read-only)</span>
+                    </div>
+                );
+            }
+
             const options = getParameterOptions(typeToUse, param.type);
             return (
                 <Select
@@ -725,6 +881,15 @@ const EventParametersForm: React.FC<EventParametersFormProps> = ({
                         ))}
                     </SelectContent>
                 </Select>
+            );
+        }
+
+        // If parameter is not editable, show as read-only
+        if (!isEditable) {
+            return (
+                <div className="w-full p-2 bg-gray-50 border border-gray-200 rounded-md text-sm">
+                    {String(value)} <span className="ml-2 text-xs text-gray-500">(Read-only)</span>
+                </div>
             );
         }
 

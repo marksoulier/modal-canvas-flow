@@ -6,11 +6,12 @@ import {
   DialogTitle,
 } from './ui/dialog';
 import { Button } from './ui/button';
-import { Download, Cloud } from 'lucide-react';
+import { Download, Cloud, Camera, Loader2 } from 'lucide-react';
 import { usePlan } from '../contexts/PlanContext';
 import { useAuth } from '../contexts/AuthContext';
 import { toast } from 'sonner';
 import OverwriteConfirmDialog from './OverwriteConfirmDialog';
+
 
 interface SaveModalProps {
   isOpen: boolean;
@@ -21,31 +22,58 @@ interface SaveModalProps {
 const SaveModal: React.FC<SaveModalProps> = ({ isOpen, onClose, onShowAuth }) => {
   const [selectedOption, setSelectedOption] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [isCapturing, setIsCapturing] = useState(false);
   const [showOverwriteDialog, setShowOverwriteDialog] = useState(false);
   const [conflictPlanName, setConflictPlanName] = useState('');
-  const { savePlanToFile, plan } = usePlan();
+  const [capturedPlanImage, setCapturedPlanImage] = useState<string | undefined>(undefined);
+  const { savePlanToFile, plan, captureVisualizationAsSVG } = usePlan();
   const { user, savePlanToCloud, confirmOverwritePlan } = useAuth();
 
-  const saveToCloud = async () => {
+  const saveToCloudWithImage = async () => {
+    console.log('saveToCloudWithImage');
     if (!plan) {
-      toast.error('No plan data to save');
+      toast.error('No plan to save');
       return;
     }
 
-    setIsSaving(true);
+    if (!plan.title || !plan.title.trim()) {
+      toast.error('Please set a plan title before saving');
+      return;
+    }
+
+    setIsCapturing(true);
     try {
-      const result = await savePlanToCloud(plan);
+      // Capture the visualization as SVG
+      const planSVG = captureVisualizationAsSVG();
+
+      if (!planSVG) {
+        toast.error('Failed to capture visualization SVG');
+        return;
+      }
+
+      console.log('planSVG', planSVG);
+      setCapturedPlanImage(planSVG);
+
+      setIsCapturing(false);
+      setIsSaving(true);
+
+      // Save the plan with the SVG
+      const result = await savePlanToCloud(plan, planSVG);
 
       if (result.success) {
+        toast.success('Plan saved successfully with image!');
         onClose();
       } else if (result.requiresConfirmation && result.existingPlanName) {
         setConflictPlanName(result.existingPlanName);
         setShowOverwriteDialog(true);
+      } else {
+        toast.error('Failed to save plan');
       }
     } catch (error: any) {
-      console.error('Error saving to cloud:', error);
-      toast.error('Failed to save plan to cloud. Please try again.');
+      console.error('Error saving plan with image:', error);
+      toast.error('Failed to save plan with image');
     } finally {
+      setIsCapturing(false);
       setIsSaving(false);
     }
   };
@@ -57,7 +85,7 @@ const SaveModal: React.FC<SaveModalProps> = ({ isOpen, onClose, onShowAuth }) =>
     setIsSaving(true);
 
     try {
-      const success = await confirmOverwritePlan(plan, conflictPlanName);
+      const success = await confirmOverwritePlan(plan, conflictPlanName, capturedPlanImage);
       if (success) {
         onClose();
       }
@@ -72,6 +100,7 @@ const SaveModal: React.FC<SaveModalProps> = ({ isOpen, onClose, onShowAuth }) =>
   const handleOverwriteCancel = () => {
     setShowOverwriteDialog(false);
     setConflictPlanName('');
+    setCapturedPlanImage(undefined);
   };
 
   const handleCloudSaveClick = () => {
@@ -79,7 +108,7 @@ const SaveModal: React.FC<SaveModalProps> = ({ isOpen, onClose, onShowAuth }) =>
       onShowAuth();
       onClose();
     } else {
-      saveToCloud();
+      saveToCloudWithImage();
     }
   };
 
@@ -119,13 +148,19 @@ const SaveModal: React.FC<SaveModalProps> = ({ isOpen, onClose, onShowAuth }) =>
               <button
                 key={option.id}
                 onClick={option.onClick}
-                disabled={isSaving}
+                disabled={isSaving || isCapturing}
                 className={`w-full flex items-center gap-3 p-4 text-left border rounded-lg transition-colors hover:bg-accent
-                ${!user && option.id === 'cloud' ? 'opacity-75' : ''}`}
+                ${!user && (option.id === 'cloud' || option.id === 'cloud-with-image') ? 'opacity-75' : ''}`}
               >
-                <option.icon size={20} className={option.color} />
+                {isCapturing && option.id === 'cloud-with-image' ? (
+                  <Loader2 size={20} className="animate-spin" />
+                ) : (
+                  <option.icon size={20} className={option.color} />
+                )}
                 <div>
-                  <div className="font-medium">{option.title}</div>
+                  <div className="font-medium">
+                    {isCapturing && option.id === 'cloud-with-image' ? 'Capturing...' : option.title}
+                  </div>
                   <div className="text-sm text-muted-foreground">{option.description}</div>
                 </div>
               </button>

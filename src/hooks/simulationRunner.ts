@@ -9,7 +9,7 @@ import {
     get_wage_job, transfer_money, income_with_changing_parameters,
     declare_accounts, purchase,
     monthly_budgeting, roth_ira_contribution, tax_payment_estimated,
-    reoccuring_spending_inflation_adjusted, loan_amortization,
+    reoccuring_spending_inflation_adjusted, loan_amortization, loan,
     federal_subsidized_loan, federal_unsubsidized_loan, private_student_loan,
     usa_tax_system
 } from './baseFunctions';
@@ -73,7 +73,7 @@ export async function runSimulation(
 
         const parsedEvents = parseEvents(plan);
         const envelopes = initializeEnvelopes(plan, simulation_settings);
-        //console.log('Initialized envelopes:', envelopes);
+        console.log('Initialized envelopes:', envelopes);
         // Collect manual_correction events to process at the end
         const manualCorrectionEvents: any[] = [];
         // Collect declare_accounts events to process at the end
@@ -123,6 +123,7 @@ export async function runSimulation(
                 case 'roth_ira_contribution': roth_ira_contribution(event, envelopes); break;
                 case 'tax_payment_estimated': tax_payment_estimated(event, envelopes); break;
                 case 'loan_amortization': loan_amortization(event, envelopes); break;
+                case 'loan': loan(event, envelopes); break;
                 case 'federal_subsidized_loan': federal_subsidized_loan(event, envelopes); break;
                 case 'federal_unsubsidized_loan': federal_unsubsidized_loan(event, envelopes); break;
                 case 'private_student_loan': private_student_loan(event, envelopes); break;
@@ -162,6 +163,8 @@ export async function runSimulation(
             Object.entries(envelopes)
                 .filter(([key, env]) => key !== 'simulation_settings')
         );
+
+        console.log("allEvalEnvelopes", allEvalEnvelopes);
 
         let allResults;
         if (plan.adjust_for_inflation) {

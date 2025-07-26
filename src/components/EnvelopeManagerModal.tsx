@@ -8,7 +8,7 @@ import { Pencil, Trash2 } from 'lucide-react';
 interface EnvelopeManagerModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onEditEnvelope: (envelope: { name: string; category: string; growth: string; rate: number }) => void;
+  onEditEnvelope: (envelope: { name: string; category: string; growth: string; rate: number; account_type: string }) => void;
   onAddEnvelope?: () => void;
 }
 
