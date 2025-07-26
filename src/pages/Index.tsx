@@ -27,6 +27,7 @@ import PlanPreferencesModal from '../components/PlanPreferencesModal';
 import OnboardingFlow from '../components/OnboardingFlow';
 import { extractSchema, validateProblem } from '../hooks/schemaChecker';
 import { formatNumber } from '../visualization/viz_utils';
+import PremiumConfirmationModal from '../components/PremiumConfirmationModal';
 
 const Index = () => {
   const [helpModalOpen, setHelpModalOpen] = useState(false);
@@ -48,6 +49,7 @@ const Index = () => {
   const titleInputRef = useRef<HTMLInputElement>(null);
   const [editingEnvelope, setEditingEnvelope] = useState<Envelope | null>(null);
   const [isAddingEnvelope, setIsAddingEnvelope] = useState(false);
+  const [premiumConfirmationOpen, setPremiumConfirmationOpen] = useState(false);
 
   // Use real authentication from AuthContext
   const { user, signOut: authSignOut, logAnonymousButtonClick } = useAuth();
@@ -78,6 +80,20 @@ const Index = () => {
       showPostSignInModals();
     }
   }, [user, showPostSignInModals]); // Depend on user state to ensure it runs when user is loaded
+
+  // Check for Stripe return on app startup
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const success = urlParams.get('success');
+    const sessionId = urlParams.get('session_id');
+
+    if (success === 'true' && sessionId) {
+      // Clear the URL parameters
+      window.history.replaceState({}, document.title, window.location.pathname);
+      // Show the premium confirmation modal
+      setPremiumConfirmationOpen(true);
+    }
+  }, []); // Empty dependency array means this runs once on mount
 
   const handleAnnotationClick = (eventId: number) => {
     setEditingEventId(eventId);
@@ -512,6 +528,12 @@ const Index = () => {
           setEditingEventId(newId);
           setEventParametersOpen(true);
         }}
+      />
+
+      {/* Add PremiumConfirmationModal to the list of modals */}
+      <PremiumConfirmationModal
+        isOpen={premiumConfirmationOpen}
+        onClose={() => setPremiumConfirmationOpen(false)}
       />
     </div>
   );
