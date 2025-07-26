@@ -357,7 +357,7 @@ const UserAccountModal: React.FC<UserAccountModalProps> = ({ isOpen, onClose, on
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-5xl max-h-[85vh] p-0 gap-0">
+      <DialogContent className="sm:max-w-5xl h-[85vh] max-h-[85vh] p-0 gap-0 fixed inset-0 m-auto">
         <div className="flex h-full">
           {/* Sidebar */}
           <div className="w-64 bg-muted/30 border-r border-border p-6">
@@ -396,7 +396,7 @@ const UserAccountModal: React.FC<UserAccountModalProps> = ({ isOpen, onClose, on
           </div>
 
           {/* Main Content */}
-          <div className="flex-1 p-8 overflow-y-auto">
+          <div className="flex-1 p-8 overflow-y-auto max-h-full">
             {activeTab === 'profile' && renderProfileContent()}
             {activeTab === 'subscription' && renderSubscriptionContent()}
             {activeTab === 'plans' && renderPlansContent()}
