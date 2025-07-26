@@ -10,6 +10,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { DollarSign, Target, Home, Plane, Users, Coffee, TrendingUp, PiggyBank, Building, CreditCard, Wallet, Shield, Leaf, Mountain, Sparkles } from 'lucide-react';
 import { usePlan } from '../contexts/PlanContext';
 import { useAuth } from '../contexts/AuthContext';
+import { toast } from 'sonner';
 
 interface OnboardingFlowProps {
   isOpen: boolean;
@@ -109,15 +110,24 @@ const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ isOpen, onComplete, onA
   const handleNext = async () => {
 
     // After modal 3 I want to save their birthdate to the plan and then save their location to usa_tax_
-    
+
     if (currentStep === 3) {
 
       // Update birth date in plan
       //Calculate days from current birth date to the new birth date
+
+      // Check for invalid birth date or today or in the future
+      if (data.birthDate === '' || data.birthDate === new Date().toISOString().split('T')[0] || data.birthDate > new Date().toISOString().split('T')[0]) {
+        toast.error('Please enter a valid birth date');
+        return;
+      }
+
       const currentBirthDate = new Date(plan?.birth_date || new Date());
       const newBirthDate = new Date(data.birthDate);
       const daysFromCurrentBirthDate = Math.floor((newBirthDate.getTime() - currentBirthDate.getTime()) / (1000 * 60 * 60 * 24));
       console.log("daysFromCurrentBirthDate", daysFromCurrentBirthDate);
+
+
       updateBirthDate(daysFromCurrentBirthDate);
 
       // Add usa_tax_system event
