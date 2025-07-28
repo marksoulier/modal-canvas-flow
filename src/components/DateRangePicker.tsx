@@ -9,7 +9,7 @@ import {
 import { cn } from '../lib/utils';
 import { formatDate } from '../visualization/viz_utils';
 import DatePicker from './DatePicker';
-import { usePlan } from '../contexts/PlanContext';
+import { usePlan, daysSinceBirthToDateString, dateStringToDaysSinceBirth } from '../contexts/PlanContext';
 
 interface DateRangePickerProps {
     className?: string;
@@ -18,8 +18,8 @@ interface DateRangePickerProps {
 const DateRangePicker: React.FC<DateRangePickerProps> = ({ className }) => {
     const { plan, setZoomToDateRange, getCurrentVisualizationRange, loadPlan } = usePlan();
     const [isOpen, setIsOpen] = useState(false);
-    const [startDay, setStartDay] = useState<number>(0);
-    const [endDay, setEndDay] = useState<number>(0);
+    const [startDateString, setStartDateString] = useState<string>("");
+    const [endDateString, setEndDateString] = useState<string>("");
     const [isInitialized, setIsInitialized] = useState(false);
     const [displayText, setDisplayText] = useState<string>('Select Date Range');
 
@@ -33,8 +33,11 @@ const DateRangePicker: React.FC<DateRangePickerProps> = ({ className }) => {
 
         const currentRange = getCurrentVisualizationRange();
         if (currentRange) {
-            setStartDay(currentRange.startDay);
-            setEndDay(currentRange.endDay);
+            // Convert days since birth to date strings
+            const startDateStr = daysSinceBirthToDateString(currentRange.startDay, plan.birth_date);
+            const endDateStr = daysSinceBirthToDateString(currentRange.endDay, plan.birth_date);
+            setStartDateString(startDateStr);
+            setEndDateString(endDateStr);
             lastKnownRangeRef.current = currentRange;
             setIsInitialized(true);
         }
@@ -56,9 +59,11 @@ const DateRangePicker: React.FC<DateRangePickerProps> = ({ className }) => {
                 new: currentRange
             });
 
-            // Update local state to reflect current visualization range
-            setStartDay(currentRange.startDay);
-            setEndDay(currentRange.endDay);
+            // Convert days since birth to date strings
+            const startDateStr = daysSinceBirthToDateString(currentRange.startDay, plan.birth_date);
+            const endDateStr = daysSinceBirthToDateString(currentRange.endDay, plan.birth_date);
+            setStartDateString(startDateStr);
+            setEndDateString(endDateStr);
             lastKnownRangeRef.current = currentRange;
 
             // Update display text
@@ -71,8 +76,11 @@ const DateRangePicker: React.FC<DateRangePickerProps> = ({ className }) => {
         if (isOpen && plan) {
             const currentRange = getCurrentVisualizationRange();
             if (currentRange) {
-                setStartDay(currentRange.startDay);
-                setEndDay(currentRange.endDay);
+                // Convert days since birth to date strings
+                const startDateStr = daysSinceBirthToDateString(currentRange.startDay, plan.birth_date);
+                const endDateStr = daysSinceBirthToDateString(currentRange.endDay, plan.birth_date);
+                setStartDateString(startDateStr);
+                setEndDateString(endDateStr);
             }
         }
     }, [isOpen, plan, getCurrentVisualizationRange]);
@@ -117,8 +125,11 @@ const DateRangePicker: React.FC<DateRangePickerProps> = ({ className }) => {
                     lastKnownRangeRef.current?.endDay !== currentRange.endDay)) {
 
                 console.log("DateRangePicker - polling update:", currentRange);
-                setStartDay(currentRange.startDay);
-                setEndDay(currentRange.endDay);
+                // Convert days since birth to date strings
+                const startDateStr = daysSinceBirthToDateString(currentRange.startDay, plan.birth_date);
+                const endDateStr = daysSinceBirthToDateString(currentRange.endDay, plan.birth_date);
+                setStartDateString(startDateStr);
+                setEndDateString(endDateStr);
                 lastKnownRangeRef.current = currentRange;
                 updateDisplayText(currentRange);
             }
@@ -132,18 +143,18 @@ const DateRangePicker: React.FC<DateRangePickerProps> = ({ className }) => {
 
         isUpdatingRef.current = true;
 
+        // Convert date strings to days since birth
+        const startDay = dateStringToDaysSinceBirth(startDateString, plan.birth_date);
+        const endDay = dateStringToDaysSinceBirth(endDateString, plan.birth_date);
+
         // Set the zoom range
         setZoomToDateRange(startDay, endDay);
 
         // Update the plan's view dates
-        const birthDate = new Date(plan.birth_date + 'T00:00:00');
-        const startDate = new Date(birthDate.getTime() + startDay * 24 * 60 * 60 * 1000);
-        const endDate = new Date(birthDate.getTime() + endDay * 24 * 60 * 60 * 1000);
-
         const updatedPlan = {
             ...plan,
-            view_start_date: startDate.toISOString().split('T')[0],
-            view_end_date: endDate.toISOString().split('T')[0]
+            view_start_date: startDateString,
+            view_end_date: endDateString
         };
 
         loadPlan(updatedPlan);
@@ -206,17 +217,15 @@ const DateRangePicker: React.FC<DateRangePickerProps> = ({ className }) => {
                             <div className="space-y-2">
                                 <label className="text-sm font-medium text-gray-700">Start Date</label>
                                 <DatePicker
-                                    value={startDay}
-                                    onChange={setStartDay}
-                                    birthDate={plan.birth_date}
+                                    value={startDateString}
+                                    onChange={setStartDateString}
                                 />
                             </div>
                             <div className="space-y-2">
                                 <label className="text-sm font-medium text-gray-700">End Date</label>
                                 <DatePicker
-                                    value={endDay}
-                                    onChange={setEndDay}
-                                    birthDate={plan.birth_date}
+                                    value={endDateString}
+                                    onChange={setEndDateString}
                                 />
                             </div>
                         </div>

@@ -729,7 +729,7 @@
         {
             "type": "loan",
             "display_type": "Loan",
-            "display_event": false,
+            "display_event": true,
             "is_recurring": false,
             "can_be_reocurring": true,
             "weight": 10,
@@ -1806,6 +1806,14 @@
                     "description": "Annual tax as a percentage of home value.",
                     "default": 0.015,
                     "editable": true
+                },
+                {
+                    "type": "end_time",
+                    "display_name": "Loan End Date",
+                    "parameter_units": "date",
+                    "description": "When the mortgage will be paid off (calculated automatically).",
+                    "default": 0,
+                    "editable": false
                 }
             ],
             "updating_events": [

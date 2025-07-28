@@ -11,7 +11,8 @@ import { DollarSign, Target, Home, Plane, Users, Coffee, TrendingUp, PiggyBank, 
 import { usePlan } from '../contexts/PlanContext';
 import { useAuth } from '../contexts/AuthContext';
 import { toast } from 'sonner';
-import { getDaysFromAge, getAgeFromDays } from '../visualization/viz_utils';
+import { getDaysFromAge, getAgeFromDays, getTargetDateFromBirthAndAge } from '../visualization/viz_utils';
+import DatePicker from './DatePicker';
 
 interface OnboardingFlowProps {
   isOpen: boolean;
@@ -128,24 +129,22 @@ const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ isOpen, onComplete, onA
         return;
       }
 
-      const currentBirthDate = new Date(plan?.birth_date || new Date());
       const newBirthDate = new Date(data.birthDate);
-      const daysFromCurrentBirthDate = Math.floor((newBirthDate.getTime() - currentBirthDate.getTime()) / (1000 * 60 * 60 * 24));
-      console.log("daysFromCurrentBirthDate", daysFromCurrentBirthDate);
+      const birthDateString = newBirthDate.toISOString().split('T')[0];
+      console.log("birthDateString", birthDateString);
 
+      updateBirthDate(birthDateString);
 
-      updateBirthDate(daysFromCurrentBirthDate);
-
-      // Add usa_tax_system event
+      // Add usa_tax_system event with birth date as start_time
       addEvent("usa_tax_system", {
-        start_time: 0,
+        start_time: birthDateString,
         location: data.location
       }, true);
     }
     // After monthly budget step (step 5, index 4)
     if (currentStep === 4) {
       const monthlyBudgetingParams = {
-        end_time: 29200,
+        end_time: getTargetDateFromBirthAndAge(data.birthDate, 80), // End at age 80
         frequency_days: 30,
         from_key: "Other (Cash)",
         groceries: data.budgetCategories.food,
@@ -167,7 +166,7 @@ const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ isOpen, onComplete, onA
     // After account balances step (step 6, index 5)
     if (currentStep === 5) {
       const declareAccountsParams = {
-        end_time: 36500,
+        end_time: getTargetDateFromBirthAndAge(data.birthDate, 100), // End at age 100
         frequency_days: 365,
         amount1: data.accounts.cash,
         envelope1: "Other (Cash)",
@@ -189,8 +188,8 @@ const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ isOpen, onComplete, onA
     if (currentStep === 7) {
       // Add retirement event
       const retirementParams = {
-        start_time: data.retirementStartDay || 0,
-        end_time: 36500,
+        start_time: data.retirementStartDay ? getTargetDateFromBirthAndAge(data.birthDate, data.retirementAge || 65) : data.birthDate,
+        end_time: getTargetDateFromBirthAndAge(data.birthDate, 100), // End at age 100
         amount: data.monthlyRetirementIncome || 3000,
         amount_roth_ira: 0,
       };
@@ -408,11 +407,10 @@ const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ isOpen, onComplete, onA
             </div>
             <div>
               <Label htmlFor="birthDate">Birth Date</Label>
-              <Input
-                id="birthDate"
-                type="date"
+              <DatePicker
                 value={data.birthDate}
-                onChange={(e) => setData(prev => ({ ...prev, birthDate: e.target.value }))}
+                onChange={(date) => setData(prev => ({ ...prev, birthDate: date || '' }))}
+                showAgeInput={false}
               />
               <p className="text-xs text-muted-foreground mt-1">
                 Used to calculate changes in net worth at age 59½ due to tax advantage accounts
@@ -759,7 +757,7 @@ const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ isOpen, onComplete, onA
                     const today = new Date();
                     const currentAgeInDays = Math.floor((today.getTime() - birthDate.getTime()) / (1000 * 60 * 60 * 24));
                     const currentAge = getAgeFromDays(currentAgeInDays);
-                    
+
                     // Calculate days until retirement
                     const retirementAgeInDays = getDaysFromAge(age);
                     const daysUntilRetirement = retirementAgeInDays;

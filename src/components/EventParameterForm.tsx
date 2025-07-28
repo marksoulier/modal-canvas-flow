@@ -24,7 +24,7 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from './ui/tooltip';
-import { usePlan, findEventOrUpdatingEventById, getEventDefinition } from '../contexts/PlanContext';
+import { usePlan, findEventOrUpdatingEventById, getEventDefinition, dateStringToDaysSinceBirth } from '../contexts/PlanContext';
 import type { Plan, Event, Parameter, Schema, SchemaEvent, UpdatingEvent } from '../contexts/PlanContext';
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from './ui/accordion';
 import DatePicker from './DatePicker';
@@ -251,18 +251,16 @@ const EventParametersForm: React.FC<EventParametersFormProps> = ({
     };
 
     const renderDatePicker = (param: Parameter, event: (Event | UpdatingEvent)) => {
-        if (!plan?.birth_date) return null;
         const paramData = parameters[event.id]?.[param.id];
-        const value = paramData?.value || 0;
+        const value = paramData?.value || '';
 
         return (
             <DatePicker
-                value={value}
+                value={String(value)}
                 onChange={(newValue) => {
                     handleInputChange(event.id, param.id, newValue);
                     handleInputBlur(param.id, newValue, event.id);
                 }}
-                birthDate={plan.birth_date}
                 placeholder="Pick a date"
             />
         );
@@ -470,14 +468,18 @@ const EventParametersForm: React.FC<EventParametersFormProps> = ({
             let todayValue = '';
             let actualValue = value;
             const placeholder = defaultValue ? String(defaultValue) : '';
-            // Get eventDay from 'start_date' parameter
+            // Get eventDay from 'start_time' parameter
             let eventDay = currentDay;
             if (plan && plan.events) {
                 const eventMain = plan.events.find(e => e.id === eventId);
                 if (eventMain) {
                     const startDateParam = eventMain.parameters.find(p => p.type === 'start_time');
-                    if (startDateParam) {
-                        eventDay = Number(startDateParam.value) || currentDay;
+                    if (startDateParam && typeof startDateParam.value === 'string') {
+                        // Convert date string to days since birth
+                        eventDay = dateStringToDaysSinceBirth(startDateParam.value, plan.birth_date);
+                    } else if (startDateParam && typeof startDateParam.value === 'number') {
+                        // Legacy: value is already days since birth
+                        eventDay = startDateParam.value;
                     }
                 }
             }
@@ -634,10 +636,10 @@ const EventParametersForm: React.FC<EventParametersFormProps> = ({
                 { label: 'Daily', value: 1 },
                 { label: 'Weekly', value: 7 },
                 { label: 'Biweekly', value: 14 },
-                { label: 'Monthly', value: 30 },
-                { label: 'Quarterly', value: 90 },
-                { label: 'Semi-annually', value: 182 },
-                { label: 'Yearly', value: 365 },
+                { label: 'Monthly', value: 365.25 / 12 },
+                { label: 'Quarterly', value: 365.25 / 4 },
+                { label: 'Semi-annually', value: 365.25 / 2 },
+                { label: 'Yearly', value: 365.25 },
                 { label: 'Custom', value: 'custom' }
             ];
 

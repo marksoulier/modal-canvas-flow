@@ -5,6 +5,18 @@ import defaultPlanData from '@/data/plan.json';
 import defaultLockedPlanData from '@/data/plan_locked.json';
 import { useAuth } from './AuthContext';
 
+// Utility functions for date conversion
+export const dateStringToDaysSinceBirth = (dateString: string, birthDate: string): number => {
+    const birth = new Date(birthDate + 'T00:00:00');
+    const targetDate = new Date(dateString + 'T00:00:00');
+    return Math.floor((targetDate.getTime() - birth.getTime()) / (24 * 60 * 60 * 1000));
+};
+
+export const daysSinceBirthToDateString = (days: number, birthDate: string): string => {
+    const birth = new Date(birthDate + 'T00:00:00');
+    const targetDate = new Date(birth.getTime() + days * 24 * 60 * 60 * 1000);
+    return targetDate.toISOString().split('T')[0]; // Format as YYYY-MM-DD
+};
 
 // Map of Lucide icon names to schema icon names
 export const iconMap: Record<string, string> = {
@@ -173,7 +185,7 @@ interface PlanContextType {
     updateEventDescription: (eventId: number, newDescription: string) => void;
     updateEventTitle: (eventId: number, newTitle: string) => void;
     updatePlanTitle: (newTitle: string) => void;
-    updateBirthDate: (daysFromCurrent: number) => void;
+    updateBirthDate: (birthDateString: string) => void;
     getEventDisclaimer: (eventType: string) => string;
     getParameterOptions: (eventType: string, parameterType: string) => string[];
     setAdjustForInflation: (value: boolean) => void;
@@ -193,6 +205,7 @@ interface PlanContextType {
     getCurrentVisualizationRange: () => { startDay: number; endDay: number } | null; // <-- add this
     registerCurrentVisualizationRange: (range: { startDay: number; endDay: number } | null) => void; // <-- add this
     setVisualizationReady: (ready: boolean) => void; // <-- add this new method
+    convertDateParametersToDays: (events: any[]) => any[]; // <-- add this new method
 }
 
 // Schema and default data are now imported directly
@@ -601,11 +614,12 @@ export function PlanProvider({ children }: PlanProviderProps) {
             if (wasOverridden) {
                 value = parameterOverrides[param.type];
             } else if (
-                (param.type === 'start_time' || param.type === 'end_time' || param.type === 'graduation_date') &&
+                param.parameter_units === 'date' &&
                 typeof value === 'number'
             ) {
-                // Only add currentDay if the value wasn't overridden
-                value = value + currentDay;
+                // Calculate total days since birth and convert to date string
+                const totalDays = value + currentDay;
+                value = daysSinceBirthToDateString(totalDays, plan.birth_date);
             }
 
             console.log("param.type: ", param.type, "value: ", value, "wasOverridden:", wasOverridden);
@@ -674,10 +688,18 @@ export function PlanProvider({ children }: PlanProviderProps) {
             value: param.default
         }));
 
-        // For start_time and end_time parameters add the main event's start_time
+        // For date parameters, add the main event's start_time
         parameters.forEach(param => {
-            if (param.type === 'start_time' || param.type === 'end_time') {
-                param.value = Number(param.value) + Number(mainEvent.parameters.find(p => p.type === 'start_time')?.value);
+            // Get the parameter schema to check parameter_units
+            const paramSchema = updatingEventSchema.parameters.find(p => p.type === param.type);
+            if (paramSchema && paramSchema.parameter_units === 'date') {
+                const mainEventStartTime = mainEvent.parameters.find(p => p.type === 'start_time')?.value;
+                if (typeof mainEventStartTime === 'string') {
+                    // Convert main event's date string to days since birth, add offset, then convert back to date string
+                    const mainEventDays = dateStringToDaysSinceBirth(mainEventStartTime, plan.birth_date);
+                    const totalDays = mainEventDays + Number(param.value);
+                    param.value = daysSinceBirthToDateString(totalDays, plan.birth_date);
+                }
             }
         });
 
@@ -872,16 +894,13 @@ export function PlanProvider({ children }: PlanProviderProps) {
         });
     }, [plan]);
 
-    const updateBirthDate = useCallback((daysFromCurrent: number) => {
+    const updateBirthDate = useCallback((birthDateString: string) => {
         if (!plan) {
             throw new Error('No plan data available');
         }
         setPlan(prevPlan => {
             if (!prevPlan) return null;
-            const currentBirthDate = new Date(prevPlan.birth_date);
-            const newBirthDate = new Date(currentBirthDate.getTime() + daysFromCurrent * 24 * 60 * 60 * 1000);
-            const newBirthDateStr = newBirthDate.toISOString().split('T')[0];
-            return { ...prevPlan, birth_date: newBirthDateStr };
+            return { ...prevPlan, birth_date: birthDateString };
         });
     }, [plan]);
 
@@ -1083,6 +1102,68 @@ export function PlanProvider({ children }: PlanProviderProps) {
         return result;
     }, [plan]);
 
+    const convertDateParametersToDays = useCallback((events: any[]) => {
+        if (!schema || !plan) return events;
+
+        return events.map(event => {
+            const convertedEvent = { ...event };
+
+            if (convertedEvent.parameters) {
+                convertedEvent.parameters = convertedEvent.parameters.map((param: any) => {
+                    const convertedParam = { ...param };
+
+                    // Find the event schema to get parameter definitions
+                    const eventSchema = schema.events.find((e: any) => e.type === event.type);
+                    if (eventSchema) {
+                        const paramSchema = eventSchema.parameters.find((p: any) => p.type === param.type);
+                        if (paramSchema && paramSchema.parameter_units === 'date') {
+                            // Convert date string parameters to days since birth
+                            if (typeof param.value === 'string') {
+                                convertedParam.value = dateStringToDaysSinceBirth(param.value, plan.birth_date);
+                            }
+                        }
+                    }
+
+                    return convertedParam;
+                });
+            }
+
+            // Handle updating events
+            if (convertedEvent.updating_events) {
+                convertedEvent.updating_events = convertedEvent.updating_events.map((updatingEvent: any) => {
+                    const convertedUpdatingEvent = { ...updatingEvent };
+
+                    if (convertedUpdatingEvent.parameters) {
+                        convertedUpdatingEvent.parameters = convertedUpdatingEvent.parameters.map((param: any) => {
+                            const convertedParam = { ...param };
+
+                            // Find the updating event schema to get parameter definitions
+                            const mainEventSchema = schema.events.find((e: any) => e.type === event.type);
+                            if (mainEventSchema?.updating_events) {
+                                const updatingEventSchema = mainEventSchema.updating_events.find((ue: any) => ue.type === updatingEvent.type);
+                                if (updatingEventSchema) {
+                                    const paramSchema = updatingEventSchema.parameters.find((p: any) => p.type === param.type);
+                                    if (paramSchema && paramSchema.parameter_units === 'date') {
+                                        // Convert date string parameters to days since birth
+                                        if (typeof param.value === 'string') {
+                                            convertedParam.value = dateStringToDaysSinceBirth(param.value, plan.birth_date);
+                                        }
+                                    }
+                                }
+                            }
+
+                            return convertedParam;
+                        });
+                    }
+
+                    return convertedUpdatingEvent;
+                });
+            }
+
+            return convertedEvent;
+        });
+    }, [schema, plan]);
+
     const value = {
         plan,
         plan_locked, // <-- add to context value
@@ -1136,6 +1217,7 @@ export function PlanProvider({ children }: PlanProviderProps) {
         setVisualizationReady: (ready: boolean) => {
             setIsVisualizationReady(ready);
         },
+        convertDateParametersToDays, // <-- add to context value
     };
 
     // Don't render children until we've attempted to load the default plan and schema

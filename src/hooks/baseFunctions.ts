@@ -48,7 +48,6 @@ export const R = (
     f: (params: Record<string, any>, t: number) => number,
     theta: Theta,
     theta_g: Record<string, any>,
-    omega: Record<number, [number, Theta]> = {}
 ): ((t: number) => number) => {
     const t0 = theta_re.t0;
     const dt = theta_re.dt;
@@ -65,12 +64,6 @@ export const R = (
             // Check if there's an override for this index
             let current_t = ti;
             let current_theta = theta;
-
-            if (i in omega) {
-                const [t_hat, theta_prime] = omega[i];
-                current_t = t_hat;
-                current_theta = theta_prime;
-            }
 
             // Apply the occurrence function with growth
             const occurrence = T({ t_k: current_t }, f, current_theta, theta_g, t0);
@@ -112,17 +105,17 @@ export const f_growth = (theta_g: Record<string, any>, t: number): number => {
     const r = theta_g.r;
 
     if (growth_type === "Daily Compound") {
-        return Math.pow(1 + r / 365, 365 * t / 365);
+        return Math.pow(1 + r / 365.25, t);
     } else if (growth_type === "Monthly Compound") {
         return Math.pow(1 + r / 12, 12 * t / 365);
     } else if (growth_type === "Yearly Compound") {
-        return Math.pow(1 + r, t / 365);
+        return Math.pow(1 + r, t / 365.25);
     } else if (growth_type === "Simple Interest") {
-        return 1 + r * (t / 365);
+        return 1 + r * (t / 365.25);
     } else if (growth_type === "Appreciation") {
-        return 1 + r * (t / 365);
+        return 1 + r * (t / 365.25);
     } else if (growth_type === "Depreciation") {
-        return Math.max(0, Math.pow(1 - r, t / 365));
+        return Math.max(0, Math.pow(1 - r, t / 365.25));
     } else if (growth_type === "Depreciation (Days)") {
         const days = theta_g.days_of_usefulness;
         if (!days || days <= 0) throw new Error("days_of_usefulness must be positive");
@@ -210,7 +203,7 @@ export const f_401 = (theta_401: Record<string, any>, t: number): number => {
 // Mortgage payment calculation - REMOVED (no longer used)
 
 export const f_principal_payment = (theta: Record<string, any>, t: number): number => {
-    const months = Math.floor(t / (365 / 12));
+    const months = Math.floor(t / (365.25 / 12));
     const r = theta.r;
     const y = theta.y;
     const Loan = theta.P;
@@ -278,7 +271,7 @@ export const O_empirical = (theta: Record<string, any>, t: number): number => {
 };
 
 export const f_get_job = (theta: Record<string, any>, t: number): number => {
-    return R({ t0: theta.time_start, dt: 365 / theta.p, tf: theta.time_end }, f_salary, P(theta), { type: "None", r: 0.0 })(t);
+    return R({ t0: theta.time_start, dt: 365.25 / theta.p, tf: theta.time_end }, f_salary, P(theta), { type: "None", r: 0.0 })(t);
 };
 
 export const outflow = (event: any, envelopes: Record<string, any>) => {
@@ -563,7 +556,7 @@ export const loan_amortization = (event: any, envelopes: Record<string, any>) =>
 
     // Now pay off the loan in an amortization schedule, aply principle payments to the debt
     const loan_amortization = R(
-        { t0: params.start_time + 30, dt: 365 / 12, tf: params.start_time + params.loan_term_years * 365 },
+        { t0: params.start_time + 365.25 / 12, dt: 365.25 / 12, tf: params.start_time + params.loan_term_years * 365.25 },
         f_principal_payment,
         P({ P: params.principal, r: params.interest_rate, y: params.loan_term_years }),
         theta_growth_source
@@ -572,7 +565,7 @@ export const loan_amortization = (event: any, envelopes: Record<string, any>) =>
 
     // Pay each monthly payment both the interest and the principle
     const payments_func = R(
-        { t0: params.start_time + 30, dt: 365 / 12, tf: params.start_time + params.loan_term_years * 365 },
+        { t0: params.start_time + 365.25 / 12, dt: 365.25 / 12, tf: params.start_time + params.loan_term_years * 365.25 },
         f_monthly_payment,
         P({ P: params.principal, r: params.interest_rate, y: params.loan_term_years }),
         theta_growth_dest
@@ -645,7 +638,7 @@ export const loan = (event: any, envelopes: Record<string, any>) => {
 
     // Now pay off the loan in a reoccuring schedule of monthly payments
     const loan_amortization = R(
-        { t0: params.start_time + 30, dt: 365 / 12, tf: params.start_time + params.loan_term_years * 365 },
+        { t0: params.start_time + 365.25 / 12, dt: 365.25 / 12, tf: params.start_time + params.loan_term_years * 365.25 },
         f_monthly_payment,
         P({ P: -params.principal, r: loan_interest_rate, y: params.loan_term_years }),
         theta_growth_source
@@ -654,7 +647,7 @@ export const loan = (event: any, envelopes: Record<string, any>) => {
 
     // Pay each monthly payment both the interest and the principle
     const payments_func = R(
-        { t0: params.start_time + 30, dt: 365 / 12, tf: params.start_time + params.loan_term_years * 365 },
+        { t0: params.start_time + 365.25 / 12, dt: 365.25 / 12, tf: params.start_time + params.loan_term_years * 365.25 },
         f_monthly_payment,
         P({ P: params.principal, r: loan_interest_rate, y: params.loan_term_years }),
         theta_growth_dest
@@ -663,7 +656,7 @@ export const loan = (event: any, envelopes: Record<string, any>) => {
     envelopes[params.to_key].functions.push(payments_func);
 
     // --- Loan Envelope Correction at End of Payment Cycle ---
-    const loan_end_time = params.start_time + params.loan_term_years * 365;
+    const loan_end_time = params.start_time + params.loan_term_years * 365.25;
     const loanEnvelope = envelopes[params.from_key];
     let loan_balance = 0.0;
     for (const func of loanEnvelope.functions) {
@@ -829,13 +822,13 @@ export const get_job = (event: any, envelopes: Record<string, any>) => {
     // Add salary payments to cash envelope
     const to_key = params.to_key;
     envelopes[to_key].functions.push(
-        R({ t0: params.start_time, dt: 365 / params.pay_period, tf: params.end_time },
+        R({ t0: params.start_time, dt: 365.25 / params.pay_period, tf: params.end_time },
             f_salary, theta, theta_growth_dest)
     );
 
     // Add salary income to taxable income envelope
     envelopes[params.taxable_income_key].functions.push(
-        R({ t0: params.start_time, dt: 365 / params.pay_period, tf: params.end_time },
+        R({ t0: params.start_time, dt: 365.25 / params.pay_period, tf: params.end_time },
             f_in, P({ a: params.salary / params.pay_period }), theta_growth_taxable_income)
     );
 
@@ -847,7 +840,7 @@ export const get_job = (event: any, envelopes: Record<string, any>) => {
     const [_, theta_growth_401k] = get_growth_parameters(envelopes, undefined, params.p_401k_key);
 
     envelopes[params.p_401k_key].functions.push(
-        R({ t0: params.start_time, dt: 365 / params.pay_period, tf: params.end_time },
+        R({ t0: params.start_time, dt: 365.25 / params.pay_period, tf: params.end_time },
             f_in, P({ a: contribution_amount }), theta_growth_401k)
     );
 
@@ -871,7 +864,7 @@ export const get_job = (event: any, envelopes: Record<string, any>) => {
             const [_, theta_growth_withholding] = get_growth_parameters(envelopes, undefined, config.key);
             const withholding_amount = (params.salary / params.pay_period) * config.rate;
             envelopes[config.key].functions.push(
-                R({ t0: params.start_time, dt: 365 / params.pay_period, tf: params.end_time },
+                R({ t0: params.start_time, dt: 365.25 / params.pay_period, tf: params.end_time },
                     f_in, P({ a: withholding_amount }), theta_growth_withholding)
             );
         }
@@ -920,7 +913,7 @@ export const get_wage_job = (event: any, envelopes: Record<string, any>) => {
     // Add wage payments to cash envelope
     const cash_key = params.to_key;
     envelopes[cash_key].functions.push(
-        R({ t0: params.start_time, dt: 365 / params.pay_period, tf: params.end_time },
+        R({ t0: params.start_time, dt: 365.25 / params.pay_period, tf: params.end_time },
             f_wage, theta, theta_growth_dest)
     );
 
@@ -933,13 +926,13 @@ export const get_wage_job = (event: any, envelopes: Record<string, any>) => {
 
     // Add 401(k) contributions
     envelopes[params.p_401k_key].functions.push(
-        R({ t0: params.start_time, dt: 365 / params.pay_period, tf: params.end_time },
+        R({ t0: params.start_time, dt: 365.25 / params.pay_period, tf: params.end_time },
             f_in, P({ a: contribution_amount }), theta_growth_401k)
     );
 };
 
 
-export const buy_house = (event: any, envelopes: Record<string, any>) => {
+export const buy_house = (event: any, envelopes: Record<string, any>, updatePlan?: (updates: Array<{ eventId: number, paramType: string, value: number }>) => void) => {
     const params = event.parameters;
 
     // Get growth parameters for from_key, to_key, and mortgage_envelope
@@ -983,7 +976,7 @@ export const buy_house = (event: any, envelopes: Record<string, any>) => {
 
     // Create mortgage payments to the mortgage envelope tracking the principle payments
     const mortgage_func = R(
-        { t0: params.start_time + 30, dt: 365 / 12, tf: params.start_time + params.loan_term_years * 365 },
+        { t0: params.start_time + 365.25 / 12, dt: 365.25 / 12, tf: params.start_time + params.loan_term_years * 365.25 },
         f_principal_payment,
         P({ P: loan_amount, r: params.loan_rate, y: params.loan_term_years }),
         theta_growth_mortgage
@@ -993,13 +986,26 @@ export const buy_house = (event: any, envelopes: Record<string, any>) => {
 
     // Pay the morgage from the source envelope
     const mortgage_func_source = R(
-        { t0: params.start_time + 30, dt: 365 / 12, tf: params.start_time + params.loan_term_years * 365 },
+        { t0: params.start_time + 365.25 / 12, dt: 365.25 / 12, tf: params.start_time + params.loan_term_years * 365.25 },
         f_monthly_payment,
         P({ P: loan_amount, r: params.loan_rate, y: params.loan_term_years }),
         theta_growth_source
     );
     // Add mortgage payments to source envelope
     envelopes[params.from_key].functions.push(mortgage_func_source);
+
+    // Calculate and update loan end date if callback is provided
+    if (updatePlan) {
+        const loanTermYears = params.loan_term_years || 30;
+        const startDate = params.start_time || 0;
+        const endDate = startDate + (loanTermYears * 365.25);
+
+        updatePlan([{
+            eventId: event.id,
+            paramType: 'end_time',
+            value: endDate
+        }]);
+    }
 
     // Handle updating events
     for (const upd of event.updating_events || []) {
@@ -1040,7 +1046,7 @@ export const buy_house = (event: any, envelopes: Record<string, any>) => {
             if (annualPropertyTax > 0) {
                 // Create a recurring monthly outflow for property tax/12
                 const propertyTaxFunc = R(
-                    { t0: yearStartDay, dt: 30, tf: yearStartDay + 330 }, // 12 payments, approx monthly
+                    { t0: yearStartDay, dt: 365.25 / 12, tf: yearStartDay + 330 }, // 12 payments, approx monthly
                     f_out,
                     P({ b: annualPropertyTax / 12 }),
                     theta_growth_cash
@@ -1124,7 +1130,7 @@ export const buy_car = (event: any, envelopes: Record<string, any>) => {
     // Create car loan payments
     const loan_amount = params.car_value - params.downpayment;
     const loan_payment_func = R(
-        { t0: params.start_time + 30, dt: 365 / 12, tf: params.start_time + params.loan_term_years * 365 },
+        { t0: params.start_time + 365.25 / 12, dt: 365.25 / 12, tf: params.start_time + params.loan_term_years * 365.25 },
         f_monthly_payment,
         P({ P: loan_amount, r: params.loan_rate, y: params.loan_term_years }),
         theta_growth_source
@@ -1135,7 +1141,7 @@ export const buy_car = (event: any, envelopes: Record<string, any>) => {
 
     // Create car loan payments to the mortgage envelope tracking the principle payments
     const car_loan_func = R(
-        { t0: params.start_time + 30, dt: 365 / 12, tf: params.start_time + params.loan_term_years * 365 },
+        { t0: params.start_time + 365.25 / 12, dt: 365.25 / 12, tf: params.start_time + params.loan_term_years * 365.25 },
         f_principal_payment,
         P({ P: loan_amount, r: params.loan_rate, y: params.loan_term_years }),
         theta_growth_debt
@@ -1281,7 +1287,7 @@ export const start_business = (event: any, envelopes: Record<string, any>) => {
 
             // Create recurring income function
             const income_func = R(
-                { t0: upd_params.start_time, dt: 30, tf: upd_params.end_time },
+                { t0: upd_params.start_time, dt: 365.25 / 12, tf: upd_params.end_time },
                 f_in,
                 P({ a: params.monthly_income }),
                 theta_growth_dest
@@ -1317,7 +1323,7 @@ export const buy_home_insurance = (event: any, envelopes: Record<string, any>) =
 
     // Create monthly premium payment function
     const premium_func = R(
-        { t0: params.start_time, dt: 30, tf: Infinity },
+        { t0: params.start_time, dt: 365.25 / 12, tf: Infinity },
         f_out,
         P({ b: params.monthly_premium }),
         theta_growth_source
@@ -1407,7 +1413,7 @@ export const have_kid = (event: any, envelopes: Record<string, any>) => {
 
             // Create recurring childcare cost function
             const childcare_func = R(
-                { t0: upd_params.start_time, dt: 30, tf: upd_params.start_time + upd_params.end_time },
+                { t0: upd_params.start_time, dt: 365.25 / 12, tf: upd_params.start_time + upd_params.end_time },
                 f_out,
                 P({ b: upd_params.monthly_cost }),
                 theta_growth_source
@@ -1431,7 +1437,7 @@ export const have_kid = (event: any, envelopes: Record<string, any>) => {
 
             // Create recurring college fund contribution function
             const contribution_func = R(
-                { t0: upd_params.start_time, dt: 30, tf: upd_params.start_time + upd_params.end_time },
+                { t0: upd_params.start_time, dt: 365.25 / 12, tf: upd_params.start_time + upd_params.end_time },
                 f_out,
                 P({ b: upd_params.monthly_contribution }),
                 theta_growth_source
@@ -1440,7 +1446,7 @@ export const have_kid = (event: any, envelopes: Record<string, any>) => {
 
             // Create corresponding inflow to college fund envelope
             const fund_inflow = R(
-                { t0: upd_params.start_time, dt: 30, tf: upd_params.start_time + upd_params.end_time },
+                { t0: upd_params.start_time, dt: 365.25 / 12, tf: upd_params.start_time + upd_params.end_time },
                 f_in,
                 P({ a: upd_params.monthly_contribution }),
                 theta_growth_college
@@ -1505,7 +1511,7 @@ export const buy_health_insurance = (event: any, envelopes: Record<string, any>)
 
     // Create monthly premium payment function
     const premium_func = R(
-        { t0: params.start_time, dt: 30, tf: Infinity },
+        { t0: params.start_time, dt: 365.25 / 12, tf: Infinity },
         f_out,
         P({ b: params.monthly_premium }),
         theta_growth_source
@@ -1564,7 +1570,7 @@ export const buy_life_insurance = (event: any, envelopes: Record<string, any>) =
 
     // Create monthly premium payment function
     const premium_func = R(
-        { t0: params.start_time, dt: 30, tf: params.start_time + params.term_years * 365 },
+        { t0: params.start_time, dt: 365.25 / 12, tf: params.start_time + params.term_years * 365.25 },
         f_out,
         P({ b: params.monthly_premium }),
         theta_growth_source
@@ -1582,7 +1588,7 @@ export const buy_life_insurance = (event: any, envelopes: Record<string, any>) =
         if (upd_type === "increase_coverage") {
             // Create new premium payment function with updated amount
             const new_premium_func = R(
-                { t0: upd_params.start_time, dt: 30, tf: params.start_time + params.term_years * 365 },
+                { t0: upd_params.start_time, dt: 365.25 / 12, tf: params.start_time + params.term_years * 365.25 },
                 f_out,
                 P({ b: params.new_monthly_premium }),
                 theta_growth_source
@@ -1713,7 +1719,7 @@ export const high_yield_savings_account = (event: any, envelopes: Record<string,
     if (is_recurring) {
         // Create recurring deposits to savings account
         const initial_deposit = R(
-            { t0: params.start_time, dt: params.frequency_days || 30, tf: params.end_time || params.start_time + 3650 },
+            { t0: params.start_time, dt: params.frequency_days || 365.25 / 12, tf: params.end_time || params.start_time + 3650 },
             f_out,
             P({ b: params.amount }),
             theta_growth_source
@@ -1722,7 +1728,7 @@ export const high_yield_savings_account = (event: any, envelopes: Record<string,
 
         // Create recurring savings growth function
         const savings_func = R(
-            { t0: params.start_time, dt: params.frequency_days || 30, tf: params.end_time || params.start_time + 3650 },
+            { t0: params.start_time, dt: params.frequency_days || 365.25 / 12, tf: params.end_time || params.start_time + 3650 },
             f_in,
             P({ a: params.amount }),
             theta_growth_dest
@@ -1761,7 +1767,7 @@ export const buy_groceries = (event: any, envelopes: Record<string, any>) => {
     if (is_recurring) {
         // Create recurring monthly grocery payment function
         const grocery_func = R(
-            { t0: params.start_time, dt: 30, tf: params.start_time + params.end_time },
+            { t0: params.start_time, dt: 365.25 / 12, tf: params.start_time + params.end_time },
             f_out,
             P({ b: params.monthly_amount }),
             theta_growth_source
@@ -1847,14 +1853,14 @@ export const federal_subsidized_loan = (event: any, envelopes: Record<string, an
 
     // Standard 10-year repayment schedule
     const loan_term_years = params.loan_term_years;
-    const payment_end_time = payment_start_time + loan_term_years * 365 - 30;
+    const payment_end_time = payment_start_time + loan_term_years * 365.25 - 365.25 / 12;
 
     // Get interest rate from the Student Loans envelope
     const interest_rate = envelopes[params.to_key].growth_rate || 0.055; // Default 5.5% if not specified
 
     // Monthly payments from cash (includes both principal and interest)
     const monthly_payments = R(
-        { t0: payment_start_time, dt: 365 / 12, tf: payment_end_time },
+        { t0: payment_start_time, dt: 365.25 / 12, tf: payment_end_time },
         f_monthly_payment,
         P({ P: accumulated_debt_amount, r: interest_rate, y: loan_term_years }),
         theta_growth_source
@@ -1863,7 +1869,7 @@ export const federal_subsidized_loan = (event: any, envelopes: Record<string, an
 
     // Monthly principal payments to reduce debt (positive payments to debt envelope)
     const principal_payments = R(
-        { t0: payment_start_time, dt: 365 / 12, tf: payment_end_time },
+        { t0: payment_start_time, dt: 365.25 / 12, tf: payment_end_time },
         f_principal_payment,
         P({ P: accumulated_debt_amount, r: interest_rate, y: loan_term_years }),
         theta_growth_dest
@@ -1943,14 +1949,14 @@ export const federal_unsubsidized_loan = (event: any, envelopes: Record<string, 
 
     // Standard 10-year repayment schedule starting after transfer
     const loan_term_years = params.loan_term_years;
-    const payment_end_time = payment_start_time + loan_term_years * 365 - 30;
+    const payment_end_time = payment_start_time + loan_term_years * 365.25 - 365.25 / 12;
 
     // Get interest rate from the after-school Student Loans envelope
     const interest_rate = envelopes[params.to_key].growth_rate; // Default 6.5% for unsubsidized
 
     // Monthly payments from cash (includes both principal and interest)
     const monthly_payments = R(
-        { t0: payment_start_time, dt: 365 / 12, tf: payment_end_time },
+        { t0: payment_start_time, dt: 365.25 / 12, tf: payment_end_time },
         f_monthly_payment,
         P({ P: accumulated_debt_amount, r: interest_rate, y: loan_term_years }),
         theta_growth_source
@@ -1959,7 +1965,7 @@ export const federal_unsubsidized_loan = (event: any, envelopes: Record<string, 
 
     // Monthly principal payments to reduce debt in after-school envelope
     const principal_payments = R(
-        { t0: payment_start_time, dt: 365 / 12, tf: payment_end_time },
+        { t0: payment_start_time, dt: 365.25 / 12, tf: payment_end_time },
         f_principal_payment,
         P({ P: accumulated_debt_amount, r: interest_rate, y: loan_term_years }),
         theta_growth_after
@@ -2047,7 +2053,7 @@ export const private_student_loan = (event: any, envelopes: Record<string, any>)
     // First payment is 30 days after transfer
     // Monthly payments from cash (includes both principal and interest)
     const monthly_payments = R(
-        { t0: payment_start_time + 30, dt: 365 / 12, tf: payment_end_time },
+        { t0: payment_start_time + 365.25 / 12, dt: 365.25 / 12, tf: payment_end_time },
         f_monthly_payment,
         P({ P: accumulated_debt_amount, r: interest_rate, y: loan_term_years }),
         theta_growth_source
@@ -2056,7 +2062,7 @@ export const private_student_loan = (event: any, envelopes: Record<string, any>)
 
     // Monthly principal payments to reduce debt in after-school envelope
     const principal_payments = R(
-        { t0: payment_start_time + 30, dt: 365 / 12, tf: payment_end_time },
+        { t0: payment_start_time + 365.25 / 12, dt: 365.25 / 12, tf: payment_end_time },
         f_principal_payment,
         P({ P: accumulated_debt_amount, r: interest_rate, y: loan_term_years }),
         theta_growth_after

@@ -1,6 +1,7 @@
 import React from 'react';
 import { TooltipWithBounds, defaultStyles } from '@visx/tooltip';
 import chroma from 'chroma-js';
+import { dateStringToDaysSinceBirth } from '../contexts/PlanContext';
 
 // Format number as currency with suffixes
 export const formatNumber = (value: { valueOf(): number }): string => {
@@ -28,6 +29,40 @@ export const getAgeFromDays = (daysSinceBirth: number): number => {
 // Helper to calculate days since birth from age in years
 export const getDaysFromAge = (age: number): number => {
     return Math.round(age * 365.25);
+};
+
+// Calculate age from birth date string and target date string
+export const getAgeFromDateStrings = (birthDateString: string, targetDateString: string): number => {
+    const birthDate = new Date(birthDateString + 'T00:00:00');
+    const targetDate = new Date(targetDateString + 'T00:00:00');
+    const daysSinceBirth = Math.floor((targetDate.getTime() - birthDate.getTime()) / (24 * 60 * 60 * 1000));
+    return Math.floor(daysSinceBirth / 365.25);
+};
+
+// Calculate age from birth date to a specific target date (for DatePicker context)
+export const getAgeFromBirthToDate = (birthDateString: string, targetDateString: string): number => {
+    const birthDate = new Date(birthDateString + 'T00:00:00');
+    const targetDate = new Date(targetDateString + 'T00:00:00');
+    const daysSinceBirth = Math.floor((targetDate.getTime() - birthDate.getTime()) / (24 * 60 * 60 * 1000));
+    return Math.floor(daysSinceBirth / 365.25);
+};
+
+// Calculate birth date string from current birth date string and desired age
+export const getBirthDateStringFromAge = (currentBirthDateString: string, desiredAge: number): string => {
+    const currentBirthDate = new Date(currentBirthDateString + 'T00:00:00');
+    const today = new Date();
+    const daysSinceBirth = Math.round(desiredAge * 365.25);
+    const newBirthDate = new Date(today);
+    newBirthDate.setDate(today.getDate() - daysSinceBirth);
+    return newBirthDate.toISOString().split('T')[0];
+};
+
+// Calculate target date from birth date and age
+export const getTargetDateFromBirthAndAge = (birthDateString: string, age: number): string => {
+    const birthDate = new Date(birthDateString + 'T00:00:00');
+    const targetDate = new Date(birthDate.getTime());
+    targetDate.setDate(birthDate.getDate() + Math.round(age * 365.25));
+    return targetDate.toISOString().split('T')[0];
 };
 
 // Convert days since birth to actual date
@@ -113,6 +148,19 @@ export const formatDate = (
         return `${dateStr} (${age})`;
     }
     return dateStr;
+};
+
+// Format date string directly (for date string parameters)
+export const formatDateString = (
+    dateString: string,
+    birthDate: Date,
+    interval: ExtendedTimeInterval,
+    showAge: boolean = false,
+    showAgeAsJSX: boolean = false
+): string | JSX.Element => {
+    // Convert date string to days since birth
+    const daysSinceBirth = dateStringToDaysSinceBirth(dateString, birthDate.toISOString().split('T')[0]);
+    return formatDate(daysSinceBirth, birthDate, interval, showAge, showAgeAsJSX);
 };
 
 // Generate subtle colors for categories

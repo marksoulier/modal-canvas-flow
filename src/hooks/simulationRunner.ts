@@ -51,7 +51,8 @@ export async function runSimulation(
     endDate: number = 30 * 365,
     interval: number = 365,
     currentDay?: number,
-    birthDate?: Date
+    birthDate?: Date,
+    onPlanUpdate?: (updates: Array<{ eventId: number, paramType: string, value: number }>) => void
 ): Promise<Datum[]> {
     try {
         const schemaMap = extractSchema(schema);
@@ -72,15 +73,18 @@ export async function runSimulation(
         };
 
         const parsedEvents = parseEvents(plan);
+
         const envelopes = initializeEnvelopes(plan, simulation_settings);
         //console.log('Initialized envelopes:', envelopes);
         // Collect manual_correction events to process at the end
         const manualCorrectionEvents: any[] = [];
         // Collect declare_accounts events to process at the end
         const declareAccountsEvents: any[] = [];
+        // Collect plan updates from events
+        const planUpdates: Array<{ eventId: number, paramType: string, value: number }> = [];
 
         for (const event of parsedEvents) {
-            //console.log("Event: ", event)
+            console.log("Event: ", event)
 
             // Skip manual_correction events during the first pass
             if (event.type === 'manual_correction') {
@@ -103,7 +107,9 @@ export async function runSimulation(
                 case 'get_wage_job': get_wage_job(event, envelopes); break;
                 case 'start_business': start_business(event, envelopes); break;
                 case 'retirement': retirement(event, envelopes); break;
-                case 'buy_house': buy_house(event, envelopes); break;
+                case 'buy_house': buy_house(event, envelopes, (updates) => {
+                    planUpdates.push(...updates);
+                }); break;
                 case 'buy_car': buy_car(event, envelopes); break;
                 case 'have_kid': have_kid(event, envelopes); break;
                 case 'marriage': marriage(event, envelopes); break;
@@ -155,6 +161,10 @@ export async function runSimulation(
             }
         }
 
+        // Apply plan updates if callback is provided
+        if (onPlanUpdate && planUpdates.length > 0) {
+            onPlanUpdate(planUpdates);
+        }
 
         //console.log(envelopes)
 

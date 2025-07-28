@@ -9,53 +9,70 @@ import {
     PopoverTrigger,
 } from './ui/popover';
 import { cn } from '../lib/utils';
-import { getDaysFromAge } from '../visualization/viz_utils';
+import { getAgeFromBirthToDate, getBirthDateStringFromAge, getTargetDateFromBirthAndAge } from '../visualization/viz_utils';
+import { usePlan } from '../contexts/PlanContext';
 
 interface DatePickerProps {
-    value: string | number;
-    onChange: (value: number) => void;
-    birthDate?: string;
+    value: string;
+    onChange: (value: string) => void;
     placeholder?: string;
     className?: string;
     disabled?: boolean;
+    showAgeInput?: boolean;
 }
 
 const DatePicker: React.FC<DatePickerProps> = ({
     value,
     onChange,
-    birthDate,
     placeholder = "Pick a date",
     className,
-    disabled = false
+    disabled = false,
+    showAgeInput = true
 }) => {
-    // viewMonth is the calendar's current view, independent of the selected value
-    const [viewMonth, setViewMonth] = useState<Date>(() => {
-        if (birthDate && value !== undefined && value !== null) {
-            const birth = new Date(birthDate + 'T00:00:00');
-            const daysSinceBirth = Number(value);
-            return addDays(birth, daysSinceBirth);
+    const { plan } = usePlan();
+    const [isOpen, setIsOpen] = useState(false);
+    const [viewMonth, setViewMonth] = useState<Date>(value ? new Date(value + 'T00:00:00') : new Date());
+    const [ageInput, setAgeInput] = useState<string>("");
+
+    // Update view month when value changes
+    useEffect(() => {
+        if (value) {
+            setViewMonth(new Date(value + 'T00:00:00'));
         }
-        return new Date();
-    });
+    }, [value]);
+
+    // Update age input when value changes (calculate age from birth date to selected date)
+    useEffect(() => {
+        if (value && plan?.birth_date && showAgeInput) {
+            try {
+                const ageInYears = getAgeFromBirthToDate(plan.birth_date, value);
+                setAgeInput(Math.max(0, ageInYears).toString());
+            } catch {
+                setAgeInput("");
+            }
+        } else {
+            setAgeInput("");
+        }
+    }, [value, plan?.birth_date, showAgeInput]);
 
     const getDisplayDate = (): Date | undefined => {
-        if (!birthDate || value === undefined || value === null) return undefined;
-        // Parse birth date as local date to avoid timezone issues
-        const birth = new Date(birthDate + 'T00:00:00');
-        const daysSinceBirth = Number(value);
-        return addDays(birth, daysSinceBirth);
+        if (!value) return undefined;
+        try {
+            return new Date(value + 'T00:00:00');
+        } catch {
+            return undefined;
+        }
     };
 
     const displayDate = getDisplayDate();
     const [popoverOpen, setPopoverOpen] = useState(false);
+
     const handleDateSelect = (newDate: Date | undefined) => {
         if (!newDate) return;
 
-        if (!birthDate) return;
-        // Parse birth date as local date to avoid timezone issues
-        const birth = new Date(birthDate + 'T00:00:00');
-        const daysDiff = differenceInDays(newDate, birth);
-        onChange(Number(daysDiff));
+        // Format as YYYY-MM-DD string
+        const dateString = format(newDate, 'yyyy-MM-dd');
+        onChange(dateString);
         setViewMonth(newDate);
         setPopoverOpen(false); // Close popover on date select
     };
@@ -76,35 +93,14 @@ const DatePicker: React.FC<DatePickerProps> = ({
         setViewMonth(new Date());
     };
 
-    // When the selected value changes (e.g. user picks a date or parent changes it),
-    // reset the viewMonth to the selected date (so popover always opens to the right month)
-    useEffect(() => {
-        if (birthDate && value !== undefined && value !== null) {
-            const birth = new Date(birthDate + 'T00:00:00');
-            const daysSinceBirth = Number(value);
-            setViewMonth(addDays(birth, daysSinceBirth));
-        }
-    }, [birthDate, value]);
-
-    const [ageInput, setAgeInput] = useState<string>("");
-
-    // Update age input when value changes
-    useEffect(() => {
-        if (birthDate && value !== undefined && value !== null) {
-            const age = Math.floor(Number(value) / 365.25);
-            setAgeInput(age.toString());
-        } else {
-            setAgeInput("");
-        }
-    }, [value, birthDate]);
-
     const handleAgeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const newAge = e.target.value;
         setAgeInput(newAge);
         const ageNum = parseInt(newAge, 10);
-        if (!isNaN(ageNum) && birthDate) {
-            const days = getDaysFromAge(ageNum);
-            onChange(days);
+        if (!isNaN(ageNum) && ageNum >= 0 && plan?.birth_date) {
+            // Calculate target date based on birth date and age using utility function
+            const dateString = getTargetDateFromBirthAndAge(plan.birth_date, ageNum);
+            onChange(dateString);
         }
     };
 
@@ -168,17 +164,19 @@ const DatePicker: React.FC<DatePickerProps> = ({
                     />
                 </PopoverContent>
             </Popover>
-            <input
-                type="number"
-                min={0}
-                className="w-20 px-2 py-1 border rounded text-sm"
-                placeholder="Age"
-                value={ageInput}
-                onChange={handleAgeChange}
-                disabled={disabled}
-                style={{ minWidth: 0 }}
-            />
-            <span className="text-xs text-muted-foreground">age</span>
+            {showAgeInput && (
+                <input
+                    type="number"
+                    min={0}
+                    className="w-20 px-2 py-1 border rounded text-sm"
+                    placeholder="Age"
+                    value={ageInput}
+                    onChange={handleAgeChange}
+                    disabled={disabled}
+                    style={{ minWidth: 0 }}
+                />
+            )}
+            {showAgeInput && <span className="text-xs text-muted-foreground">age</span>}
         </div>
     );
 };

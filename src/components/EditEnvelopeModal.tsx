@@ -26,7 +26,9 @@ const EditEnvelopeModal: React.FC<EditEnvelopeModalProps> = ({ isOpen, onClose, 
   const [category, setCategory] = useState(envelope?.category || '');
   const [growth, setGrowth] = useState(envelope?.growth || 'None');
   const [rate, setRate] = useState(envelope ? envelope.rate * 100 : 0);
+  const [rateInputValue, setRateInputValue] = useState(envelope ? (envelope.rate * 100).toString() : '0');
   const [daysOfUsefulness, setDaysOfUsefulness] = useState(envelope?.days_of_usefulness || 0);
+  const [rateError, setRateError] = useState<string>('');
 
   const { schema } = usePlan();
 
@@ -34,13 +36,45 @@ const EditEnvelopeModal: React.FC<EditEnvelopeModalProps> = ({ isOpen, onClose, 
     setName(envelope?.name || '');
     setCategory(envelope?.category || '');
     setGrowth(envelope?.growth || 'None');
-    setRate(envelope ? envelope.rate * 100 : 0);
+    const initialRate = envelope ? envelope.rate * 100 : 0;
+    setRate(initialRate);
+    setRateInputValue(initialRate.toString());
     setDaysOfUsefulness(envelope?.days_of_usefulness || 0);
+    setRateError('');
   }, [envelope, isOpen]);
+
+  const handleRateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setRateInputValue(value);
+    setRateError(''); // Clear error when user starts typing
+  };
+
+  const handleRateBlur = () => {
+    const numValue = parseFloat(rateInputValue) || 0;
+    setRate(numValue);
+  };
+
+  const validateRate = (rateValue: number): { isValid: boolean; error?: string } => {
+    if (rateValue < 0) {
+      return { isValid: false, error: 'Rate cannot be less than 0%' };
+    }
+    if (rateValue > 40) {
+      return { isValid: false, error: 'Rate cannot be greater than 40%' };
+    }
+    return { isValid: true };
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || !category) return;
+
+    // Validate rate before submitting
+    const rateValidation = validateRate(rate);
+    if (!rateValidation.isValid) {
+      setRateError(rateValidation.error || '');
+      return;
+    }
+
     const payload: { name: string; category: string; growth: string; rate: number; days_of_usefulness?: number; account_type: string } = {
       name: name.trim(),
       category,
@@ -56,7 +90,9 @@ const EditEnvelopeModal: React.FC<EditEnvelopeModalProps> = ({ isOpen, onClose, 
     setCategory('');
     setGrowth('None');
     setRate(0);
+    setRateInputValue('0');
     setDaysOfUsefulness(0);
+    setRateError('');
     onClose();
   };
 
@@ -128,11 +164,19 @@ const EditEnvelopeModal: React.FC<EditEnvelopeModalProps> = ({ isOpen, onClose, 
                 id="rate"
                 type="number"
                 step="0.01"
-                value={rate}
-                onChange={(e) => setRate(Number(e.target.value))}
+                min="0"
+                max="40"
+                value={rateInputValue}
+                onChange={handleRateChange}
+                onBlur={handleRateBlur}
                 placeholder="0.00"
                 disabled={growth === 'None'}
+                className={rateError ? 'border-red-500' : ''}
               />
+              {rateError && (
+                <p className="text-xs text-red-500">{rateError}</p>
+              )}
+              <p className="text-xs text-gray-500">Rate must be between 0% and 40%</p>
             </div>
           )}
 

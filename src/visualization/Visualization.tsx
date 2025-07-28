@@ -10,7 +10,7 @@ import { curveLinear, curveStepAfter } from '@visx/curve';
 import { LinearGradient } from '@visx/gradient';
 import { TooltipWithBounds, defaultStyles } from '@visx/tooltip';
 import { runSimulation } from '../hooks/simulationRunner';
-import { usePlan, getEnvelopeCategory, getEnvelopeDisplayName } from '../contexts/PlanContext';
+import { usePlan, getEnvelopeCategory, getEnvelopeDisplayName, dateStringToDaysSinceBirth, daysSinceBirthToDateString } from '../contexts/PlanContext';
 import {
   ContextMenu,
   ContextMenuTrigger,
@@ -41,7 +41,7 @@ const DEBUG = false;
 
 // Helper function to normalize -0 to 0 and small values near zero
 const normalizeZero = (value: number): number => {
-  const threshold = 1e-10; // Very small threshold for floating point precision
+  const threshold = 1e-2; // Very small threshold for floating point precision
   return Math.abs(value) < threshold ? 0 : value;
 };
 
@@ -100,15 +100,18 @@ const splitDataForMixedCurves = (data: any[], getValueFn: (d: any) => number) =>
 
 interface DraggingAnnotation {
   index: number; // the day/data point
-  eventId: number;
+  eventId: number; // The actual event ID for parameter updates
+  displayId: string; // Unique display ID for dragging
   offsetX: number;
   offsetY: number;
+  isEndingEvent: boolean;
 }
 
 interface VisualizationProps {
   onAnnotationClick?: (eventId: number) => void;
   onAnnotationDelete?: (eventId: number) => void;
   onNegativeAccountWarning?: (warnings: Array<{ envelopeName: string; category: string; minValue: number; date: number; warningType: 'negative' | 'positive' }>) => void;
+  autoRunSimulation?: boolean; // Whether to automatically run simulation when plan changes
 }
 
 // Custom tick renderer for AxisBottom to style age in light gray
@@ -204,7 +207,7 @@ const detectAccountWarnings = (netWorthData: Datum[], plan: Plan | null): Array<
     }
 
     // For debt accounts: check if they go positive
-    if (envelope.category === 'Debt' && maxValue > 0) {
+    if (envelope.category === 'Debt' && maxValue > 1) {
       warnings.push({
         envelopeName,
         category: envelope.category,
@@ -219,7 +222,7 @@ const detectAccountWarnings = (netWorthData: Datum[], plan: Plan | null): Array<
 };
 
 
-export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativeAccountWarning }: VisualizationProps) {
+export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativeAccountWarning, autoRunSimulation = false }: VisualizationProps) {
   // Ref to store the setZoomToDateRange function for context access
   const setZoomToDateRangeRef = useRef<((startDay: number, endDay: number) => void) | null>(null);
 
@@ -280,7 +283,7 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
     }
   }, [wheelHandler]);
 
-  const { plan, plan_locked, getEventIcon, updateParameter, schema, deleteEvent, getEventDisplayType, currentDay, registerSetZoomToDateRange, setVisualizationReady } = usePlan();
+  const { plan, plan_locked, getEventIcon, updateParameter, schema, deleteEvent, getEventDisplayType, currentDay, registerSetZoomToDateRange, setVisualizationReady, convertDateParametersToDays, loadPlan } = usePlan();
 
   // Register the setZoomToDateRange function with the context when it's available
   useEffect(() => {
@@ -374,14 +377,20 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
           days: endDate - startDate
         });
 
+        // Convert date parameters to days for simulation
+        const convertedPlanLocked = {
+          ...plan_locked,
+          events: convertDateParametersToDays(plan_locked.events)
+        };
+
         const result = await runSimulation(
-          plan_locked,
+          convertedPlanLocked,
           schema,
           startDate,
           endDate,
           getIntervalInDays(timeInterval),
           currentDay,
-          birthDate,
+          birthDate
         );
         // Only keep {date, value}
         setLockedNetWorthData(result.map(({ date, value }) => ({ date, value })));
@@ -390,7 +399,7 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
       }
     };
     runLockedSim();
-  }, [plan_locked, schema, timeInterval, currentDay]);
+  }, [plan_locked, schema, timeInterval, currentDay, convertDateParametersToDays]);
 
   // Function to determine time interval based on zoom level
   const getTimeIntervalFromZoom = (zoom: number): TimeInterval => {
@@ -403,54 +412,99 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
     return 'year';
   };
 
-  // Load schema and run simulation when component mounts or time interval changes
-  useEffect(() => {
-    const loadSchemaAndRunSim = async () => {
-      // Only run if plan and schema are available (plan is now always loaded by context)
-      if (!plan || !schema) return;
-      try {
-        setIsLoading(true);
+  // Manual simulation control
+  const runSimulationManually = useCallback(async () => {
+    if (!plan || !schema) return;
 
-        // Set birth date from plan
-        if (plan.birth_date) {
-          // Parse birth date as local date to avoid timezone issues
-          const birthDateObj = new Date(plan.birth_date + 'T00:00:00');
-          setBirthDate(birthDateObj);
-        }
+    try {
+      setIsLoading(true);
 
-        // Run simulation with full range
-        console.log('🔍 Running simulation with full range:', {
-          startDate,
-          endDate,
-          days: endDate - startDate
-        });
-
-        const result = await runSimulation(
-          plan,
-          schema,
-          startDate,
-          endDate,
-          getIntervalInDays(timeInterval),
-          currentDay,
-          birthDate
-        );
-        //console.log('Loaded Financial Results:', result);
-        setNetWorthData(result);
-
-        // Check for negative accounts and trigger warning
-        const negativeWarnings = detectAccountWarnings(result, plan);
-        if (negativeWarnings.length > 0 && onNegativeAccountWarning) {
-          onNegativeAccountWarning(negativeWarnings);
-        }
-      } catch (err) {
-        console.error('Simulation failed:', err);
-      } finally {
-        setIsLoading(false);
+      // Set birth date from plan
+      if (plan.birth_date) {
+        // Parse birth date as local date to avoid timezone issues
+        const birthDateObj = new Date(plan.birth_date + 'T00:00:00');
+        setBirthDate(birthDateObj);
       }
-    };
 
-    loadSchemaAndRunSim();
-  }, [timeInterval, plan, schema, currentDay, onNegativeAccountWarning]); // Re-run when time interval, plan, schema, or currentDay changes
+      // Run simulation with full range
+      console.log('🔍 Running simulation with full range:', {
+        startDate,
+        endDate,
+        days: endDate - startDate
+      });
+
+      // Convert date parameters to days for simulation
+      const convertedPlan = {
+        ...plan,
+        events: convertDateParametersToDays(plan.events)
+      };
+
+      const result = await runSimulation(
+        convertedPlan,
+        schema,
+        startDate,
+        endDate,
+        getIntervalInDays(timeInterval),
+        currentDay,
+        birthDate,
+        (updates) => {
+          // Handle plan updates from simulation
+          if (updates.length > 0) {
+            console.log('📝 Applying plan updates from simulation:', updates);
+
+            // Create a copy of the current plan
+            const updatedPlan = { ...plan };
+
+            // Apply each update
+            updates.forEach(update => {
+              const event = updatedPlan.events.find(e => e.id === update.eventId);
+              if (event) {
+                const param = event.parameters.find(p => p.type === update.paramType);
+                if (param) {
+                  // if param is a end_time or start_time, convert it to a date string
+                  if (param.type === 'end_time' || param.type === 'start_time') {
+                    param.value = daysSinceBirthToDateString(update.value, plan.birth_date);
+                  } else {
+                    param.value = update.value;
+                  }
+                  console.log(`✅ Updated ${update.paramType} for event ${update.eventId} to ${update.value}`);
+                }
+              }
+            });
+
+            // Update the plan with calculated values
+            loadPlan(updatedPlan);
+          }
+        }
+      );
+
+      setNetWorthData(result);
+
+      // Check for negative accounts and trigger warning
+      const negativeWarnings = detectAccountWarnings(result, plan);
+      if (negativeWarnings.length > 0 && onNegativeAccountWarning) {
+        onNegativeAccountWarning(negativeWarnings);
+      }
+    } catch (err) {
+      console.error('Simulation failed:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [plan, schema, timeInterval, currentDay, onNegativeAccountWarning, convertDateParametersToDays]);
+
+  // Run simulation on mount only (not on every plan change)
+  useEffect(() => {
+    if (plan && schema) {
+      runSimulationManually();
+    }
+  }, []); // Empty dependency array - only run on mount
+
+  // Optional: Auto-run simulation when plan changes (if enabled)
+  useEffect(() => {
+    if (autoRunSimulation && plan && schema) {
+      runSimulationManually();
+    }
+  }, [autoRunSimulation, plan, schema, runSimulationManually]);
 
   // Calculate stacked data from simulation results
   const stackedData = useMemo(() => {
@@ -624,7 +678,7 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
             return generateEnvelopeColors(schema.categories);
           }, [schema]);
 
-          const allEventsByDate = getAllEventsByDate(plan!);
+          const allEventsByDate = getAllEventsByDate(plan!, schema || undefined);
 
           // Utility to apply a transform matrix to a point
           function applyMatrixToPoint(matrix: any, point: { x: number; y: number }) {
@@ -653,7 +707,7 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
             return transformMatrix;
           }
 
-          const handleAnnotationDragStart = (e: React.MouseEvent, eventId: number, date: number, annotationYOffset: number, DRAG_Y_OFFSET: number) => {
+          const handleAnnotationDragStart = (e: React.MouseEvent, eventId: number, displayId: string, date: number, annotationYOffset: number, DRAG_Y_OFFSET: number, isEndingEvent: boolean) => {
             e.stopPropagation();
             const point = getSVGPoint(e);
             setHasDragged(false);
@@ -680,8 +734,10 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
             setDraggingAnnotation({
               index: date,
               eventId: eventId,
+              displayId: displayId,
               offsetX: point.x - annotationX,
-              offsetY: point.y - annotationY
+              offsetY: point.y - annotationY,
+              isEndingEvent: isEndingEvent
             });
           };
 
@@ -721,10 +777,20 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
                 // Try main event first
                 let event = plan.events.find(e => e.id === draggingAnnotation.eventId);
                 if (event) {
-                  const startTimeParam = event.parameters.find(p => p.type === 'start_time');
-                  if (startTimeParam) {
-                    // Update the event's start_time parameter
-                    updateParameter(event.id, startTimeParam.type, closestPoint.date);
+                  if (draggingAnnotation.isEndingEvent) {
+                    const endTimeParam = event.parameters.find(p => p.type === 'end_time');
+                    if (endTimeParam) {
+                      // Convert days since birth to date string for the parameter
+                      const dateString = daysSinceBirthToDateString(closestPoint.date, plan.birth_date);
+                      updateParameter(event.id, endTimeParam.type, dateString);
+                    }
+                  } else {
+                    const startTimeParam = event.parameters.find(p => p.type === 'start_time');
+                    if (startTimeParam) {
+                      // Convert days since birth to date string for the parameter
+                      const dateString = daysSinceBirthToDateString(closestPoint.date, plan.birth_date);
+                      updateParameter(event.id, startTimeParam.type, dateString);
+                    }
                   }
                   // Log event info during drag
                   //console.log('[Drag Move] Dragging event:', event.id, event.description || event.type);
@@ -733,9 +799,20 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
                   for (const parentEvent of plan.events) {
                     const updatingEvent = parentEvent.updating_events?.find(ue => ue.id === draggingAnnotation.eventId);
                     if (updatingEvent) {
-                      const startTimeParam = updatingEvent.parameters.find(p => p.type === 'start_time');
-                      if (startTimeParam) {
-                        updateParameter(updatingEvent.id, startTimeParam.type, closestPoint.date);
+                      if (draggingAnnotation.isEndingEvent) {
+                        const endTimeParam = updatingEvent.parameters.find(p => p.type === 'end_time');
+                        if (endTimeParam) {
+                          // Convert days since birth to date string for the parameter
+                          const dateString = daysSinceBirthToDateString(closestPoint.date, plan.birth_date);
+                          updateParameter(updatingEvent.id, endTimeParam.type, dateString);
+                        }
+                      } else {
+                        const startTimeParam = updatingEvent.parameters.find(p => p.type === 'start_time');
+                        if (startTimeParam) {
+                          // Convert days since birth to date string for the parameter
+                          const dateString = daysSinceBirthToDateString(closestPoint.date, plan.birth_date);
+                          updateParameter(updatingEvent.id, startTimeParam.type, dateString);
+                        }
                       }
                       // Log event info during drag
                       //console.log('[Drag Move] Dragging updating event:', updatingEvent.id, updatingEvent.description || updatingEvent.type);
@@ -895,8 +972,30 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
                   zIndex: 20,
                   display: 'flex',
                   gap: 8,
+                  alignItems: 'center',
                 }}
               >
+                {/* Run Simulation Button */}
+                <button
+                  style={{
+                    background: isLoading ? '#f3f4f6' : '#10b981',
+                    color: isLoading ? '#6b7280' : 'white',
+                    border: '1px solid #e5e7eb',
+                    borderRadius: 6,
+                    padding: '6px 16px',
+                    fontSize: 13,
+                    fontWeight: 500,
+                    opacity: isLoading ? 0.6 : 0.9,
+                    transition: 'all 0.2s',
+                    cursor: isLoading ? 'not-allowed' : 'pointer',
+                    boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
+                    marginRight: 16,
+                  }}
+                  onClick={runSimulationManually}
+                  disabled={isLoading}
+                >
+                  {isLoading ? 'Running...' : 'Run Simulation'}
+                </button>
                 <button
                   style={{
                     background: 'rgba(51, 89, 102, 0.06)',
@@ -1341,7 +1440,7 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
                 {/* Timeline Annotations (outside zoom transform) */}
                 {(() => {
                   // 1. Build a map: snappedDataPointDate -> [events]
-                  const snappedEventsMap: { [snappedDate: number]: Array<{ event: any, originalDate: number }> } = {};
+                  const snappedEventsMap: { [snappedDate: number]: Array<{ event: any, originalDate: number, isEndingEvent: boolean, displayId: string }> } = {};
                   for (const [dateStr, eventsAtDate] of Object.entries(allEventsByDate)) {
                     const date = Number(dateStr);
                     // Find the closest visible data point that is greater than or equal to the event date
@@ -1370,7 +1469,12 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
                       if (!snappedEventsMap[closestDataPoint.date]) {
                         snappedEventsMap[closestDataPoint.date] = [];
                       }
-                      snappedEventsMap[closestDataPoint.date].push({ event: event.event, originalDate: date });
+                      snappedEventsMap[closestDataPoint.date].push({
+                        event: event.event,
+                        originalDate: date,
+                        isEndingEvent: event.isEndingEvent,
+                        displayId: event.displayId
+                      });
                     }
                   }
                   // 2. Render each group stacked
@@ -1381,8 +1485,8 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
                     if (!closestDataPoint) return null;
                     const canvasX = xScale(closestDataPoint.date) * zoom.transformMatrix.scaleX + zoom.transformMatrix.translateX;
                     const canvasY = visibleYScale(closestDataPoint.value) * zoom.transformMatrix.scaleY + zoom.transformMatrix.translateY;
-                    return events.map(({ event }, i) => {
-                      const isDraggingMain = draggingAnnotation?.eventId === event.id;
+                    return events.map(({ event, isEndingEvent, displayId }, i) => {
+                      const isDraggingMain = draggingAnnotation?.displayId === displayId;
                       const yOffset = i * 50;
                       const DRAG_Y_OFFSET = 80; // adjust this value for better alignment
                       const x = isDraggingMain
@@ -1394,7 +1498,7 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
                       const isHighlighted = hoveredEventId === event.id;
                       return (
                         <foreignObject
-                          key={`annotation-${event.id}`}
+                          key={`annotation-${displayId}`}
                           x={x}
                           y={y}
                           width={40}
@@ -1404,7 +1508,7 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
                             cursor: isDraggingMain ? 'grabbing' : 'move'
                           }}
                           onMouseDown={(e) => {
-                            handleAnnotationDragStart(e, event.id, closestDataPoint.date, yOffset, DRAG_Y_OFFSET);
+                            handleAnnotationDragStart(e, event.id, displayId, closestDataPoint.date, yOffset, DRAG_Y_OFFSET, isEndingEvent);
                           }}
                           onMouseEnter={() => {
                             setHoveredEventId(event.id);
@@ -1428,6 +1532,7 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
                                   label={event.description}
                                   highlighted={isHighlighted}
                                   isRecurring={event.is_recurring}
+                                  isEnding={isEndingEvent}
                                   onClick={() => {
                                     if (!hasDragged) {
                                       onAnnotationClick?.(event.id);

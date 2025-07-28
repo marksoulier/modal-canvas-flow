@@ -1,5 +1,5 @@
 import React from 'react';
-import { User, Repeat } from 'lucide-react';
+import { User, Repeat, X } from 'lucide-react';
 
 interface TimelineAnnotationProps {
   onClick?: () => void;
@@ -7,9 +7,10 @@ interface TimelineAnnotationProps {
   label?: string;
   highlighted?: boolean;
   isRecurring?: boolean;
+  isEnding?: boolean;
 }
 
-const TimelineAnnotation: React.FC<TimelineAnnotationProps> = ({ onClick, icon, label, highlighted, isRecurring }) => {
+const TimelineAnnotation: React.FC<TimelineAnnotationProps> = ({ onClick, icon, label, highlighted, isRecurring, isEnding }) => {
   return (
     <div
       className={`relative cursor-pointer`}
@@ -17,10 +18,17 @@ const TimelineAnnotation: React.FC<TimelineAnnotationProps> = ({ onClick, icon, 
     >
       {/* Main rounded rectangle with icon */}
       <div className={`${highlighted ? 'bg-gray-200' : 'bg-white'} border-2 border-gray-300 rounded-lg shadow-md hover:shadow-lg transition-shadow duration-200 p-3 w-12 h-12 flex flex-col items-center justify-center relative`}>
-        {/* Recurring indicator at the bottom center */}
-        {isRecurring && (
+        {/* Recurring indicator at the bottom center - only show if not ending */}
+        {isRecurring && !isEnding && (
           <div className="absolute bottom-1 left-1/2 transform translate-x-2 -translate-y-7 z-0">
             <Repeat size={10} className="text-black" />
+          </div>
+        )}
+
+        {/* Ending indicator at the bottom center */}
+        {isEnding && (
+          <div className="absolute bottom-1 left-1/2 transform translate-x-2 -translate-y-7 z-0">
+            <X size={10} className="text-black" />
           </div>
         )}
 
