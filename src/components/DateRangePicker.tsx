@@ -48,16 +48,16 @@ const DateRangePicker: React.FC<DateRangePickerProps> = ({ className }) => {
         if (!plan || !isInitialized) return;
 
         const currentRange = getCurrentVisualizationRange();
-        console.log("DateRangePicker - currentRange:", currentRange);
+        //console.log("DateRangePicker - currentRange:", currentRange);
 
         if (currentRange &&
             (lastKnownRangeRef.current?.startDay !== currentRange.startDay ||
                 lastKnownRangeRef.current?.endDay !== currentRange.endDay)) {
 
-            console.log("DateRangePicker - updating range:", {
-                old: lastKnownRangeRef.current,
-                new: currentRange
-            });
+            //console.log("DateRangePicker - updating range:", {
+            //    old: lastKnownRangeRef.current,
+            //    new: currentRange
+            //});
 
             // Convert days since birth to date strings
             const startDateStr = daysSinceBirthToDateString(currentRange.startDay, plan.birth_date);
@@ -124,7 +124,7 @@ const DateRangePicker: React.FC<DateRangePickerProps> = ({ className }) => {
                 (lastKnownRangeRef.current?.startDay !== currentRange.startDay ||
                     lastKnownRangeRef.current?.endDay !== currentRange.endDay)) {
 
-                console.log("DateRangePicker - polling update:", currentRange);
+                //console.log("DateRangePicker - polling update:", currentRange);
                 // Convert days since birth to date strings
                 const startDateStr = daysSinceBirthToDateString(currentRange.startDay, plan.birth_date);
                 const endDateStr = daysSinceBirthToDateString(currentRange.endDay, plan.birth_date);

@@ -256,6 +256,7 @@ export function PlanProvider({ children }: PlanProviderProps) {
     const [schema, setSchema] = useState<Schema | null>(null);
     const [isInitialized, setIsInitialized] = useState(false);
     const [isVisualizationReady, setIsVisualizationReady] = useState(false); // <-- add this new state
+    const [shouldTriggerSimulation, setShouldTriggerSimulation] = useState(false);
 
     // Ref to store the setZoomToDateRange function from Visualization
     const setZoomToDateRangeRef = useRef<((startDay: number, endDay: number) => void) | null>(null);
@@ -327,6 +328,20 @@ export function PlanProvider({ children }: PlanProviderProps) {
         };
         tryLoadPlan();
     }, [isInitialized]);
+
+    // Effect to handle simulation triggering after plan updates
+    useEffect(() => {
+        if (shouldTriggerSimulation && isVisualizationReady && plan) {
+            // Reset the flag first to avoid infinite loops
+            setShouldTriggerSimulation(false);
+            // Trigger simulation after a short delay to ensure plan is fully updated
+            setTimeout(() => {
+                if (triggerSimulationRef.current) {
+                    triggerSimulationRef.current();
+                }
+            }, 100);
+        }
+    }, [shouldTriggerSimulation, isVisualizationReady, plan]);
 
     // Helper function to add current view range to plan
     const addViewRangeToPlan = useCallback((planToUpdate: Plan): Plan => {
@@ -538,6 +553,9 @@ export function PlanProvider({ children }: PlanProviderProps) {
 
             return { ...prevPlan, events: updatedEvents };
         });
+
+        // Set flag to trigger simulation after parameter update
+        setShouldTriggerSimulation(true);
     }, [plan]);
 
     const deleteEvent = useCallback((eventId: number) => {
@@ -570,6 +588,9 @@ export function PlanProvider({ children }: PlanProviderProps) {
 
             return { ...prevPlan, events: updatedEvents };
         });
+
+        // Set flag to trigger simulation after state update
+        setShouldTriggerSimulation(true);
     }, [plan]);
 
     const addEvent = useCallback((
@@ -655,6 +676,9 @@ export function PlanProvider({ children }: PlanProviderProps) {
                 envelopes: newEnvelopes
             };
         });
+
+        // Set flag to trigger simulation after state update
+        setShouldTriggerSimulation(true);
 
         return newId;
     }, [plan, schema]);
@@ -1035,6 +1059,9 @@ export function PlanProvider({ children }: PlanProviderProps) {
 
             return { ...prevPlan, events: updatedEvents };
         });
+
+        // Set flag to trigger simulation after recurring status update
+        setShouldTriggerSimulation(true);
     }, [plan]);
 
     // Check if plan has events of a specific type

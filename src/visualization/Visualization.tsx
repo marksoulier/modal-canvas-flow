@@ -239,6 +239,7 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
   const [tooltipTop, setTooltipTop] = useState<number>(0);
   const [isLoading, setIsLoading] = useState(true);
   const [netWorthData, setNetWorthData] = useState<Datum[]>([]);
+  const [allNetWorthData, setAllNetWorthData] = useState<Datum[]>([]);
   const [timeInterval, setTimeInterval] = useState<TimeInterval>('year');
   const [birthDate, setBirthDate] = useState<Date>(new Date(2000, 0, 1)); // Default to Jan 1, 2000
   const [hoveredEventId, setHoveredEventId] = useState<number | null>(null);
@@ -400,7 +401,10 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
         setLockedNetWorthData([]);
       }
     };
-    runLockedSim();
+
+    if (DEBUG) {
+      runLockedSim();
+    }
   }, [plan_locked, schema, timeInterval, currentDay, convertDateParametersToDays]);
 
   // Function to determine time interval based on zoom level
@@ -431,17 +435,9 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
 
       // Set birth date from plan
       if (plan.birth_date) {
-        // Parse birth date as local date to avoid timezone issues
         const birthDateObj = new Date(plan.birth_date + 'T00:00:00');
         setBirthDate(birthDateObj);
       }
-
-      // Run simulation with full range
-      console.log('🔍 Running simulation with full range:', {
-        startDate,
-        endDate,
-        days: endDate - startDate
-      });
 
       // Convert date parameters to days for simulation
       const convertedPlan = {
@@ -449,29 +445,24 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
         events: convertDateParametersToDays(plan.events)
       };
 
-      const result = await runSimulation(
+      // Run daily simulation for entire range
+      const dailyResult = await runSimulation(
         convertedPlan,
         schema,
         startDate,
         endDate,
-        getIntervalInDays(intervalToUse),
+        getIntervalInDays(intervalToUse), // In the future make daily interval a parameter
         currentDay,
         birthDate,
         (updates) => {
-          // Handle plan updates from simulation
           if (updates.length > 0) {
             console.log('📝 Applying plan updates from simulation:', updates);
-
-            // Create a copy of the current plan
             const updatedPlan = { ...plan };
-
-            // Apply each update
             updates.forEach(update => {
               const event = updatedPlan.events.find(e => e.id === update.eventId);
               if (event) {
                 const param = event.parameters.find(p => p.type === update.paramType);
                 if (param) {
-                  // if param is a end_time or start_time, convert it to a date string
                   if (param.type === 'end_time' || param.type === 'start_time') {
                     param.value = daysSinceBirthToDateString(update.value, plan.birth_date);
                   } else {
@@ -481,18 +472,66 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
                 }
               }
             });
-
-            // Update the plan with calculated values - use direct state update to avoid triggering viewing window reset
-            console.log('📝 Updating plan with simulation results (direct update)');
             updatePlanDirectly(updatedPlan);
           }
         }
       );
 
-      setNetWorthData(result);
+      // Store the full daily simulation data
+      setAllNetWorthData(dailyResult);
+      console.log('📊 Full daily simulation data points:', dailyResult.length);
+
+      // Run simulation for visible range with current interval
+      // let updatedDailyResult = [...dailyResult];
+      // if (currentVisibleRange) {
+      //   const visibleResult = await runSimulation(
+      //     convertedPlan,
+      //     schema,
+      //     currentVisibleRange.startDate,
+      //     currentVisibleRange.endDate,
+      //     getIntervalInDays(intervalToUse),
+      //     currentDay,
+      //     birthDate
+      //   );
+      //   console.log('📊 Visible range data points:', visibleResult.length,
+      //     `(${currentVisibleRange.startDateFormatted} to ${currentVisibleRange.endDateFormatted})
+      //     (${currentVisibleRange.startDate} to ${currentVisibleRange.endDate})
+      //     getIntervalInDays(intervalToUse): ${getIntervalInDays(intervalToUse)}`);
+
+      //   // Overlay visible range results onto daily results
+      //   visibleResult.forEach((point) => {
+      //     const index = dailyResult.findIndex(d => d.date === point.date);
+      //     if (index !== -1) {
+      //       updatedDailyResult[index] = point;
+      //     }
+      //   });
+      // }
+
+      // Sample data points based on the current interval
+      const intervalDays = getIntervalInDays(intervalToUse);
+      const sampledData: Datum[] = [];
+      let lastIncludedDate = -intervalDays; // Start before 0 to ensure we include the first point
+
+      dailyResult.forEach((point, index) => {
+        // Always include first and last points
+        if (index === 0 || index === dailyResult.length - 1) {
+          sampledData.push(point);
+          lastIncludedDate = point.date;
+          return;
+        }
+
+        // Include points that are at least intervalDays apart
+        if (point.date >= lastIncludedDate + intervalDays) {
+          sampledData.push(point);
+          lastIncludedDate = point.date;
+        }
+      });
+
+      console.log('📊 Sampled data points:', sampledData.length);
+      setNetWorthData(sampledData);
 
       // Check for negative accounts and trigger warning
-      const negativeWarnings = detectAccountWarnings(result, plan);
+      const negativeWarnings = detectAccountWarnings(sampledData, plan);
       if (negativeWarnings.length > 0 && onNegativeAccountWarning) {
         onNegativeAccountWarning(negativeWarnings);
       }
@@ -501,7 +540,7 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
     } finally {
       setIsLoading(false);
     }
-  }, [plan, schema, timeInterval, currentDay, onNegativeAccountWarning, convertDateParametersToDays]); // Re-run when time interval, plan, schema, or currentDay changes
+  }, [plan, schema, timeInterval, currentDay, currentVisibleRange, onNegativeAccountWarning, convertDateParametersToDays]);
 
   // Run simulation on initial load
   useEffect(() => {
@@ -855,12 +894,6 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
             const dataPoint = screenToData(point.x, point.y, zoom, visibleYScale);
             const closestPoint = findClosestPoint(netWorthData, dataPoint.x);
             const closestIndex = netWorthData.findIndex(p => p.date === closestPoint?.date);
-
-            // Trigger simulation after drag ends to update visualization with new event timing
-            if (hasDragged) {
-              console.log('🎯 Triggering simulation after event drag');
-              triggerSimulation();
-            }
 
             setDraggingAnnotation(null);
             setClosestPoint(null);

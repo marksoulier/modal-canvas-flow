@@ -2300,7 +2300,7 @@ export const usa_tax_system = (event: any, envelopes: Record<string, any>) => {
 
         // Only apply if within simulation range
         if (age59HalfDay >= startTime && age59HalfDay <= endTime) {
-            console.log(`Person reaches age 59.5 on day ${age59HalfDay}`);
+            //console.log(`Person reaches age 59.5 on day ${age59HalfDay}`);
         } else {
             age59HalfDay = null; // Outside simulation range
         }
@@ -2344,8 +2344,8 @@ export const usa_tax_system = (event: any, envelopes: Record<string, any>) => {
         //Calculate age and year
         const age = Math.floor(yearEndDay / 365);
         const year = birthDate.getFullYear() + age;
-        console.log("Age", age);
-        console.log("Year", year);
+        //console.log("Age", age);
+        //console.log("Year", year);
 
         //Evaluate taxes paid on these amounts
         const taxParams_tax_season = {
@@ -2363,8 +2363,8 @@ export const usa_tax_system = (event: any, envelopes: Record<string, any>) => {
         };
 
         const taxesOwed = calculateTaxes(taxParams_tax_season);
-        console.log("Tax Params", taxParams_tax_season);
-        console.log("Taxes Owed", taxesOwed);
+        //console.log("Tax Params", taxParams_tax_season);
+        //console.log("Taxes Owed", taxesOwed);
 
         // Withdraw the taxes withhed from irs_registered_account_key
         const irsRegisteredAccountEnvelope = envelopes[params.irs_registered_account_key];
@@ -2514,7 +2514,7 @@ export const usa_tax_system = (event: any, envelopes: Record<string, any>) => {
             // Add the correction to penalty envelope
             penaltyEnvelope.functions.push(correctionFunc);
 
-            console.log(`Applied 401K penalty correction of ${difference} at age 59.5 (day ${age59HalfDay})`);
+            //console.log(`Applied 401K penalty correction of ${difference} at age 59.5 (day ${age59HalfDay})`);
         }
     }
 

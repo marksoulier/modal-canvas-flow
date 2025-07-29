@@ -98,8 +98,13 @@ const DatePicker: React.FC<DatePickerProps> = ({
         setAgeInput(newAge);
         const ageNum = parseInt(newAge, 10);
         if (!isNaN(ageNum) && ageNum >= 0 && plan?.birth_date) {
-            // Calculate target date based on birth date and age using utility function
-            const dateString = getTargetDateFromBirthAndAge(plan.birth_date, ageNum);
+            // Get the birth date
+            const birthDate = new Date(plan.birth_date + 'T00:00:00');
+            // Add the specified number of years to the birth date
+            const targetDate = new Date(birthDate);
+            targetDate.setFullYear(birthDate.getFullYear() + ageNum);
+            // Format as YYYY-MM-DD string
+            const dateString = format(targetDate, 'yyyy-MM-dd');
             onChange(dateString);
         }
     };

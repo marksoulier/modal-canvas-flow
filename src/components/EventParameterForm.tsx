@@ -47,7 +47,7 @@ const EventParametersForm: React.FC<EventParametersFormProps> = ({
     onSelectEvent,
     onOpenEnvelopeModal
 }) => {
-    const { plan, schema, getEventIcon, updateParameter, deleteEvent, getParameterDisplayName, getParameterUnits, getEventDisplayType, addUpdatingEvent, getParameterDescription, updateEventDescription, updateEventTitle, canEventBeRecurring, updateEventRecurring, getParameterOptions, currentDay, getEnvelopeDisplayName, triggerSimulation } = usePlan();
+    const { plan, schema, getEventIcon, updateParameter, deleteEvent, getParameterDisplayName, getParameterUnits, getEventDisplayType, addUpdatingEvent, getParameterDescription, updateEventDescription, updateEventTitle, canEventBeRecurring, updateEventRecurring, getParameterOptions, currentDay, getEnvelopeDisplayName } = usePlan();
     // State for local parameter editing (now supports main and updating events)
     const [parameters, setParameters] = useState<Record<number, Record<number, { type: string; value: string | number }>>>({});
     const [loading, setLoading] = useState(false);
@@ -178,10 +178,6 @@ const EventParametersForm: React.FC<EventParametersFormProps> = ({
 
         // Simulate a save operation
         await new Promise(resolve => setTimeout(resolve, 500));
-
-        // Trigger simulation to update the visualization with new parameters
-        console.log('🎯 Triggering simulation after form submission');
-        triggerSimulation();
 
         setLoading(false);
         onClose();

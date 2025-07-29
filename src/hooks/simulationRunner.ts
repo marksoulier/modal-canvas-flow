@@ -186,7 +186,10 @@ export async function runSimulation(
 
         // Now split the results into networth and non-networth for visualization
         const envelopeKeys = Object.keys(allResults);
-        const timePoints = Array.from({ length: Math.ceil(endDate / interval) }, (_, i) => i * interval);
+        const timePoints = Array.from(
+            { length: Math.ceil((endDate - startDate) / interval) },
+            (_, i) => startDate + i * interval
+        );
 
         const networthKeys = envelopeKeys.filter(key => envelopes[key]?.account_type !== 'non-networth-account');
         const nonNetworthKeys = envelopeKeys.filter(key => envelopes[key]?.account_type === 'non-networth-account');
