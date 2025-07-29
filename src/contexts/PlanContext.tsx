@@ -206,6 +206,9 @@ interface PlanContextType {
     registerCurrentVisualizationRange: (range: { startDay: number; endDay: number } | null) => void; // <-- add this
     setVisualizationReady: (ready: boolean) => void; // <-- add this new method
     convertDateParametersToDays: (events: any[]) => any[]; // <-- add this new method
+    triggerSimulation: () => void; // <-- add this new method
+    registerTriggerSimulation: (fn: () => void) => void; // <-- add this new method
+    updatePlanDirectly: (planData: Plan) => void; // <-- add this new method for direct plan updates without viewing window reset
 }
 
 // Schema and default data are now imported directly
@@ -259,6 +262,9 @@ export function PlanProvider({ children }: PlanProviderProps) {
 
     // Ref to store the current visualization range from Visualization
     const currentVisualizationRangeRef = useRef<{ startDay: number; endDay: number } | null>(null);
+
+    // Ref to store the triggerSimulation function from Visualization
+    const triggerSimulationRef = useRef<(() => void) | null>(null);
 
     const { upsertAnonymousPlan } = useAuth();
 
@@ -388,7 +394,7 @@ export function PlanProvider({ children }: PlanProviderProps) {
             try {
                 const planToSave = addViewRangeToPlan(plan);
                 localStorage.setItem(LOCALSTORAGE_PLAN_KEY, JSON.stringify(planToSave));
-                console.log('📅 Delayed save completed after visualization ready');
+                console.log('📅Saving plan with anon key to the supabase');
 
                 // --- Upsert anonymous plan if anon key exists ---
                 const anonId = localStorage.getItem('anon_id');
@@ -1218,6 +1224,21 @@ export function PlanProvider({ children }: PlanProviderProps) {
             setIsVisualizationReady(ready);
         },
         convertDateParametersToDays, // <-- add to context value
+        triggerSimulation: () => {
+            // Use the ref if available, otherwise log a warning
+            if (triggerSimulationRef.current) {
+                triggerSimulationRef.current();
+            } else {
+                console.warn('triggerSimulation called but Visualization component not ready yet');
+            }
+        },
+        registerTriggerSimulation: (fn: () => void) => {
+            triggerSimulationRef.current = fn;
+        },
+        updatePlanDirectly: (planData: Plan) => {
+            // Direct plan update without triggering viewing window reset
+            setPlan(planData);
+        },
     };
 
     // Don't render children until we've attempted to load the default plan and schema

@@ -472,3 +472,62 @@ export const getNetWorthAndLockedOnDay = (
         difference: netWorthPoint.value - lockedPoint.value,
     };
 };
+
+// Helper function to normalize -0 to 0 and small values near zero
+export const normalizeZero = (value: number): number => {
+    const threshold = 1e-2; // Very small threshold for floating point precision
+    return Math.abs(value) < threshold ? 0 : value;
+};
+
+// Helper function to detect if a transition is from/to zero (manhattan style needed)
+export const isZeroTransition = (prevValue: number, currentValue: number): boolean => {
+    const prev = normalizeZero(prevValue);
+    const curr = normalizeZero(currentValue);
+    // True if going from 0 to value OR from value to 0
+    return false; //set false for now.
+    //return (prev === 0 && curr !== 0) || (prev !== 0 && curr === 0);
+};
+
+// Helper function to split data into segments based on 0-to-value transitions
+export const splitDataForMixedCurves = (data: any[], getValueFn: (d: any) => number) => {
+    if (data.length < 2) return { stepSegments: [], linearSegments: [data] };
+
+    const stepSegments: any[][] = [];
+    const linearSegments: any[][] = [];
+    let currentSegment: any[] = [data[0]];
+    let isCurrentSegmentStep = false;
+
+    for (let i = 1; i < data.length; i++) {
+        const prevValue = getValueFn(data[i - 1]);
+        const currentValue = getValueFn(data[i]);
+        const isStepTransition = isZeroTransition(prevValue, currentValue);
+
+        if (isStepTransition && !isCurrentSegmentStep) {
+            // Start a new step segment
+            if (currentSegment.length > 1) {
+                linearSegments.push(currentSegment);
+            }
+            currentSegment = [data[i - 1], data[i]];
+            isCurrentSegmentStep = true;
+        } else if (!isStepTransition && isCurrentSegmentStep) {
+            // End step segment, start linear segment
+            stepSegments.push(currentSegment);
+            currentSegment = [data[i - 1], data[i]];
+            isCurrentSegmentStep = false;
+        } else {
+            // Continue current segment
+            currentSegment.push(data[i]);
+        }
+    }
+
+    // Add the final segment
+    if (currentSegment.length > 1) {
+        if (isCurrentSegmentStep) {
+            stepSegments.push(currentSegment);
+        } else {
+            linearSegments.push(currentSegment);
+        }
+    }
+
+    return { stepSegments, linearSegments };
+};

@@ -1,5 +1,6 @@
 import { useRef, useState, useEffect, useMemo, useCallback } from 'react';
 import { Zoom } from '@visx/zoom';
+import debounce from 'lodash/debounce';
 import { scaleLinear } from '@visx/scale';
 import { LinePath } from '@visx/shape';
 import { localPoint } from '@visx/event';
@@ -111,7 +112,6 @@ interface VisualizationProps {
   onAnnotationClick?: (eventId: number) => void;
   onAnnotationDelete?: (eventId: number) => void;
   onNegativeAccountWarning?: (warnings: Array<{ envelopeName: string; category: string; minValue: number; date: number; warningType: 'negative' | 'positive' }>) => void;
-  autoRunSimulation?: boolean; // Whether to automatically run simulation when plan changes
 }
 
 // Custom tick renderer for AxisBottom to style age in light gray
@@ -222,7 +222,7 @@ const detectAccountWarnings = (netWorthData: Datum[], plan: Plan | null): Array<
 };
 
 
-export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativeAccountWarning, autoRunSimulation = false }: VisualizationProps) {
+export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativeAccountWarning }: VisualizationProps) {
   // Ref to store the setZoomToDateRange function for context access
   const setZoomToDateRangeRef = useRef<((startDay: number, endDay: number) => void) | null>(null);
 
@@ -283,7 +283,7 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
     }
   }, [wheelHandler]);
 
-  const { plan, plan_locked, getEventIcon, updateParameter, schema, deleteEvent, getEventDisplayType, currentDay, registerSetZoomToDateRange, setVisualizationReady, convertDateParametersToDays, loadPlan } = usePlan();
+  const { plan, plan_locked, getEventIcon, updateParameter, schema, deleteEvent, getEventDisplayType, currentDay, registerSetZoomToDateRange, setVisualizationReady, convertDateParametersToDays, registerTriggerSimulation, updatePlanDirectly } = usePlan();
 
   // Register the setZoomToDateRange function with the context when it's available
   useEffect(() => {
@@ -291,6 +291,8 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
       registerSetZoomToDateRange(setZoomToDateRangeRef.current);
     }
   }, [registerSetZoomToDateRange]);
+
+
 
   // Base sizes that will be adjusted by zoom
   const baseLineWidth = 2;
@@ -413,10 +415,18 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
   };
 
   // Manual simulation control
-  const runSimulationManually = useCallback(async () => {
+  const runSimulationManually = useCallback(async (intervalOverride?: TimeInterval) => {
+    const intervalToUse = intervalOverride || timeInterval;
+    console.log('🔍 runSimulationManually called', {
+      hasPlan: !!plan,
+      timeInterval: intervalToUse,
+      wasOverridden: !!intervalOverride
+    });
+
     if (!plan || !schema) return;
 
     try {
+      console.log('🚀 Starting simulation execution');
       setIsLoading(true);
 
       // Set birth date from plan
@@ -444,7 +454,7 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
         schema,
         startDate,
         endDate,
-        getIntervalInDays(timeInterval),
+        getIntervalInDays(intervalToUse),
         currentDay,
         birthDate,
         (updates) => {
@@ -472,8 +482,9 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
               }
             });
 
-            // Update the plan with calculated values
-            loadPlan(updatedPlan);
+            // Update the plan with calculated values - use direct state update to avoid triggering viewing window reset
+            console.log('📝 Updating plan with simulation results (direct update)');
+            updatePlanDirectly(updatedPlan);
           }
         }
       );
@@ -490,21 +501,27 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
     } finally {
       setIsLoading(false);
     }
-  }, [plan, schema, timeInterval, currentDay, onNegativeAccountWarning, convertDateParametersToDays]);
+  }, [plan, schema, timeInterval, currentDay, onNegativeAccountWarning, convertDateParametersToDays]); // Re-run when time interval, plan, schema, or currentDay changes
 
-  // Run simulation on mount only (not on every plan change)
+  // Run simulation on initial load
   useEffect(() => {
+    // Only run simulation on initial load
     if (plan && schema) {
+      console.log('🚀 Running initial simulation');
       runSimulationManually();
     }
-  }, []); // Empty dependency array - only run on mount
+  }, []); // do not depend pon plan and schema, only run on initial load
 
-  // Optional: Auto-run simulation when plan changes (if enabled)
+  // Expose manual simulation trigger for external use
+  const triggerSimulation = useCallback(() => {
+    console.log('🎯 Manual simulation triggered with current interval:', timeInterval);
+    runSimulationManually(timeInterval);
+  }, [runSimulationManually, timeInterval]);
+
+  // Register the triggerSimulation function with the context when it's available so it can be used in other components
   useEffect(() => {
-    if (autoRunSimulation && plan && schema) {
-      runSimulationManually();
-    }
-  }, [autoRunSimulation, plan, schema, runSimulationManually]);
+    registerTriggerSimulation(triggerSimulation);
+  }, [registerTriggerSimulation, triggerSimulation]);
 
   // Calculate stacked data from simulation results
   const stackedData = useMemo(() => {
@@ -605,7 +622,7 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
           // Calculate global zoom level (now only depends on scaleX)
           const globalZoom = zoom.transformMatrix.scaleX;
 
-          //console.log('globalZoom: ', globalZoom);
+          //console.log('🔍 globalZoom:', globalZoom, 'timeInterval:', timeInterval);
           // Calculate visible date range based on current viewport with padding
           const viewportPadding = width * 0.2; // 20% padding on each side
           const visibleXDomain = [
@@ -667,9 +684,15 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
           useEffect(() => {
             const newInterval = getTimeIntervalFromZoom(globalZoom);
             if (newInterval !== timeInterval) {
+              console.log('🎯 Time interval changed from', timeInterval, 'to', newInterval);
+              // Run simulation with new interval before updating state
+              runSimulationManually(newInterval);
+              // Update state after simulation is triggered
               setTimeInterval(newInterval);
             }
           }, [globalZoom]);
+
+
 
           // Get envelope colors from schema
           const envelopeColors = useMemo(() => {
@@ -833,6 +856,12 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
             const closestPoint = findClosestPoint(netWorthData, dataPoint.x);
             const closestIndex = netWorthData.findIndex(p => p.date === closestPoint?.date);
 
+            // Trigger simulation after drag ends to update visualization with new event timing
+            if (hasDragged) {
+              console.log('🎯 Triggering simulation after event drag');
+              triggerSimulation();
+            }
+
             setDraggingAnnotation(null);
             setClosestPoint(null);
           };
@@ -972,30 +1001,8 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
                   zIndex: 20,
                   display: 'flex',
                   gap: 8,
-                  alignItems: 'center',
                 }}
               >
-                {/* Run Simulation Button */}
-                <button
-                  style={{
-                    background: isLoading ? '#f3f4f6' : '#10b981',
-                    color: isLoading ? '#6b7280' : 'white',
-                    border: '1px solid #e5e7eb',
-                    borderRadius: 6,
-                    padding: '6px 16px',
-                    fontSize: 13,
-                    fontWeight: 500,
-                    opacity: isLoading ? 0.6 : 0.9,
-                    transition: 'all 0.2s',
-                    cursor: isLoading ? 'not-allowed' : 'pointer',
-                    boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
-                    marginRight: 16,
-                  }}
-                  onClick={runSimulationManually}
-                  disabled={isLoading}
-                >
-                  {isLoading ? 'Running...' : 'Run Simulation'}
-                </button>
                 <button
                   style={{
                     background: 'rgba(51, 89, 102, 0.06)',
