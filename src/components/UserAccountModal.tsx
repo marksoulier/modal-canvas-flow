@@ -12,7 +12,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { usePlan } from '../contexts/PlanContext';
 import { Switch } from './ui/switch';
 import { toast } from 'sonner';
-import { Trash2, Loader2, User, CreditCard, FolderOpen, Settings, LogOut } from 'lucide-react';
+import { Trash2, Loader2, User, CreditCard, FolderOpen, Settings, LogOut, ChevronDown, ChevronRight } from 'lucide-react';
 
 interface UserAccountModalProps {
   isOpen: boolean;
@@ -55,6 +55,7 @@ const UserAccountModal: React.FC<UserAccountModalProps> = ({ isOpen, onClose, on
   const [loadingPlanId, setLoadingPlanId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'profile' | 'subscription' | 'plans'>('plans');
   const [hasLoadedDefaults, setHasLoadedDefaults] = useState(false);
+  const [isDefaultPlansExpanded, setIsDefaultPlansExpanded] = useState(false);
 
   // Fetch default plans once on component mount
   useEffect(() => {
@@ -245,55 +246,6 @@ const UserAccountModal: React.FC<UserAccountModalProps> = ({ isOpen, onClose, on
 
   const renderPlansContent = () => (
     <div className="space-y-6">
-      {/* Default Plans */}
-      {(defaultPlans.length > 0 || isLoadingDefaults) && (
-        <div>
-          <h3 className="text-xl font-semibold mb-4 text-foreground">
-            Default Plans
-            {isLoadingDefaults && <span className="text-sm text-muted-foreground ml-2">(Loading...)</span>}
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {isLoadingDefaults ? (
-              <div className="col-span-full text-center p-8 text-muted-foreground">
-                <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2" />
-                <p className="text-sm">Loading default plans...</p>
-              </div>
-            ) : (
-              defaultPlans.map((plan, index) => (
-                <Card
-                  key={`default-${index}`}
-                  className="cursor-pointer hover:shadow-md transition-all duration-200 hover:bg-accent/50 border-primary/20"
-                  onClick={() => handleLoadDefaultPlan(plan.plan_data, plan.plan_name || '')}
-                >
-                  <CardHeader className="pb-3">
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="text-base font-medium text-foreground">
-                        {plan.plan_name || 'Untitled Plan'}
-                      </CardTitle>
-                      <Badge variant="outline" className="text-xs border-primary/30 text-primary">
-                        Default
-                      </Badge>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    {plan.plan_image && (
-                      <div className="mb-3">
-                        <img
-                          src={svgToDataUri(plan.plan_image)}
-                          alt={`Preview of ${plan.plan_name || 'Untitled Plan'}`}
-                          className="w-full h-24 object-cover rounded-md border border-border"
-                        />
-                      </div>
-                    )}
-                    <p className="text-xs text-muted-foreground">Available to all users</p>
-                  </CardContent>
-                </Card>
-              ))
-            )}
-          </div>
-        </div>
-      )}
-
       {/* User's Saved Plans */}
       {userData?.plans && userData.plans.length > 0 && (
         <div>
@@ -354,6 +306,70 @@ const UserAccountModal: React.FC<UserAccountModalProps> = ({ isOpen, onClose, on
               </Card>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* Default Plans */}
+      {(defaultPlans.length > 0 || isLoadingDefaults) && (
+        <div className="rounded-lg border border-border/50 overflow-hidden">
+          <button
+            onClick={() => setIsDefaultPlansExpanded(!isDefaultPlansExpanded)}
+            className="flex items-center justify-between w-full text-xl font-semibold px-6 py-4 bg-muted/30 hover:bg-muted/50 transition-colors"
+          >
+            <div className="flex items-center">
+              Default Plans
+              {isLoadingDefaults && <span className="text-sm text-muted-foreground ml-2">(Loading...)</span>}
+            </div>
+            {isDefaultPlansExpanded ? (
+              <ChevronDown className="w-5 h-5 text-muted-foreground" />
+            ) : (
+              <ChevronRight className="w-5 h-5 text-muted-foreground" />
+            )}
+          </button>
+
+          {isDefaultPlansExpanded && (
+            <div className="p-6 border-t border-border/50">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {isLoadingDefaults ? (
+                  <div className="col-span-full text-center p-8 text-muted-foreground">
+                    <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2" />
+                    <p className="text-sm">Loading default plans...</p>
+                  </div>
+                ) : (
+                  defaultPlans.map((plan, index) => (
+                    <Card
+                      key={`default-${index}`}
+                      className="cursor-pointer hover:shadow-md transition-all duration-200 hover:bg-accent/50 border-primary/20"
+                      onClick={() => handleLoadDefaultPlan(plan.plan_data, plan.plan_name || '')}
+                    >
+                      <CardHeader className="pb-3">
+                        <div className="flex items-center justify-between">
+                          <CardTitle className="text-base font-medium text-foreground">
+                            {plan.plan_name || 'Untitled Plan'}
+                          </CardTitle>
+                          <Badge variant="outline" className="text-xs border-primary/30 text-primary">
+                            Default
+                          </Badge>
+                        </div>
+                      </CardHeader>
+                      <CardContent>
+                        {plan.plan_image && (
+                          <div className="mb-3">
+                            <img
+                              src={svgToDataUri(plan.plan_image)}
+                              alt={`Preview of ${plan.plan_name || 'Untitled Plan'}`}
+                              className="w-full h-24 object-cover rounded-md border border-border"
+                            />
+                          </div>
+                        )}
+                        <p className="text-xs text-muted-foreground">Available to all users</p>
+                      </CardContent>
+                    </Card>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
         </div>
       )}
 

@@ -351,20 +351,22 @@ export const Legend = ({
                             </div>
                             {showEnvelopes && (
                                 <div style={{ marginLeft: 20, marginTop: 2 }} className="space-y-1">
-                                    {envs.map((envelope) => {
-                                        const envColor = envelopeColors[envelope] || catColor;
-                                        return (
-                                            <div key={envelope} className="flex items-center justify-between space-x-4">
-                                                <div className="flex items-center space-x-2">
-                                                    <div className="w-3 h-3 rounded" style={{ backgroundColor: envColor.area, border: `2px solid ${envColor.line}` }} />
-                                                    <span className="text-xs" style={{ fontWeight: 500, color: '#444' }}>{envelope}</span>
+                                    {envs
+                                        .filter(envelope => Number((currentValues[envelope] || 0).toFixed(2)) !== 0) // Filter out values that round to 0.00
+                                        .map((envelope) => {
+                                            const envColor = envelopeColors[envelope] || catColor;
+                                            return (
+                                                <div key={envelope} className="flex items-center justify-between space-x-4">
+                                                    <div className="flex items-center space-x-2">
+                                                        <div className="w-3 h-3 rounded" style={{ backgroundColor: envColor.area, border: `2px solid ${envColor.line}` }} />
+                                                        <span className="text-xs" style={{ fontWeight: 500, color: '#444' }}>{envelope}</span>
+                                                    </div>
+                                                    <span className="text-xs text-gray-400">
+                                                        {formatNumber({ valueOf: () => currentValues[envelope] || 0 })}
+                                                    </span>
                                                 </div>
-                                                <span className="text-xs text-gray-400">
-                                                    {formatNumber({ valueOf: () => currentValues[envelope] || 0 })}
-                                                </span>
-                                            </div>
-                                        );
-                                    })}
+                                            );
+                                        })}
                                 </div>
                             )}
                         </div>
@@ -391,24 +393,26 @@ export const Legend = ({
                             </div>
                             {showEnvelopes && nonNetworthCurrentValues && (
                                 <div style={{ marginLeft: 20, marginTop: 2 }} className="space-y-1">
-                                    {envs.map((envelope) => {
-                                        const envColor = envelopeColors[envelope] || catColor;
-                                        return (
-                                            <div key={envelope} className="flex items-center justify-between space-x-4">
-                                                <div className="flex items-center space-x-2">
-                                                    <div className="w-3 h-3 rounded" style={{
-                                                        backgroundColor: 'transparent',
-                                                        border: `2px dashed ${envColor.line}`,
-                                                        borderRadius: '2px'
-                                                    }} />
-                                                    <span className="text-xs" style={{ fontWeight: 500, color: '#444', fontStyle: 'italic' }}>{envelope}</span>
+                                    {envs
+                                        .filter(envelope => Number((nonNetworthCurrentValues[envelope] || 0).toFixed(2)) !== 0) // Filter out values that round to 0.00
+                                        .map((envelope) => {
+                                            const envColor = envelopeColors[envelope] || catColor;
+                                            return (
+                                                <div key={envelope} className="flex items-center justify-between space-x-4">
+                                                    <div className="flex items-center space-x-2">
+                                                        <div className="w-3 h-3 rounded" style={{
+                                                            backgroundColor: 'transparent',
+                                                            border: `2px dashed ${envColor.line}`,
+                                                            borderRadius: '2px'
+                                                        }} />
+                                                        <span className="text-xs" style={{ fontWeight: 500, color: '#444', fontStyle: 'italic' }}>{envelope}</span>
+                                                    </div>
+                                                    <span className="text-xs text-gray-400">
+                                                        {formatNumber({ valueOf: () => nonNetworthCurrentValues[envelope] || 0 })}
+                                                    </span>
                                                 </div>
-                                                <span className="text-xs text-gray-400">
-                                                    {formatNumber({ valueOf: () => nonNetworthCurrentValues[envelope] || 0 })}
-                                                </span>
-                                            </div>
-                                        );
-                                    })}
+                                            );
+                                        })}
                                 </div>
                             )}
                         </div>

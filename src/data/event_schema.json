@@ -56,7 +56,7 @@
             "category": "Assets",
             "growth": "Appreciation",
             "rate": 0.03,
-            "account_type": "system-controlled"
+            "account_type": "regular"
         },
         {
             "name": "RothIRA",
@@ -69,8 +69,8 @@
             "name": "Car",
             "category": "Assets",
             "growth": "Depreciation",
-            "rate": -0.15,
-            "account_type": "system-controlled"
+            "rate": 0.15,
+            "account_type": "regular"
         },
         {
             "name": "Laptop",
@@ -82,37 +82,30 @@
         {
             "name": "Car Loan",
             "category": "Debt",
-            "growth": "None",
-            "rate": 0,
-            "account_type": "system-controlled"
+            "growth": "Monthly Compound",
+            "rate": 0.05,
+            "account_type": "regular"
         },
         {
             "name": "Home Mortgage",
             "category": "Debt",
+            "growth": "Monthly Compound",
+            "rate": 0.05,
+            "account_type": "regular"
+        },
+        {
+            "name": "Student Loans Subsidized (During School)",
+            "category": "Debt",
             "growth": "None",
-            "rate": 0,
-            "account_type": "system-controlled"
-        },
-        {
-            "name": "Student Loans Public (During School)",
-            "category": "Debt",
-            "growth": "Daily Compound",
-            "rate": 0.045,
-            "account_type": "system-controlled"
-        },
-        {
-            "name": "Student Loans Private (During School)",
-            "category": "Debt",
-            "growth": "Daily Compound",
-            "rate": 0.065,
-            "account_type": "system-controlled"
+            "rate": 0.0,
+            "account_type": "regular"
         },
         {
             "name": "Student Loans",
             "category": "Debt",
-            "growth": "None",
-            "rate": 0,
-            "account_type": "system-controlled"
+            "growth": "Monthly Compound",
+            "rate": 0.065,
+            "account_type": "regular"
         },
         {
             "name": "Taxable Income",
@@ -351,22 +344,6 @@
                     "editable": true
                 },
                 {
-                    "type": "end_time",
-                    "display_name": "End Date",
-                    "parameter_units": "date",
-                    "description": "When the recurring declaration ends (only used if recurring)",
-                    "default": 3650,
-                    "editable": true
-                },
-                {
-                    "type": "frequency_days",
-                    "display_name": "Frequency (Days)",
-                    "parameter_units": "days",
-                    "description": "Number of days between each declaration (only used if recurring)",
-                    "default": 365,
-                    "editable": true
-                },
-                {
                     "type": "amount1",
                     "display_name": "Amount 1",
                     "parameter_units": "usd",
@@ -490,7 +467,7 @@
                     "display_name": "Transfer Amount",
                     "parameter_units": "usd",
                     "description": "Amount of money to transfer",
-                    "default": 10000,
+                    "default": 20,
                     "editable": true
                 },
                 {
@@ -552,7 +529,7 @@
                     "display_name": "Amount",
                     "parameter_units": "usd",
                     "description": "Amount received each interval.",
-                    "default": 1000,
+                    "default": 20,
                     "editable": true
                 },
                 {
@@ -603,7 +580,7 @@
                             "display_name": "Amount",
                             "parameter_units": "usd",
                             "description": "Amount received each interval.",
-                            "default": 1000,
+                            "default": 30,
                             "editable": true
                         }
                     ]
@@ -1789,7 +1766,7 @@
                     "parameter_units": "envelope",
                     "description": "Envelope where house value is tracked",
                     "default": "House",
-                    "editable": false
+                    "editable": true
                 },
                 {
                     "type": "mortgage_envelope",
@@ -1797,7 +1774,7 @@
                     "parameter_units": "envelope",
                     "description": "Envelope where the home mortgage debt is tracked.",
                     "default": "Home Mortgage",
-                    "editable": false
+                    "editable": true
                 },
                 {
                     "type": "property_tax_rate",
@@ -1964,158 +1941,6 @@
                             "editable": true
                         }
                     ]
-                },
-                {
-                    "type": "buy_home_insurance",
-                    "display_type": "Home Insurance",
-                    "display_event": false,
-                    "icon": "shield-check",
-                    "description": "Purchase insurance policy for the house.",
-                    "parameters": [
-                        {
-                            "type": "start_time",
-                            "display_name": "Coverage Start Date",
-                            "parameter_units": "date",
-                            "description": "When insurance coverage begins",
-                            "default": 0,
-                            "editable": true
-                        },
-                        {
-                            "type": "monthly_premium",
-                            "display_name": "Monthly Premium",
-                            "parameter_units": "usd",
-                            "description": "Monthly cost of the insurance.",
-                            "default": 100,
-                            "editable": true
-                        },
-                        {
-                            "type": "deductible",
-                            "display_name": "Deductible",
-                            "parameter_units": "usd",
-                            "description": "Out-of-pocket amount before coverage.",
-                            "default": 2000,
-                            "editable": true
-                        },
-                        {
-                            "type": "coverage_percentage",
-                            "display_name": "Coverage Percentage",
-                            "parameter_units": "percentage",
-                            "description": "Percentage of damage the policy covers.",
-                            "default": 0.9,
-                            "editable": true
-                        },
-                        {
-                            "type": "from_key",
-                            "display_name": "From Envelope",
-                            "parameter_units": "envelope",
-                            "description": "Envelope where premiums are paid from",
-                            "default": "Other (Cash)",
-                            "editable": true
-                        }
-                    ],
-                    "updating_events": [
-                        {
-                            "type": "tornado_damage",
-                            "display_type": "Tornado Damage",
-                            "display_event": true,
-                            "icon": "wind",
-                            "description": "Damage to property due to tornado.",
-                            "parameters": [
-                                {
-                                    "type": "start_time",
-                                    "display_name": "Damage Date",
-                                    "parameter_units": "date",
-                                    "description": "When the damage occurs",
-                                    "default": 0
-                                },
-                                {
-                                    "type": "damage_cost",
-                                    "display_name": "Damage Cost",
-                                    "parameter_units": "usd",
-                                    "description": "Cost of tornado-related damages.",
-                                    "default": 75000
-                                },
-                                {
-                                    "type": "insurance_coverage",
-                                    "display_name": "Insurance Coverage %",
-                                    "parameter_units": "percentage",
-                                    "description": "Percentage reimbursed by insurance.",
-                                    "default": 0.9
-                                },
-                                {
-                                    "type": "to_key",
-                                    "display_name": "To Envelope",
-                                    "parameter_units": "envelope",
-                                    "description": "Envelope where insurance payout is received",
-                                    "default": "Other (Cash)"
-                                }
-                            ]
-                        },
-                        {
-                            "type": "house_fire",
-                            "display_type": "House Fire",
-                            "display_event": true,
-                            "is_recurring": false,
-                            "can_be_reocurring": false,
-                            "icon": "flame",
-                            "description": "Damage to property due to fire.",
-                            "parameters": [
-                                {
-                                    "type": "start_time",
-                                    "display_name": "Damage Date",
-                                    "parameter_units": "date",
-                                    "description": "When the damage occurs",
-                                    "default": 0
-                                },
-                                {
-                                    "type": "damage_cost",
-                                    "display_name": "Damage Cost",
-                                    "parameter_units": "usd",
-                                    "description": "Repair cost after fire.",
-                                    "default": 100000
-                                },
-                                {
-                                    "type": "insurance_coverage",
-                                    "display_name": "Insurance Coverage %",
-                                    "parameter_units": "percentage",
-                                    "description": "Coverage from insurance.",
-                                    "default": 0.95
-                                },
-                                {
-                                    "type": "to_key",
-                                    "display_name": "To Envelope",
-                                    "parameter_units": "envelope",
-                                    "description": "Envelope where insurance payout is received",
-                                    "default": "Other (Cash)"
-                                }
-                            ]
-                        },
-                        {
-                            "type": "flood_damage",
-                            "display_type": "Flood Damage",
-                            "display_event": true,
-                            "is_recurring": false,
-                            "can_be_reocurring": false,
-                            "icon": "waves",
-                            "description": "Damage to home due to flood.",
-                            "parameters": [
-                                {
-                                    "type": "start_time",
-                                    "display_name": "Damage Date",
-                                    "parameter_units": "date",
-                                    "description": "When the damage occurs",
-                                    "default": 0
-                                },
-                                {
-                                    "type": "damage_cost",
-                                    "display_name": "Damage Cost",
-                                    "parameter_units": "usd",
-                                    "description": "Repair cost after flooding.",
-                                    "default": 50000
-                                }
-                            ]
-                        }
-                    ]
                 }
             ]
         },
@@ -2124,7 +1949,7 @@
             "display_type": "Car Purchase",
             "display_event": true,
             "is_recurring": false,
-            "can_be_reocurring": true,
+            "can_be_reocurring": false,
             "weight": 40,
             "category": "Major Purchases",
             "description": "Purchase a car with or without a loan.",
@@ -2145,7 +1970,7 @@
                     "parameter_units": "date",
                     "description": "When the recurring purchase ends (only used if recurring)",
                     "default": 3650,
-                    "editable": true
+                    "editable": false
                 },
                 {
                     "type": "frequency_days",
@@ -2169,14 +1994,6 @@
                     "parameter_units": "years",
                     "description": "Length of car loan in years.",
                     "default": 5,
-                    "editable": true
-                },
-                {
-                    "type": "loan_rate",
-                    "display_name": "Interest Rate",
-                    "parameter_units": "apy",
-                    "description": "Annual interest rate for the loan.",
-                    "default": 0.045,
                     "editable": true
                 },
                 {
@@ -3312,19 +3129,11 @@
                 },
                 {
                     "type": "end_time",
-                    "display_name": "End Date",
+                    "display_name": "Loan Origination Date",
                     "parameter_units": "date",
-                    "description": "When the recurring loan ends (only used if recurring)",
-                    "default": 3650,
-                    "editable": true
-                },
-                {
-                    "type": "frequency_days",
-                    "display_name": "Frequency (Days)",
-                    "parameter_units": "days",
-                    "description": "Number of days between each loan occurrence (only used if recurring)",
-                    "default": 365,
-                    "editable": true
+                    "description": "When the loan is payed off",
+                    "default": 0,
+                    "editable": false
                 },
                 {
                     "type": "amount",
@@ -3362,7 +3171,15 @@
                     "type": "to_key",
                     "display_name": "Loan Tracking Envelope",
                     "parameter_units": "envelope",
-                    "description": "Envelope where loan balance is tracked",
+                    "description": "Envelope where loan balance is tracked during school. No interest",
+                    "default": "Student Loans Subsidized (During School)",
+                    "editable": true
+                },
+                {
+                    "type": "after_school_key",
+                    "display_name": "After School Loan Tracking Envelope",
+                    "parameter_units": "envelope",
+                    "description": "Envelope where loan balance is tracked after school",
                     "default": "Student Loans",
                     "editable": true
                 }
@@ -3390,19 +3207,11 @@
                 },
                 {
                     "type": "end_time",
-                    "display_name": "End Date",
+                    "display_name": "Loan Origination Date",
                     "parameter_units": "date",
-                    "description": "When the recurring loan ends (only used if recurring)",
-                    "default": 3650,
-                    "editable": true
-                },
-                {
-                    "type": "frequency_days",
-                    "display_name": "Frequency (Days)",
-                    "parameter_units": "days",
-                    "description": "Number of days between each loan occurrence (only used if recurring)",
-                    "default": 365,
-                    "editable": true
+                    "description": "When the loan is payed off",
+                    "default": 0,
+                    "editable": false
                 },
                 {
                     "type": "amount",
@@ -3441,14 +3250,6 @@
                     "display_name": "Loan Tracking Envelope",
                     "parameter_units": "envelope",
                     "description": "Envelope where loan balance is tracked",
-                    "default": "Student Loans Public (During School)",
-                    "editable": true
-                },
-                {
-                    "type": "after_school_key",
-                    "display_name": "After School Loan Tracking Envelope",
-                    "parameter_units": "envelope",
-                    "description": "Envelope where loan balance is tracked after school",
                     "default": "Student Loans",
                     "editable": true
                 }
@@ -3476,19 +3277,11 @@
                 },
                 {
                     "type": "end_time",
-                    "display_name": "End Date",
+                    "display_name": "Loan Origination Date",
                     "parameter_units": "date",
-                    "description": "When the recurring loan ends (only used if recurring)",
-                    "default": 3650,
-                    "editable": true
-                },
-                {
-                    "type": "frequency_days",
-                    "display_name": "Frequency (Days)",
-                    "parameter_units": "days",
-                    "description": "Number of days between each loan occurrence (only used if recurring)",
-                    "default": 365,
-                    "editable": true
+                    "description": "When the loan is payed off",
+                    "default": 0,
+                    "editable": false
                 },
                 {
                     "type": "amount",
@@ -3527,14 +3320,6 @@
                     "display_name": "Loan Tracking Envelope",
                     "parameter_units": "envelope",
                     "description": "Envelope where loan balance is tracked",
-                    "default": "Student Loans Private (During School)",
-                    "editable": true
-                },
-                {
-                    "type": "after_school_key",
-                    "display_name": "After School Loan Tracking Envelope",
-                    "parameter_units": "envelope",
-                    "description": "Envelope where loan balance is tracked after school",
                     "default": "Student Loans",
                     "editable": true
                 }

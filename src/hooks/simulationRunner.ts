@@ -52,7 +52,8 @@ export async function runSimulation(
     interval: number = 365,
     currentDay?: number,
     birthDate?: Date,
-    onPlanUpdate?: (updates: Array<{ eventId: number, paramType: string, value: number }>) => void
+    onPlanUpdate?: (updates: Array<{ eventId: number, paramType: string, value: number }>) => void,
+    visibleRange?: { startDate: number, endDate: number }
 ): Promise<Datum[]> {
     try {
         const schemaMap = extractSchema(schema);
@@ -69,7 +70,8 @@ export async function runSimulation(
             birthDate: birthDate,
             interval: interval,
             start_time: startDate,
-            end_time: endDate
+            end_time: endDate,
+            visibleRange: visibleRange // Add visible range to simulation settings
         };
 
         const parsedEvents = parseEvents(plan);
@@ -110,7 +112,9 @@ export async function runSimulation(
                 case 'buy_house': buy_house(event, envelopes, (updates) => {
                     planUpdates.push(...updates);
                 }); break;
-                case 'buy_car': buy_car(event, envelopes); break;
+                case 'buy_car': buy_car(event, envelopes, (updates) => {
+                    planUpdates.push(...updates);
+                }); break;
                 case 'have_kid': have_kid(event, envelopes); break;
                 case 'marriage': marriage(event, envelopes); break;
                 case 'divorce': divorce(event, envelopes); break;
@@ -130,9 +134,15 @@ export async function runSimulation(
                 case 'tax_payment_estimated': tax_payment_estimated(event, envelopes); break;
                 case 'loan_amortization': loan_amortization(event, envelopes); break;
                 case 'loan': loan(event, envelopes); break;
-                case 'federal_subsidized_loan': federal_subsidized_loan(event, envelopes); break;
-                case 'federal_unsubsidized_loan': federal_unsubsidized_loan(event, envelopes); break;
-                case 'private_student_loan': private_student_loan(event, envelopes); break;
+                case 'federal_subsidized_loan': federal_subsidized_loan(event, envelopes, (updates) => {
+                    planUpdates.push(...updates);
+                }); break;
+                case 'federal_unsubsidized_loan': federal_unsubsidized_loan(event, envelopes, (updates) => {
+                    planUpdates.push(...updates);
+                }); break;
+                case 'private_student_loan': private_student_loan(event, envelopes, (updates) => {
+                    planUpdates.push(...updates);
+                }); break;
                 default:
                     console.warn(`⚠️ Unhandled event type: ${event.type}`);
             }
@@ -179,46 +189,41 @@ export async function runSimulation(
         let allResults;
         if (plan.adjust_for_inflation) {
             const inflationRate = plan.inflation_rate;
-            allResults = evaluateResults(allEvalEnvelopes, startDate, endDate, interval, currentDay, inflationRate);
+            allResults = evaluateResults(allEvalEnvelopes, startDate, endDate, interval, currentDay, inflationRate, simulation_settings.visibleRange);
         } else {
-            allResults = evaluateResults(allEvalEnvelopes, startDate, endDate, interval);
+            allResults = evaluateResults(allEvalEnvelopes, startDate, endDate, interval, currentDay, undefined, simulation_settings.visibleRange);
         }
 
         // Now split the results into networth and non-networth for visualization
-        const envelopeKeys = Object.keys(allResults);
-        const timePoints = Array.from(
-            { length: Math.ceil((endDate - startDate) / interval) },
-            (_, i) => startDate + i * interval
-        );
-
+        const envelopeKeys = Object.keys(allResults.results);
         const networthKeys = envelopeKeys.filter(key => envelopes[key]?.account_type !== 'non-networth-account');
         const nonNetworthKeys = envelopeKeys.filter(key => envelopes[key]?.account_type === 'non-networth-account');
 
         // Filter out envelopes that have zero values in all intervals
-        const nonZeroNetworthKeys = networthKeys.filter(key => allResults[key].some(value => value !== 0));
-        const nonZeroNonNetworthKeys = nonNetworthKeys.filter(key => allResults[key].some(value => value !== 0));
+        const nonZeroNetworthKeys = networthKeys.filter(key => allResults.results[key].some(value => value !== 0));
+        const nonZeroNonNetworthKeys = nonNetworthKeys.filter(key => allResults.results[key].some(value => value !== 0));
 
         // Create a single array of Datum objects where each Datum contains all non-zero envelope values as parts
-        return timePoints.map((date, i) => {
+        return allResults.results[envelopeKeys[0]].map((_, i) => {
             const parts: { [key: string]: number } = {};
             const nonNetworthParts: { [key: string]: number } = {};
             let totalValue = 0;
 
             // Populate parts with values from each non-zero envelope
             nonZeroNetworthKeys.forEach(key => {
-                const value = allResults[key][i];
+                const value = allResults.results[key][i];
                 parts[key] = value;
                 totalValue += value;
             });
 
             // Populate non-networth parts (these don't contribute to total value)
             nonZeroNonNetworthKeys.forEach(key => {
-                const value = allResults[key][i];
+                const value = allResults.results[key][i];
                 nonNetworthParts[key] = value;
             });
 
             return {
-                date,
+                date: allResults.timePoints[i],
                 value: totalValue,
                 parts,
                 nonNetworthParts

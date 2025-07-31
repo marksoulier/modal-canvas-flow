@@ -50,53 +50,42 @@ const normalizeZero = (value: number): number => {
 const isZeroTransition = (prevValue: number, currentValue: number): boolean => {
   const prev = normalizeZero(prevValue);
   const curr = normalizeZero(currentValue);
-  // True if going from 0 to value OR from value to 0
-  return false; //set false for now.
-  //return (prev === 0 && curr !== 0) || (prev !== 0 && curr === 0);
+  // Detect sign changes (including transitions through zero)
+  return (prev >= 0 && curr < 0) || (prev < 0 && curr >= 0);
 };
 
 // Helper function to split data into segments based on 0-to-value transitions
-const splitDataForMixedCurves = (data: any[], getValueFn: (d: any) => number) => {
-  if (data.length < 2) return { stepSegments: [], linearSegments: [data] };
+const splitDataForMixedCurves = (data: any[], getValueFn: (d: any) => number): { segments: any[][] } => {
+  if (data.length < 2) return { segments: [data] };
 
-  const stepSegments: any[][] = [];
-  const linearSegments: any[][] = [];
+  const segments: any[][] = [];
   let currentSegment: any[] = [data[0]];
-  let isCurrentSegmentStep = false;
 
   for (let i = 1; i < data.length; i++) {
     const prevValue = getValueFn(data[i - 1]);
     const currentValue = getValueFn(data[i]);
-    const isStepTransition = isZeroTransition(prevValue, currentValue);
+    const isTransition = isZeroTransition(prevValue, currentValue);
 
-    if (isStepTransition && !isCurrentSegmentStep) {
-      // Start a new step segment
-      if (currentSegment.length > 1) {
-        linearSegments.push(currentSegment);
+    if (isTransition) {
+      // End current segment
+      if (currentSegment.length > 0) {
+        segments.push([...currentSegment]);
       }
-      currentSegment = [data[i - 1], data[i]];
-      isCurrentSegmentStep = true;
-    } else if (!isStepTransition && isCurrentSegmentStep) {
-      // End step segment, start linear segment
-      stepSegments.push(currentSegment);
-      currentSegment = [data[i - 1], data[i]];
-      isCurrentSegmentStep = false;
+      // Create transition segment
+      segments.push([data[i - 1], data[i]]);
+      // Start new segment
+      currentSegment = [data[i]];
     } else {
-      // Continue current segment
       currentSegment.push(data[i]);
     }
   }
 
-  // Add the final segment
-  if (currentSegment.length > 1) {
-    if (isCurrentSegmentStep) {
-      stepSegments.push(currentSegment);
-    } else {
-      linearSegments.push(currentSegment);
-    }
+  // Add the final segment if it exists
+  if (currentSegment.length > 0) {
+    segments.push(currentSegment);
   }
 
-  return { stepSegments, linearSegments };
+  return { segments };
 };
 
 interface DraggingAnnotation {
@@ -239,21 +228,11 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
   const [tooltipTop, setTooltipTop] = useState<number>(0);
   const [isLoading, setIsLoading] = useState(true);
   const [netWorthData, setNetWorthData] = useState<Datum[]>([]);
-  const [allNetWorthData, setAllNetWorthData] = useState<Datum[]>([]);
   const [timeInterval, setTimeInterval] = useState<TimeInterval>('year');
   const [birthDate, setBirthDate] = useState<Date>(new Date(2000, 0, 1)); // Default to Jan 1, 2000
   const [hoveredEventId, setHoveredEventId] = useState<number | null>(null);
   const [lastMouse, setLastMouse] = useState<{ x: number, y: number } | null>(null);
   const [dragStartPos, setDragStartPos] = useState<{ x: number; y: number } | null>(null);
-  const [eventDescriptionTooltip, setEventDescriptionTooltip] = useState<{
-    left: number;
-    top: number;
-    displayType: string;
-    description: string;
-  } | null>(null);
-  const [autoZoomTrigger, setAutoZoomTrigger] = useState<{ years?: number; months?: number; days?: number } | null>(null);
-
-  // Visible range detection (for logging/debugging only)
   const [currentVisibleRange, setCurrentVisibleRange] = useState<{
     startDate: number;
     endDate: number;
@@ -261,6 +240,13 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
     endDateFormatted: string;
     totalDays: number;
   } | null>(null);
+  const [eventDescriptionTooltip, setEventDescriptionTooltip] = useState<{
+    left: number;
+    top: number;
+    displayType: string;
+    description: string;
+  } | null>(null);
+  const [autoZoomTrigger, setAutoZoomTrigger] = useState<{ years?: number; months?: number; days?: number } | null>(null);
 
   // State for locked plan simulation results
   const [lockedNetWorthData, setLockedNetWorthData] = useState<{ date: number, value: number }[]>([]);
@@ -365,48 +351,6 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
   const startDate: number = 0
   const endDate: number = 80 * 365
 
-  // Run simulation for locked plan
-  useEffect(() => {
-    const runLockedSim = async () => {
-      if (!plan_locked || !schema) {
-        setLockedNetWorthData([]);
-        return;
-      }
-      try {
-        // Run simulation with full range
-        console.log('🔍 Locked Plan - Running simulation with full range:', {
-          startDate,
-          endDate,
-          days: endDate - startDate
-        });
-
-        // Convert date parameters to days for simulation
-        const convertedPlanLocked = {
-          ...plan_locked,
-          events: convertDateParametersToDays(plan_locked.events)
-        };
-
-        const result = await runSimulation(
-          convertedPlanLocked,
-          schema,
-          startDate,
-          endDate,
-          getIntervalInDays(timeInterval),
-          currentDay,
-          birthDate
-        );
-        // Only keep {date, value}
-        setLockedNetWorthData(result.map(({ date, value }) => ({ date, value })));
-      } catch (err) {
-        setLockedNetWorthData([]);
-      }
-    };
-
-    if (DEBUG) {
-      runLockedSim();
-    }
-  }, [plan_locked, schema, timeInterval, currentDay, convertDateParametersToDays]);
-
   // Function to determine time interval based on zoom level
   const getTimeIntervalFromZoom = (zoom: number): TimeInterval => {
 
@@ -419,18 +363,54 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
   };
 
   // Manual simulation control
-  const runSimulationManually = useCallback(async (intervalOverride?: TimeInterval) => {
+  const runSimulationManually = useCallback(async (
+    intervalOverride?: TimeInterval,
+    visibleRangeOverride?: { startDate: number, endDate: number }
+  ) => {
     const intervalToUse = intervalOverride || timeInterval;
-    console.log('🔍 runSimulationManually called', {
-      hasPlan: !!plan,
-      timeInterval: intervalToUse,
-      wasOverridden: !!intervalOverride
-    });
+
+    // Get base range from override or current visible range
+    const baseRange = visibleRangeOverride || (currentVisibleRange ? {
+      startDate: currentVisibleRange.startDate,
+      endDate: currentVisibleRange.endDate
+    } : undefined);
+
+    // Apply padding to the range if we have one
+    const rangeToUse = baseRange ? (() => {
+      const visibleRangeWidth = baseRange.endDate - baseRange.startDate;
+      const padding = visibleRangeWidth * 3; // 3x padding
+
+      const paddedRange = {
+        startDate: Math.max(0, baseRange.startDate - padding),
+        endDate: Math.min(80 * 365, baseRange.endDate + padding)
+      };
+
+      // console.log('🔍 Range calculation:', {
+      //   original: baseRange,
+      //   width: visibleRangeWidth,
+      //   padding,
+      //   padded: paddedRange
+      // });
+
+      return paddedRange;
+    })() : undefined;
+
+    // console.log('🔍 runSimulationManually called', {
+    //   hasPlan: !!plan,
+    //   timeInterval: intervalToUse,
+    //   wasOverridden: !!intervalOverride,
+    //   visibleRange: rangeToUse ? {
+    //     startDate: rangeToUse.startDate,
+    //     endDate: rangeToUse.endDate,
+    //     startFormatted: formatDate(rangeToUse.startDate, birthDate, 'full', true, false),
+    //     endFormatted: formatDate(rangeToUse.endDate, birthDate, 'full', true, false)
+    //   } : 'none'
+    // });
 
     if (!plan || !schema) return;
 
     try {
-      console.log('🚀 Starting simulation execution');
+      // console.log('🚀 Starting simulation execution');
       setIsLoading(true);
 
       // Set birth date from plan
@@ -445,18 +425,18 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
         events: convertDateParametersToDays(plan.events)
       };
 
-      // Run daily simulation for entire range
-      const dailyResult = await runSimulation(
+      // Run simulation with visible range for two-stage evaluation
+      const simulationResult = await runSimulation(
         convertedPlan,
         schema,
         startDate,
         endDate,
-        getIntervalInDays(intervalToUse), // In the future make daily interval a parameter
+        getIntervalInDays(intervalToUse),
         currentDay,
         birthDate,
         (updates) => {
           if (updates.length > 0) {
-            console.log('📝 Applying plan updates from simulation:', updates);
+            // console.log('📝 Applying plan updates from simulation:', updates);
             const updatedPlan = { ...plan };
             updates.forEach(update => {
               const event = updatedPlan.events.find(e => e.id === update.eventId);
@@ -468,70 +448,55 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
                   } else {
                     param.value = update.value;
                   }
-                  console.log(`✅ Updated ${update.paramType} for event ${update.eventId} to ${update.value}`);
+                  // console.log(`✅ Updated ${update.paramType} for event ${update.eventId} to ${update.value}`);
                 }
               }
             });
             updatePlanDirectly(updatedPlan);
           }
-        }
+        },
+        rangeToUse
       );
 
-      // Store the full daily simulation data
-      setAllNetWorthData(dailyResult);
-      console.log('📊 Full daily simulation data points:', dailyResult.length);
+      // Store the simulation data
+      setNetWorthData(simulationResult);
+      console.log('📊 Simulation results length:', simulationResult.length);
 
-      // Run simulation for visible range with current interval
-      // let updatedDailyResult = [...dailyResult];
-      // if (currentVisibleRange) {
-      //   const visibleResult = await runSimulation(
-      //     convertedPlan,
-      //     schema,
-      //     currentVisibleRange.startDate,
-      //     currentVisibleRange.endDate,
-      //     getIntervalInDays(intervalToUse),
-      //     currentDay,
-      //     birthDate
-      //   );
-      //   console.log('📊 Visible range data points:', visibleResult.length,
-      //     `(${currentVisibleRange.startDateFormatted} to ${currentVisibleRange.endDateFormatted})
-      //     (${currentVisibleRange.startDate} to ${currentVisibleRange.endDate})
-      //     getIntervalInDays(intervalToUse): ${getIntervalInDays(intervalToUse)}`);
+      // Run simulation for locked plan if it exists
+      if (plan_locked) {
+        try {
+          // Convert date parameters to days for locked plan simulation
+          const convertedPlanLocked = {
+            ...plan_locked,
+            events: convertDateParametersToDays(plan_locked.events)
+          };
 
-      //   // Overlay visible range results onto daily results
-      //   visibleResult.forEach((point) => {
-      //     const index = dailyResult.findIndex(d => d.date === point.date);
-      //     if (index !== -1) {
-      //       updatedDailyResult[index] = point;
-      //     }
-      //   });
-      // }
+          const lockedResult = await runSimulation(
+            convertedPlanLocked,
+            schema,
+            startDate,
+            endDate,
+            getIntervalInDays(intervalToUse),
+            currentDay,
+            birthDate,
+            undefined,
+            rangeToUse
+          );
 
-      // Sample data points based on the current interval
-      const intervalDays = getIntervalInDays(intervalToUse);
-      const sampledData: Datum[] = [];
-      let lastIncludedDate = -intervalDays; // Start before 0 to ensure we include the first point
-
-      dailyResult.forEach((point, index) => {
-        // Always include first and last points
-        if (index === 0 || index === dailyResult.length - 1) {
-          sampledData.push(point);
-          lastIncludedDate = point.date;
-          return;
+          // Only keep {date, value} for locked plan data
+          const lockedData = lockedResult.map(({ date, value }) => ({ date, value }));
+          setLockedNetWorthData(lockedData);
+          console.log('📊 Locked simulation results length:', lockedData.length);
+        } catch (err) {
+          console.error('Locked plan simulation failed:', err);
+          setLockedNetWorthData([]);
         }
-
-        // Include points that are at least intervalDays apart
-        if (point.date >= lastIncludedDate + intervalDays) {
-          sampledData.push(point);
-          lastIncludedDate = point.date;
-        }
-      });
-
-      console.log('📊 Sampled data points:', sampledData.length);
-      setNetWorthData(sampledData);
+      } else {
+        setLockedNetWorthData([]);
+      }
 
       // Check for negative accounts and trigger warning
-      const negativeWarnings = detectAccountWarnings(sampledData, plan);
+      const negativeWarnings = detectAccountWarnings(simulationResult, plan);
       if (negativeWarnings.length > 0 && onNegativeAccountWarning) {
         onNegativeAccountWarning(negativeWarnings);
       }
@@ -540,22 +505,25 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
     } finally {
       setIsLoading(false);
     }
-  }, [plan, schema, timeInterval, currentDay, currentVisibleRange, onNegativeAccountWarning, convertDateParametersToDays]);
+  }, [plan, plan_locked, schema, timeInterval, currentDay, onNegativeAccountWarning, convertDateParametersToDays, currentVisibleRange]);
 
   // Run simulation on initial load
   useEffect(() => {
     // Only run simulation on initial load
     if (plan && schema) {
-      console.log('🚀 Running initial simulation');
+      // console.log('🚀 Running initial simulation');
       runSimulationManually();
     }
-  }, []); // do not depend pon plan and schema, only run on initial load
+  }, []); // do not depend on plan and schema, only run on initial load
 
   // Expose manual simulation trigger for external use
   const triggerSimulation = useCallback(() => {
-    console.log('🎯 Manual simulation triggered with current interval:', timeInterval);
-    runSimulationManually(timeInterval);
-  }, [runSimulationManually, timeInterval]);
+    console.log('🎯 Manual simulation triggered with current interval and visible range:', timeInterval, currentVisibleRange);
+    runSimulationManually(timeInterval, currentVisibleRange ? {
+      startDate: currentVisibleRange.startDate,
+      endDate: currentVisibleRange.endDate
+    } : undefined);
+  }, [runSimulationManually, timeInterval, currentVisibleRange]);
 
   // Register the triggerSimulation function with the context when it's available so it can be used in other components
   useEffect(() => {
@@ -571,17 +539,39 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
       new Set(netWorthData.flatMap(d => Object.keys(d.parts)))
     );
 
+    // Separate debt and non-debt envelopes
+    const { debtEnvelopes, assetEnvelopes } = partKeys.reduce((acc, key) => {
+      const category = getEnvelopeCategory(plan, key);
+      if (category === 'Debt') {
+        acc.debtEnvelopes.push(key);
+      } else {
+        acc.assetEnvelopes.push(key);
+      }
+      return acc;
+    }, { debtEnvelopes: [] as string[], assetEnvelopes: [] as string[] });
+
     return netWorthData.map(d => {
       let posSum = 0;
       let negSum = 0;
       const stackedParts: { [key: string]: { y0: number, y1: number } } = {};
 
-      partKeys.forEach(key => {
+      // First handle debt envelopes (always negative or zero)
+      debtEnvelopes.forEach(key => {
+        const value = normalizeZero(d.parts[key] || 0);
+        // Debt values should always be negative or zero
+        const adjustedValue = Math.min(value, 0);
+        stackedParts[key] = { y0: negSum, y1: negSum + adjustedValue };
+        negSum += adjustedValue;
+      });
+
+      // Then handle asset envelopes
+      assetEnvelopes.forEach(key => {
         const value = normalizeZero(d.parts[key] || 0);
         if (value >= 0) {
           stackedParts[key] = { y0: posSum, y1: posSum + value };
           posSum += value;
         } else {
+          // For non-debt categories that temporarily go negative
           stackedParts[key] = { y0: negSum, y1: negSum + value };
           negSum += value;
         }
@@ -596,7 +586,7 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
         stackedParts
       };
     });
-  }, [netWorthData]);
+  }, [netWorthData, plan]);
 
   const screenToData = (screenX: number, screenY: number, zoom: any, yScale: any) => {
     const x = (screenX - zoom.transformMatrix.translateX) / zoom.transformMatrix.scaleX;
@@ -613,7 +603,7 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
 
     const maxDate = Math.max(...netWorthData.map(d => d.date));
     return scaleLinear({
-      domain: [0, maxDate],
+      domain: [0, endDate],
       range: [0, width],
     });
   }, [netWorthData, width]);
@@ -724,8 +714,29 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
             const newInterval = getTimeIntervalFromZoom(globalZoom);
             if (newInterval !== timeInterval) {
               console.log('🎯 Time interval changed from', timeInterval, 'to', newInterval);
-              // Run simulation with new interval before updating state
-              runSimulationManually(newInterval);
+
+              // Get the actual visible range without padding
+              const actualRange = getActualVisibleDateRange(zoom, xScale, width);
+
+              // Calculate the visible range with some padding to prevent edge effects
+              const paddedRange = {
+                startDate: Math.max(0, actualRange.startDate - 365), // Add 1 year padding
+                endDate: Math.min(80 * 365, actualRange.endDate + 365) // Add 1 year padding
+              };
+
+              console.log('🎯 Running simulation with range:', {
+                interval: newInterval,
+                visibleRange: {
+                  startDate: paddedRange.startDate,
+                  endDate: paddedRange.endDate,
+                  startFormatted: formatDate(paddedRange.startDate, birthDate, 'full', true, false),
+                  endFormatted: formatDate(paddedRange.endDate, birthDate, 'full', true, false)
+                }
+              });
+
+              // Run simulation with new interval and padded range
+              runSimulationManually(newInterval, paddedRange);
+
               // Update state after simulation is triggered
               setTimeInterval(newInterval);
             }
@@ -751,19 +762,25 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
           }
 
           // Constrain transform to keep content within [0,0,width,height]
-          function constrainTransform(transformMatrix: any, prevTransformMatrix: any, width: number, height: number) {
-            const xPad = 80; // or whatever value you want
+          function constrainTransform(transformMatrix: any, prevTransformMatrix: any, width: number, height: number, isZooming?: boolean) {
+            const xPad = 80;
             const min = applyMatrixToPoint(transformMatrix, { x: 0, y: 0 });
             const max = applyMatrixToPoint(transformMatrix, { x: width, y: height });
 
-            (window as any).debugMin = min;
-            (window as any).debugMax = max;
+            // Allow zooming out even if temporarily out of bounds
+            if (isZooming && transformMatrix.scaleX < prevTransformMatrix.scaleX) {
+              // After zoom out, adjust position to be within bounds if needed
+              let adjustedTransform = { ...transformMatrix };
+              if (max.x < width - xPad) {
+                adjustedTransform.translateX = width - xPad - (width * transformMatrix.scaleX);
+              }
+              if (min.x > xPad) {
+                adjustedTransform.translateX = xPad;
+              }
+              return adjustedTransform;
+            }
 
-            if (max.x < width - xPad) {
-              //console.log('Constraint: max out of bounds', max);
-              return prevTransformMatrix;
-            } else if (min.x > 0 + xPad) {
-              //console.log('Constraint: min out of bounds', min);
+            if (max.x < width - xPad || min.x > 0 + xPad) {
               return prevTransformMatrix;
             }
             return transformMatrix;
@@ -1164,7 +1181,7 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
                       translateY: zoom.transformMatrix.translateY + dy,
                     };
                     // Clamp
-                    newTransform = constrainTransform(newTransform, zoom.transformMatrix, width, height);
+                    newTransform = constrainTransform(newTransform, zoom.transformMatrix, width, height, false);
                     zoom.setTransformMatrix(newTransform);
                     setLastMouse({ x: e.clientX, y: e.clientY });
                   }
@@ -1189,7 +1206,7 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
                   zoom.dragEnd();
                 }}
                 onWheel={(e) => {
-                  const scaleFactor = e.deltaY > 0 ? 0.98 : 1.02;
+                  const scaleFactor = e.deltaY > 0 ? 0.95 : 1.05;
 
                   // Get the center X position in screen coordinates
                   const centerX = width / 2;
@@ -1242,7 +1259,7 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
                     translateY: newTranslateY,
                   };
                   // Constrain after zoom
-                  const constrained = constrainTransform(newTransform, prevTransform, width, height);
+                  const constrained = constrainTransform(newTransform, prevTransform, width, height, true);
                   zoom.setTransformMatrix(constrained);
                 }}
               >
@@ -1268,92 +1285,46 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
 
                 {/* Main content with zoom transform */}
                 <g transform={`translate(${zoom.transformMatrix.translateX},${zoom.transformMatrix.translateY}) scale(${zoom.transformMatrix.scaleX},${zoom.transformMatrix.scaleY})`}>
-                  {/* Add stacked areas with mixed curves */}
+                  {/* Add stacked areas */}
                   {Object.keys(netWorthData[0]?.parts || {}).map((partKey) => {
                     const category = getEnvelopeCategory(plan, partKey) || 'Uncategorized';
                     const color = categoryColors[category] || { area: '#ccc', line: '#888' };
-
-                    // Split data for this envelope part
-                    const { stepSegments, linearSegments } = splitDataForMixedCurves(
-                      stackedData,
-                      (d) => d.stackedParts[partKey].y1 - d.stackedParts[partKey].y0
-                    );
+                    const isDebt = category === 'Debt';
 
                     return (
                       <g key={`area-group-${partKey}`}>
-                        {/* Render linear segments */}
-                        {linearSegments.map((segment, segIndex) => (
-                          <AreaClosed
-                            key={`area-linear-${partKey}-${segIndex}`}
-                            data={segment}
-                            x={(d) => xScale(d.date)}
-                            y0={(d) => visibleYScale(d.stackedParts[partKey].y0)}
-                            y1={(d) => visibleYScale(d.stackedParts[partKey].y1)}
-                            yScale={visibleYScale}
-                            stroke="none"
-                            fill={color.area}
-                            fillOpacity={0.8}
-                            curve={curveLinear}
-                          />
-                        ))}
-                        {/* Render step segments for 0↔value transitions */}
-                        {stepSegments.map((segment, segIndex) => (
-                          <AreaClosed
-                            key={`area-step-${partKey}-${segIndex}`}
-                            data={segment}
-                            x={(d) => xScale(d.date)}
-                            y0={(d) => visibleYScale(d.stackedParts[partKey].y0)}
-                            y1={(d) => visibleYScale(d.stackedParts[partKey].y1)}
-                            yScale={visibleYScale}
-                            stroke="none"
-                            fill={color.area}
-                            fillOpacity={0.8}
-                            curve={curveStepAfter}
-                          />
-                        ))}
+                        <AreaClosed
+                          data={stackedData}
+                          x={(d) => xScale(d.date)}
+                          y0={(d) => visibleYScale(d.stackedParts[partKey].y0)}
+                          y1={(d) => visibleYScale(d.stackedParts[partKey].y1)}
+                          yScale={visibleYScale}
+                          stroke="none"
+                          fill={color.area}
+                          fillOpacity={0.8}
+                          curve={curveLinear}
+                        />
                       </g>
                     );
                   })}
 
-                  {/* Add top/bottom lines for each part with mixed curves */}
+                  {/* Add top/bottom lines for each part */}
                   {[...Object.keys(netWorthData[0]?.parts || {})].reverse().map((partKey) => {
                     const category = getEnvelopeCategory(plan, partKey) || 'Uncategorized';
                     const color = categoryColors[category] || { area: '#ccc', line: '#888' };
-
-                    // Split data for this envelope part
-                    const { stepSegments, linearSegments } = splitDataForMixedCurves(
-                      stackedData,
-                      (d) => d.stackedParts[partKey].y1 - d.stackedParts[partKey].y0
-                    );
+                    const isDebt = category === 'Debt';
 
                     return (
                       <g key={`line-group-${partKey}`}>
-                        {/* Render linear segments */}
-                        {linearSegments.map((segment, segIndex) => (
-                          <LinePath
-                            key={`line-linear-${partKey}-${segIndex}`}
-                            data={segment}
-                            x={(d) => xScale(d.date)}
-                            y={(d) => visibleYScale(d.stackedParts[partKey].y1)}
-                            stroke={color.line}
-                            strokeWidth={1 / globalZoom}
-                            strokeOpacity={1}
-                            curve={curveLinear}
-                          />
-                        ))}
-                        {/* Render step segments for 0↔value transitions */}
-                        {stepSegments.map((segment, segIndex) => (
-                          <LinePath
-                            key={`line-step-${partKey}-${segIndex}`}
-                            data={segment}
-                            x={(d) => xScale(d.date)}
-                            y={(d) => visibleYScale(d.stackedParts[partKey].y1)}
-                            stroke={color.line}
-                            strokeWidth={1 / globalZoom}
-                            strokeOpacity={1}
-                            curve={curveStepAfter}
-                          />
-                        ))}
+                        <LinePath
+                          data={stackedData}
+                          x={(d) => xScale(d.date)}
+                          y={(d) => visibleYScale(d.stackedParts[partKey].y1)}
+                          stroke={color.line}
+                          strokeWidth={1 / globalZoom}
+                          strokeOpacity={1}
+                          curve={curveLinear}
+                        />
                       </g>
                     );
                   })}
@@ -1364,41 +1335,34 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
                     const color = categoryColors[category] || { area: '#ff6b6b', line: '#ff4757' };
 
                     // Split data for this non-networth envelope part
-                    const { stepSegments, linearSegments } = splitDataForMixedCurves(
+                    const { segments } = splitDataForMixedCurves(
                       netWorthData,
-                      (d) => d.nonNetworthParts?.[partKey] || 0
+                      (d: any) => d.nonNetworthParts?.[partKey] || 0
                     );
 
                     return (
                       <g key={`non-networth-line-group-${partKey}`}>
-                        {/* Render linear segments */}
-                        {linearSegments.map((segment, segIndex) => (
-                          <LinePath
-                            key={`non-networth-line-linear-${partKey}-${segIndex}`}
-                            data={segment}
-                            x={(d) => xScale(d.date)}
-                            y={(d) => visibleYScale(d.nonNetworthParts?.[partKey] || 0)}
-                            stroke={color.line}
-                            strokeWidth={2 / globalZoom}
-                            strokeOpacity={0.7}
-                            strokeDasharray="5,3"
-                            curve={curveLinear}
-                          />
-                        ))}
-                        {/* Render step segments for 0↔value transitions */}
-                        {stepSegments.map((segment, segIndex) => (
-                          <LinePath
-                            key={`non-networth-line-step-${partKey}-${segIndex}`}
-                            data={segment}
-                            x={(d) => xScale(d.date)}
-                            y={(d) => visibleYScale(d.nonNetworthParts?.[partKey] || 0)}
-                            stroke={color.line}
-                            strokeWidth={2 / globalZoom}
-                            strokeOpacity={0.7}
-                            strokeDasharray="5,3"
-                            curve={curveStepAfter}
-                          />
-                        ))}
+                        {segments.map((segment, segIndex) => {
+                          const isTransitioning = segment.length === 2 &&
+                            isZeroTransition(
+                              segment[0].nonNetworthParts?.[partKey] || 0,
+                              segment[1].nonNetworthParts?.[partKey] || 0
+                            );
+
+                          return (
+                            <LinePath
+                              key={`non-networth-line-${partKey}-${segIndex}`}
+                              data={segment}
+                              x={(d: any) => xScale(d.date)}
+                              y={(d: any) => visibleYScale(d.nonNetworthParts?.[partKey] || 0)}
+                              stroke={color.line}
+                              strokeWidth={2 / globalZoom}
+                              strokeOpacity={0.7}
+                              strokeDasharray="5,3"
+                              curve={isTransitioning ? curveStepAfter : curveLinear}
+                            />
+                          );
+                        })}
                       </g>
                     );
                   })}

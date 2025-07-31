@@ -192,6 +192,7 @@ interface PlanContextType {
     currentDay: number;
     updatePlanInflationRate: (newRate: number) => void; // <-- add this
     lockPlan: () => void; // <-- add this
+    copyPlanToLock: () => void; // <-- add this new function
     updateRetirementGoal: (newGoal: number) => void; // <-- add this
     canEventBeRecurring: (eventId: number) => boolean; // <-- add this
     updateEventRecurring: (eventId: number, isRecurring: boolean) => void; // <--
@@ -979,9 +980,16 @@ export function PlanProvider({ children }: PlanProviderProps) {
         const temp = plan_locked;
         setPlanLocked(plan);
         setPlan(temp);
+        setShouldTriggerSimulation(true);
         console.log("plan_locked", plan_locked);
         console.log("plan", plan);
     }, [plan, plan_locked]);
+
+    const copyPlanToLock = useCallback(() => {
+        if (!plan) return;
+        setPlanLocked(plan);
+        setShouldTriggerSimulation(true);
+    }, [plan]);
 
     const getEventDisclaimer = useCallback((eventType: string) => {
         if (!schema) return '';
@@ -1224,6 +1232,7 @@ export function PlanProvider({ children }: PlanProviderProps) {
         currentDay,
         updatePlanInflationRate, // <-- add to context value
         lockPlan, // <-- add to context value
+        copyPlanToLock, // <-- add this
         updateRetirementGoal, // <-- add to context value
         canEventBeRecurring, // <-- add to context value
         updateEventRecurring, // <-- add to context value

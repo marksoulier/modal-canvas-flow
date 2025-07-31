@@ -31,10 +31,8 @@ interface OnboardingData {
   educationField: string;
   budgetCategories: Record<string, number>;
   accounts: Record<string, number>;
-  retirementAge?: number;
   retirementGoal?: number;
   monthlyRetirementIncome?: number;
-  retirementStartDay?: number;
   writtenFinancialGoal?: string;
 }
 
@@ -188,7 +186,7 @@ const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ isOpen, onComplete, onA
     if (currentStep === 7) {
       // Add retirement event
       const retirementParams = {
-        start_time: data.retirementStartDay ? getTargetDateFromBirthAndAge(data.birthDate, data.retirementAge || 65) : data.birthDate,
+        start_time: getTargetDateFromBirthAndAge(data.birthDate, 59.5),
         end_time: getTargetDateFromBirthAndAge(data.birthDate, 100), // End at age 100
         amount: data.monthlyRetirementIncome || 3000,
         amount_roth_ira: 0,
@@ -199,10 +197,8 @@ const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ isOpen, onComplete, onA
         updateRetirementGoal(data.retirementGoal);
       }
 
-      // Add retirement event if retirement age is set
-      if (data.retirementAge) {
-        addEvent("retirement", retirementParams, true);
-      }
+      // Add retirement event
+      addEvent("retirement", retirementParams, true);
     }
 
     // Move to next step or finish
@@ -508,6 +504,7 @@ const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ isOpen, onComplete, onA
                       type="number"
                       value={data.budgetCategories[key] || ''}
                       onChange={(e) => updateBudgetCategory(key, parseFloat(e.target.value) || 0)}
+                      onWheel={(e) => e.currentTarget.blur()}
                       placeholder="0"
                       className="w-28 text-right"
                     />
@@ -618,6 +615,7 @@ const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ isOpen, onComplete, onA
                             const value = parseFloat(e.target.value) || 0;
                             updateAccount(key, value);
                           }}
+                          onWheel={(e) => e.currentTarget.blur()}
                           placeholder="0"
                           className={`w-32 text-right ${key === 'debt' && data.accounts[key] < 0 ? 'border-orange-200 focus:border-orange-400' : ''}`}
                         />
@@ -721,60 +719,9 @@ const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ isOpen, onComplete, onA
       content: (
         <div className="space-y-6">
           <p className="text-muted-foreground text-center mb-6">
-            Let's plan for your retirement. This will help us calculate your retirement needs and timeline.
+            Let's plan for your retirement. This will help us calculate your retirement needs, transitioning money from retirment accounts to spending accounts.
           </p>
           <div className="space-y-4">
-            <div>
-              <Label htmlFor="retirementAge">At what age would you like to retire?</Label>
-              <Input
-                id="retirementAge"
-                type="number"
-                min="35"
-                max="90"
-                value={data.retirementAge || ''}
-                onChange={(e) => {
-                  const value = e.target.value;
-                  if (value === '') {
-                    setData(prev => ({
-                      ...prev,
-                      retirementAge: undefined
-                    }));
-                  } else {
-                    const age = parseInt(value);
-                    if (!isNaN(age)) {
-                      setData(prev => ({
-                        ...prev,
-                        retirementAge: age
-                      }));
-                    }
-                  }
-                }}
-                onBlur={(e) => {
-                  const age = parseInt(e.target.value);
-                  if (!isNaN(age) && age >= 35 && age <= 90 && data.birthDate) {
-                    // Calculate current age from birth date
-                    const birthDate = new Date(data.birthDate);
-                    const today = new Date();
-                    const currentAgeInDays = Math.floor((today.getTime() - birthDate.getTime()) / (1000 * 60 * 60 * 24));
-                    const currentAge = getAgeFromDays(currentAgeInDays);
-
-                    // Calculate days until retirement
-                    const retirementAgeInDays = getDaysFromAge(age);
-                    const daysUntilRetirement = retirementAgeInDays;
-
-                    setData(prev => ({
-                      ...prev,
-                      retirementStartDay: Math.max(0, daysUntilRetirement)
-                    }));
-                  }
-                }}
-                placeholder="65"
-              />
-              <p className="text-xs text-muted-foreground mt-1">
-                Most people retire between ages 62 and 70
-              </p>
-            </div>
-
             <div>
               <Label htmlFor="retirementGoal">What's your retirement savings goal?</Label>
               <Input
@@ -789,6 +736,7 @@ const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ isOpen, onComplete, onA
                     setData(prev => ({ ...prev, retirementGoal: value }));
                   }
                 }}
+                onWheel={(e) => e.currentTarget.blur()}
                 placeholder="1000000"
               />
               <p className="text-xs text-muted-foreground mt-1">
@@ -805,11 +753,10 @@ const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ isOpen, onComplete, onA
                 step="100"
                 value={data.monthlyRetirementIncome || ''}
                 onChange={(e) => {
-                  const value = parseInt(e.target.value);
-                  if (!isNaN(value) && value >= 0) {
-                    setData(prev => ({ ...prev, monthlyRetirementIncome: value }));
-                  }
+                  const value = e.target.value === '' ? undefined : parseInt(e.target.value);
+                  setData(prev => ({ ...prev, monthlyRetirementIncome: value }));
                 }}
+                onWheel={(e) => e.currentTarget.blur()}
                 placeholder="5000"
               />
               <p className="text-xs text-muted-foreground mt-1">

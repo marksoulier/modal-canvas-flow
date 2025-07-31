@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import type { Plan, Envelope } from '../contexts/PlanContext';
 import { Menu, Plus, Save, FileText, FolderOpen, User, Edit3, HelpCircle } from 'lucide-react';
-import { RefreshCw } from 'lucide-react';
+import { RefreshCw, Copy } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -54,7 +54,7 @@ const Index = () => {
   // Use real authentication from AuthContext
   const { user, signOut: authSignOut, logAnonymousButtonClick } = useAuth();
 
-  const { plan, schema, loadPlanFromFile, savePlanToFile, updatePlanTitle, loadPlan, lockPlan, addEvent } = usePlan();
+  const { plan, schema, loadPlanFromFile, savePlanToFile, updatePlanTitle, loadPlan, lockPlan, addEvent, copyPlanToLock } = usePlan();
 
   const [errorOpen, setErrorOpen] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
@@ -324,14 +324,23 @@ const Index = () => {
                     className="text-lg font-medium text-gray-900 bg-transparent border-none outline-none min-w-[200px]"
                     placeholder="Enter plan title..."
                   />
-                  {/* Switch button next to input */}
-                  <button
-                    onClick={lockPlan}
-                    title="Switch with locked plan"
-                    className="ml-1 p-1 rounded hover:bg-gray-100 transition-colors"
-                  >
-                    <RefreshCw size={18} className="text-gray-400 hover:text-gray-700" />
-                  </button>
+                  {/* Copy and Switch buttons next to input */}
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={copyPlanToLock}
+                      title="Copy current plan to locked plan"
+                      className="p-1 rounded hover:bg-gray-100 transition-colors"
+                    >
+                      <Copy size={18} className="text-gray-400 hover:text-gray-700" />
+                    </button>
+                    <button
+                      onClick={lockPlan}
+                      title="Switch with locked plan"
+                      className="p-1 rounded hover:bg-gray-100 transition-colors"
+                    >
+                      <RefreshCw size={18} className="text-gray-400 hover:text-gray-700" />
+                    </button>
+                  </div>
                 </div>
               ) : (
                 <div className="flex items-center gap-2">
@@ -344,14 +353,23 @@ const Index = () => {
                     </h1>
                     <Edit3 size={16} className="opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
                   </button>
-                  {/* Switch button next to title */}
-                  <button
-                    onClick={lockPlan}
-                    title="Switch with locked plan"
-                    className="ml-1 p-1 rounded hover:bg-gray-100 transition-colors"
-                  >
-                    <RefreshCw size={18} className="text-gray-400 hover:text-gray-700" />
-                  </button>
+                  {/* Copy and Switch buttons next to title */}
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={copyPlanToLock}
+                      title="Copy current plan to locked plan"
+                      className="p-1 rounded hover:bg-gray-100 transition-colors"
+                    >
+                      <Copy size={18} className="text-gray-400 hover:text-gray-700" />
+                    </button>
+                    <button
+                      onClick={lockPlan}
+                      title="Switch with locked plan"
+                      className="p-1 rounded hover:bg-gray-100 transition-colors"
+                    >
+                      <RefreshCw size={18} className="text-gray-400 hover:text-gray-700" />
+                    </button>
+                  </div>
                 </div>
               )}
             </div>

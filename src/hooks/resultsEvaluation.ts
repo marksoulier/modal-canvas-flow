@@ -67,33 +67,72 @@ export function valueToDay(
 
 export function evaluateResults(
     envelopes: Record<string, { functions: ((t: number) => number)[], growth_type: string, growth_rate: number }>,
-    startDay: number,
-    endDay: number,
+    startDate: number,
+    endDate: number,
     frequency: number,
     currentDay?: number,
-    inflationRate?: number
-): Record<string, number[]> {
-    const tRange = Array.from({ length: Math.ceil((endDay - startDay) / frequency) }, (_, i) => startDay + i * frequency);
+    inflationRate?: number,
+    visibleRange?: { startDate: number, endDate: number }
+): { results: Record<string, number[]>, timePoints: number[] } {
+    // Initialize results
     const results: Record<string, number[]> = {};
-
-    // Initialize results with zeros for each envelope
     for (const key in envelopes) {
-        results[key] = new Array(tRange.length).fill(0);
+        results[key] = [];
     }
 
-    // Evaluate each function separately and add to results (matching Python logic)
-    for (const key in envelopes) {
-        for (const func of envelopes[key].functions) {
-            const funcResults = tRange.map(t => func(t));
-            for (let i = 0; i < tRange.length; i++) {
-                results[key][i] += funcResults[i];
-            }
+    let timePoints: number[];
+
+    // If interval is 365, or 182.5 then do full range of dates
+    if (frequency === 365 || frequency === 182.5) {
+        // If no visible range specified, use single interval throughout
+        timePoints = Array.from(
+            { length: Math.ceil((endDate - startDate) / frequency) },
+            (_, i) => startDate + i * frequency
+        );
+
+        // Add end point if it's not already included
+        if (timePoints[timePoints.length - 1] !== endDate) {
+            timePoints.push(endDate);
+        }
+    } else {
+        // Start with first point
+        timePoints = [startDate];
+
+        // Add points in visible range at specified interval
+        for (let t = visibleRange.startDate; t <= visibleRange.endDate; t += frequency) {
+            timePoints.push(t);
         }
     }
 
-    if (currentDay !== undefined && inflationRate !== undefined) {
-        return inflationAdjust(results, tRange, currentDay, inflationRate);
+    // Add end point if it's not already included
+    if (timePoints[timePoints.length - 1] !== endDate) {
+        timePoints.push(endDate);
     }
 
-    return results;
+    // See where I need to insert the current day point to be in the right order
+    if (currentDay) {
+        const currentDayIndex = timePoints.findIndex(t => t === currentDay);
+        if (currentDayIndex !== -1) {
+            timePoints.splice(currentDayIndex, 0, currentDay);
+        }
+    }
+
+    // Evaluate functions at all points
+    for (const key in envelopes) {
+        results[key] = timePoints.map(t =>
+            envelopes[key].functions.reduce((sum, func) => sum + func(t), 0)
+        );
+    }
+
+    // Apply inflation adjustment if needed
+    if (currentDay !== undefined && inflationRate !== undefined) {
+        return {
+            results: inflationAdjust(results, timePoints, currentDay, inflationRate),
+            timePoints
+        };
+    }
+
+    console.log('📊 Results:', { results, timePoints });
+
+    return { results, timePoints };
 }

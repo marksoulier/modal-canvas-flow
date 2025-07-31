@@ -201,20 +201,20 @@ export const f_401 = (theta_401: Record<string, any>, t: number): number => {
 };
 
 // Mortgage payment calculation - REMOVED (no longer used)
-
-export const f_principal_payment = (theta: Record<string, any>, t: number): number => {
-    const months = Math.floor(t / (365.25 / 12));
-    const r = theta.r;
-    const y = theta.y;
-    const Loan = theta.P;
-    // Calculate default mortgage payment if not provided
-    const default_payment = Loan * (r / 12) * Math.pow(1 + r / 12, 12 * y) / (Math.pow(1 + r / 12, 12 * y) - 1);
-    const p_m = theta.p_mortgage ?? default_payment;
-    const payment = Loan * Math.pow(1 + r / 12, months) * (r / 12) / (Math.pow(1 + r / 12, 12 * y) - 1);
-    const mortgage_amt = f_monthly_payment({ P: Loan, r: r, y: y }, t);
-    const principle_payment = payment - Math.max(mortgage_amt - p_m, 0);
-    return principle_payment;
-};
+// No longer needed for creating a closed form amoratization schedule
+// export const f_principal_payment = (theta: Record<string, any>, t: number): number => {
+//     const months = Math.floor(t / (365.25 / 12));
+//     const r = theta.r;
+//     const y = theta.y;
+//     const Loan = theta.P;
+//     // Calculate default mortgage payment if not provided
+//     const default_payment = Loan * (r / 12) * Math.pow(1 + r / 12, 12 * y) / (Math.pow(1 + r / 12, 12 * y) - 1);
+//     const p_m = theta.p_mortgage ?? default_payment;
+//     const payment = Loan * Math.pow(1 + r / 12, months) * (r / 12) / (Math.pow(1 + r / 12, 12 * y) - 1);
+//     const mortgage_amt = f_monthly_payment({ P: Loan, r: r, y: y }, t);
+//     const principle_payment = payment - Math.max(mortgage_amt - p_m, 0);
+//     return principle_payment;
+// };
 
 export const f_monthly_payment = (theta: Record<string, any>, t: number): number => {
     if (theta.r === 0) {
@@ -574,7 +574,7 @@ export const loan_amortization = (event: any, envelopes: Record<string, any>) =>
     envelopes[params.to_key].functions.push(payments_func);
 
     // --- Loan Envelope Correction at End of Payment Cycle ---
-    const loan_end_time = params.start_time + params.loan_term_years * 365;
+    const loan_end_time = params.start_time + params.loan_term_years * 365.25;
     const loanEnvelope = envelopes[params.from_key];
     let loan_balance = 0.0;
     for (const func of loanEnvelope.functions) {
@@ -611,7 +611,7 @@ export const loan = (event: any, envelopes: Record<string, any>) => {
 
     const loan_interest_rate = theta_growth_source.r;
     // console.log("Loan interest rate: ", loan_interest_rate);
-    const end_time = params.start_time + params.loan_term_years * 365;
+    const end_time = params.start_time + params.loan_term_years * 365.25;
     // console.log("Start time: ", params.start_time);
     // console.log("End time: ", end_time);
     // console.log("Loan term years: ", params.loan_term_years);
@@ -966,6 +966,7 @@ export const buy_house = (event: any, envelopes: Record<string, any>, updatePlan
 
     // Take on loan amount on the mortgage envelope
     const loan_amount = params.home_value - params.downpayment;
+    const loan_interest_rate = theta_growth_mortgage.r;
     const loan_func = T(
         { t_k: params.start_time },
         f_out,
@@ -977,8 +978,8 @@ export const buy_house = (event: any, envelopes: Record<string, any>, updatePlan
     // Create mortgage payments to the mortgage envelope tracking the principle payments
     const mortgage_func = R(
         { t0: params.start_time + 365.25 / 12, dt: 365.25 / 12, tf: params.start_time + params.loan_term_years * 365.25 },
-        f_principal_payment,
-        P({ P: loan_amount, r: params.loan_rate, y: params.loan_term_years }),
+        f_monthly_payment,
+        P({ P: -loan_amount, r: loan_interest_rate, y: params.loan_term_years }),
         theta_growth_mortgage
     );
     // Add mortgage payments to mortgage envelope
@@ -988,7 +989,7 @@ export const buy_house = (event: any, envelopes: Record<string, any>, updatePlan
     const mortgage_func_source = R(
         { t0: params.start_time + 365.25 / 12, dt: 365.25 / 12, tf: params.start_time + params.loan_term_years * 365.25 },
         f_monthly_payment,
-        P({ P: loan_amount, r: params.loan_rate, y: params.loan_term_years }),
+        P({ P: loan_amount, r: loan_interest_rate, y: params.loan_term_years }),
         theta_growth_source
     );
     // Add mortgage payments to source envelope
@@ -1058,7 +1059,7 @@ export const buy_house = (event: any, envelopes: Record<string, any>, updatePlan
 
     // --- Mortgage Envelope Correction at End of Payment Cycle ---
     // Evaluate the mortgage envelope at the end of the payment cycle and correct any remaining balance
-    const mortgage_end_time = params.start_time + params.loan_term_years * 365;
+    const mortgage_end_time = params.start_time + params.loan_term_years * 365.25;
     const mortgageEnvelope = envelopes[params.mortgage_envelope];
     let mortgage_balance = 0.0;
     for (const func of mortgageEnvelope.functions) {
@@ -1088,7 +1089,7 @@ export const buy_house = (event: any, envelopes: Record<string, any>, updatePlan
     }
 };
 
-export const buy_car = (event: any, envelopes: Record<string, any>) => {
+export const buy_car = (event: any, envelopes: Record<string, any>, updatePlan?: (updates: Array<{ eventId: number, paramType: string, value: number }>) => void) => {
     const params = event.parameters;
 
     // Get growth parameters for source envelope
@@ -1126,13 +1127,14 @@ export const buy_car = (event: any, envelopes: Record<string, any>) => {
         theta_growth_debt
     );
     envelopes[params.car_loan_envelope].functions.push(loan_func);
+    const loan_interest_rate = theta_growth_source.r;
 
     // Create car loan payments
     const loan_amount = params.car_value - params.downpayment;
     const loan_payment_func = R(
         { t0: params.start_time + 365.25 / 12, dt: 365.25 / 12, tf: params.start_time + params.loan_term_years * 365.25 },
         f_monthly_payment,
-        P({ P: loan_amount, r: params.loan_rate, y: params.loan_term_years }),
+        P({ P: -loan_amount, r: loan_interest_rate, y: params.loan_term_years }),
         theta_growth_source
     );
 
@@ -1142,12 +1144,25 @@ export const buy_car = (event: any, envelopes: Record<string, any>) => {
     // Create car loan payments to the mortgage envelope tracking the principle payments
     const car_loan_func = R(
         { t0: params.start_time + 365.25 / 12, dt: 365.25 / 12, tf: params.start_time + params.loan_term_years * 365.25 },
-        f_principal_payment,
-        P({ P: loan_amount, r: params.loan_rate, y: params.loan_term_years }),
+        f_monthly_payment,
+        P({ P: loan_amount, r: loan_interest_rate, y: params.loan_term_years }),
         theta_growth_debt
     );
     // Add mortgage payments to mortgage envelope
     envelopes[params.car_loan_envelope].functions.push(car_loan_func);
+
+
+    if (updatePlan) {
+        const loanTermYears = params.loan_term_years || 30;
+        const startDate = params.start_time || 0;
+        const endDate = startDate + (loanTermYears * 365.25);
+
+        updatePlan([{
+            eventId: event.id,
+            paramType: 'end_time',
+            value: endDate
+        }]);
+    }
 
     // Handle updating events
     for (const upd of event.updating_events || []) {
@@ -1160,7 +1175,7 @@ export const buy_car = (event: any, envelopes: Record<string, any>) => {
     }
 
     // --- Car Loan Envelope Correction at End of Payment Cycle ---
-    const car_loan_end_time = params.start_time + params.loan_term_years * 365;
+    const car_loan_end_time = params.start_time + params.loan_term_years * 365.25;
     const carLoanEnvelope = envelopes[params.car_loan_envelope];
     let car_loan_balance = 0.0;
     for (const func of carLoanEnvelope.functions) {
@@ -1826,37 +1841,53 @@ const calculateAccumulatedDebt = (principal: number, annualRate: number, timeInD
     return principal * Math.pow(1 + annualRate / 365, timeInDays);
 };
 
-export const federal_subsidized_loan = (event: any, envelopes: Record<string, any>) => {
+export const federal_subsidized_loan = (event: any, envelopes: Record<string, any>, updatePlan?: (updates: Array<{ eventId: number, paramType: string, value: number }>) => void) => {
     const params = event.parameters;
 
-    // Get growth parameters for source and destination envelopes
-    const [theta_growth_source, theta_growth_dest] = get_growth_parameters(
-        envelopes, params.from_key, params.to_key
+    // Get growth parameters for source, during-school, and after-school envelopes
+    const [theta_growth_source, theta_growth_during, theta_growth_after] = get_growth_parameters(
+        envelopes, params.from_key, params.to_key, params.after_school_key
     );
 
-    //loan going straight to school.
-
-    // Add debt to student loans envelope (negative balance)
+    // Add debt to student loans during-school envelope (negative balance) - no interest accrues
     const loan_debt = T(
         { t_k: params.start_time },
         f_out,
         P({ b: params.amount }),
-        theta_growth_dest
+        theta_growth_during
     );
     envelopes[params.to_key].functions.push(loan_debt);
 
     // Calculate when payments begin: graduation_date + 6 months (180 days)
     const payment_start_time = params.graduation_date + 180;
 
-    // For subsidized loans, no interest accrues during school, so debt amount remains the same
+    // For subsidized loans, no interest accrues during school
     const accumulated_debt_amount = params.amount;
+
+    // Transfer debt out of during-school envelope
+    const debt_transfer_out = T(
+        { t_k: payment_start_time },
+        f_in, // Positive to remove the negative debt balance
+        P({ a: accumulated_debt_amount }),
+        theta_growth_during
+    );
+    envelopes[params.to_key].functions.push(debt_transfer_out);
+
+    // Transfer accumulated debt into after-school envelope
+    const debt_transfer_in = T(
+        { t_k: payment_start_time },
+        f_out, // Negative to create debt balance
+        P({ b: accumulated_debt_amount }),
+        theta_growth_after
+    );
+    envelopes[params.after_school_key].functions.push(debt_transfer_in);
 
     // Standard 10-year repayment schedule
     const loan_term_years = params.loan_term_years;
-    const payment_end_time = payment_start_time + loan_term_years * 365.25 - 365.25 / 12;
+    const payment_end_time = payment_start_time + loan_term_years * 365.25 - 365.25 / 12 - 1; // dont need last payment as we did first payment
 
-    // Get interest rate from the Student Loans envelope
-    const interest_rate = envelopes[params.to_key].growth_rate || 0.055; // Default 5.5% if not specified
+    // Get interest rate from the after-school Student Loans envelope
+    const interest_rate = envelopes[params.after_school_key].growth_rate || 0.055; // Default 5.5% if not specified
 
     // Monthly payments from cash (includes both principal and interest)
     const monthly_payments = R(
@@ -1870,11 +1901,196 @@ export const federal_subsidized_loan = (event: any, envelopes: Record<string, an
     // Monthly principal payments to reduce debt (positive payments to debt envelope)
     const principal_payments = R(
         { t0: payment_start_time, dt: 365.25 / 12, tf: payment_end_time },
-        f_principal_payment,
+        f_monthly_payment,
+        P({ P: -accumulated_debt_amount, r: interest_rate, y: loan_term_years }),
+        theta_growth_after
+    );
+    envelopes[params.after_school_key].functions.push(principal_payments);
+
+
+    if (updatePlan) {
+        const endDate = payment_end_time;
+
+        updatePlan([{
+            eventId: event.id,
+            paramType: 'end_time',
+            value: endDate
+        }]);
+    }
+
+    // --- Student Loan Envelope Correction at End of Payment Cycle ---
+    const student_loan_end_time = payment_end_time;
+    const studentLoanEnvelope = envelopes[params.after_school_key];
+    let student_loan_balance = 0.0;
+    for (const func of studentLoanEnvelope.functions) {
+        student_loan_balance += func(student_loan_end_time);
+    }
+    if (Math.abs(student_loan_balance) > 1e-6) {
+        const [theta_growth_source, theta_growth_after] = get_growth_parameters(
+            envelopes, params.from_key, params.after_school_key
+        );
+        const correction_inflow = T(
+            { t_k: student_loan_end_time },
+            f_out,
+            P({ b: student_loan_balance }),
+            theta_growth_after
+        );
+        studentLoanEnvelope.functions.push(correction_inflow);
+        const correction_outflow = T(
+            { t_k: student_loan_end_time },
+            f_in,
+            P({ a: student_loan_balance }),
+            theta_growth_source
+        );
+        envelopes[params.from_key].functions.push(correction_outflow);
+    }
+};
+
+export const federal_unsubsidized_loan = (event: any, envelopes: Record<string, any>, updatePlan?: (updates: Array<{ eventId: number, paramType: string, value: number }>) => void) => {
+    const params = event.parameters;
+
+    // Get growth parameters for source and destination envelopes
+    const [theta_growth_source, theta_growth_dest] = get_growth_parameters(
+        envelopes, params.from_key, params.to_key
+    );
+
+    // Add debt to student loans envelope (negative balance) - interest accrues during school
+    const loan_debt = T(
+        { t_k: params.start_time },
+        f_out,
+        P({ b: params.amount }),
+        theta_growth_dest
+    );
+    envelopes[params.to_key].functions.push(loan_debt);
+
+    // Calculate when payments begin: graduation_date + 6 months (180 days)
+    const payment_start_time = params.graduation_date + 180;
+
+    // Calculate accumulated debt using daily compound interest
+    const interest_accrual_days = payment_start_time - params.start_time;
+    const interest_rate = envelopes[params.to_key].growth_rate; // Get rate from envelope
+    const accumulated_debt_amount = calculateAccumulatedDebt(params.amount, interest_rate, interest_accrual_days);
+
+    // Standard 10-year repayment schedule
+    const loan_term_years = params.loan_term_years;
+    const payment_end_time = payment_start_time + loan_term_years * 365.25 - 365.25 / 12 - 1; // dont need last payment as we did first payment
+
+    // Monthly payments from cash (includes both principal and interest)
+    const monthly_payments = R(
+        { t0: payment_start_time, dt: 365.25 / 12, tf: payment_end_time },
+        f_monthly_payment,
         P({ P: accumulated_debt_amount, r: interest_rate, y: loan_term_years }),
+        theta_growth_source
+    );
+    envelopes[params.from_key].functions.push(monthly_payments);
+
+    // Monthly principal payments to reduce debt
+    const principal_payments = R(
+        { t0: payment_start_time, dt: 365.25 / 12, tf: payment_end_time },
+        f_monthly_payment,
+        P({ P: -accumulated_debt_amount, r: interest_rate, y: loan_term_years }),
         theta_growth_dest
     );
     envelopes[params.to_key].functions.push(principal_payments);
+
+
+    if (updatePlan) {
+        const endDate = payment_end_time;
+
+        updatePlan([{
+            eventId: event.id,
+            paramType: 'end_time',
+            value: endDate
+        }]);
+    }
+
+    // --- Student Loan Envelope Correction at End of Payment Cycle ---
+    const student_loan_end_time = payment_end_time;
+    const studentLoanEnvelope = envelopes[params.to_key];
+    let student_loan_balance = 0.0;
+    for (const func of studentLoanEnvelope.functions) {
+        student_loan_balance += func(student_loan_end_time);
+    }
+    console.log("student_loan_balance", student_loan_balance);
+    if (Math.abs(student_loan_balance) > 1e-6) {
+        const [theta_growth_source, theta_growth_dest] = get_growth_parameters(
+            envelopes, params.from_key, params.to_key
+        );
+        const correction_inflow = T(
+            { t_k: student_loan_end_time },
+            f_out,
+            P({ b: student_loan_balance }),
+            theta_growth_dest
+        );
+        studentLoanEnvelope.functions.push(correction_inflow);
+        const correction_outflow = T(
+            { t_k: student_loan_end_time },
+            f_in,
+            P({ a: student_loan_balance }),
+            theta_growth_source
+        );
+        envelopes[params.from_key].functions.push(correction_outflow);
+    }
+};
+
+export const private_student_loan = (event: any, envelopes: Record<string, any>, updatePlan?: (updates: Array<{ eventId: number, paramType: string, value: number }>) => void) => {
+    const params = event.parameters;
+
+    // Get growth parameters for source and destination envelopes
+    const [theta_growth_source, theta_growth_dest] = get_growth_parameters(
+        envelopes, params.from_key, params.to_key
+    );
+
+    // Add debt to student loans envelope (negative balance) - interest accrues during school
+    const loan_debt = T(
+        { t_k: params.start_time },
+        f_out,
+        P({ b: params.amount }),
+        theta_growth_dest
+    );
+    envelopes[params.to_key].functions.push(loan_debt);
+
+    // Calculate when payments begin: graduation_date + 6 months (180 days)
+    const payment_start_time = params.graduation_date + 180;
+
+    // Calculate accumulated debt using daily compound interest
+    const interest_accrual_days = payment_start_time - params.start_time;
+    const interest_rate = envelopes[params.to_key].growth_rate; // Get rate from envelope (higher for private)
+    const accumulated_debt_amount = calculateAccumulatedDebt(params.amount, interest_rate, interest_accrual_days);
+
+    // Standard 10-year repayment schedule
+    const loan_term_years = params.loan_term_years;
+    const payment_end_time = payment_start_time + loan_term_years * 365.25 - 365.25 / 12 - 1; // dont need last payment as we did first payment
+
+    // First payment is 30 days after grace period
+    // Monthly payments from cash (includes both principal and interest)
+    const monthly_payments = R(
+        { t0: payment_start_time + 365.25 / 12, dt: 365.25 / 12, tf: payment_end_time },
+        f_monthly_payment,
+        P({ P: accumulated_debt_amount, r: interest_rate, y: loan_term_years }),
+        theta_growth_source
+    );
+    envelopes[params.from_key].functions.push(monthly_payments);
+
+    // Monthly principal payments to reduce debt
+    const principal_payments = R(
+        { t0: payment_start_time + 365.25 / 12, dt: 365.25 / 12, tf: payment_end_time },
+        f_monthly_payment,
+        P({ P: -accumulated_debt_amount, r: interest_rate, y: loan_term_years }),
+        theta_growth_dest
+    );
+    envelopes[params.to_key].functions.push(principal_payments);
+
+
+    if (updatePlan) {
+        const endDate = payment_end_time;
+
+        updatePlan([{
+            eventId: event.id,
+            paramType: 'end_time',
+            value: endDate
+        }]);
+    }
 
     // --- Student Loan Envelope Correction at End of Payment Cycle ---
     const student_loan_end_time = payment_end_time;
@@ -1889,208 +2105,15 @@ export const federal_subsidized_loan = (event: any, envelopes: Record<string, an
         );
         const correction_inflow = T(
             { t_k: student_loan_end_time },
-            f_in,
-            P({ a: Math.abs(student_loan_balance) }),
+            f_out,
+            P({ b: student_loan_balance }),
             theta_growth_dest
         );
         studentLoanEnvelope.functions.push(correction_inflow);
         const correction_outflow = T(
             { t_k: student_loan_end_time },
-            f_out,
-            P({ b: Math.abs(student_loan_balance) }),
-            theta_growth_source
-        );
-        envelopes[params.from_key].functions.push(correction_outflow);
-    }
-};
-
-export const federal_unsubsidized_loan = (event: any, envelopes: Record<string, any>) => {
-    const params = event.parameters;
-
-    // Get growth parameters for source, during-school, and after-school envelopes
-    const [theta_growth_source, theta_growth_during, theta_growth_after] = get_growth_parameters(
-        envelopes, params.from_key, params.to_key, params.after_school_key
-    );
-
-    // Add debt to student loans during-school envelope (negative balance) - interest accrues during school
-    const loan_debt = T(
-        { t_k: params.start_time },
-        f_out,
-        P({ b: params.amount }),
-        theta_growth_during
-    );
-    envelopes[params.to_key].functions.push(loan_debt);
-
-    // Calculate when payments begin: graduation_date + 6 months (180 days)
-    const payment_start_time = params.graduation_date + 180;
-    //console.log("To_key envelope", envelopes[params.to_key]);
-    // Calculate accumulated debt using daily compound interest
-    const interest_accrual_days = payment_start_time - params.start_time;
-    const during_school_rate = envelopes[params.to_key].growth_rate; // Get rate from during-school envelope
-    const accumulated_debt_amount = calculateAccumulatedDebt(params.amount, during_school_rate, interest_accrual_days);
-
-    // Transfer debt out of during-school envelope
-    const debt_transfer_out = T(
-        { t_k: payment_start_time },
-        f_in, // Positive to remove the negative debt balance
-        P({ a: accumulated_debt_amount }),
-        theta_growth_during
-    );
-    envelopes[params.to_key].functions.push(debt_transfer_out);
-
-    // Transfer accumulated debt into after-school envelope
-    const debt_transfer_in = T(
-        { t_k: payment_start_time },
-        f_out, // Negative to create debt balance
-        P({ b: accumulated_debt_amount }),
-        theta_growth_after
-    );
-    envelopes[params.after_school_key].functions.push(debt_transfer_in);
-
-    // Standard 10-year repayment schedule starting after transfer
-    const loan_term_years = params.loan_term_years;
-    const payment_end_time = payment_start_time + loan_term_years * 365.25 - 365.25 / 12;
-
-    // Get interest rate from the after-school Student Loans envelope
-    const interest_rate = envelopes[params.to_key].growth_rate; // Default 6.5% for unsubsidized
-
-    // Monthly payments from cash (includes both principal and interest)
-    const monthly_payments = R(
-        { t0: payment_start_time, dt: 365.25 / 12, tf: payment_end_time },
-        f_monthly_payment,
-        P({ P: accumulated_debt_amount, r: interest_rate, y: loan_term_years }),
-        theta_growth_source
-    );
-    envelopes[params.from_key].functions.push(monthly_payments);
-
-    // Monthly principal payments to reduce debt in after-school envelope
-    const principal_payments = R(
-        { t0: payment_start_time, dt: 365.25 / 12, tf: payment_end_time },
-        f_principal_payment,
-        P({ P: accumulated_debt_amount, r: interest_rate, y: loan_term_years }),
-        theta_growth_after
-    );
-    envelopes[params.after_school_key].functions.push(principal_payments);
-
-    // --- Student Loan Envelope Correction at End of Payment Cycle ---
-    const student_loan_end_time = payment_end_time;
-    const studentLoanEnvelope = envelopes[params.after_school_key];
-    let student_loan_balance = 0.0;
-    for (const func of studentLoanEnvelope.functions) {
-        student_loan_balance += func(student_loan_end_time);
-    }
-    if (Math.abs(student_loan_balance) > 1e-6) {
-        const [theta_growth_source, theta_growth_after] = get_growth_parameters(
-            envelopes, params.from_key, params.after_school_key
-        );
-        const correction_inflow = T(
-            { t_k: student_loan_end_time },
             f_in,
-            P({ a: Math.abs(student_loan_balance) }),
-            theta_growth_after
-        );
-        studentLoanEnvelope.functions.push(correction_inflow);
-        const correction_outflow = T(
-            { t_k: student_loan_end_time },
-            f_out,
-            P({ b: Math.abs(student_loan_balance) }),
-            theta_growth_source
-        );
-        envelopes[params.from_key].functions.push(correction_outflow);
-    }
-};
-
-export const private_student_loan = (event: any, envelopes: Record<string, any>) => {
-    const params = event.parameters;
-
-    // Get growth parameters for source, during-school, and after-school envelopes
-    const [theta_growth_source, theta_growth_during, theta_growth_after] = get_growth_parameters(
-        envelopes, params.from_key, params.to_key, params.after_school_key
-    );
-
-    // Add debt to student loans during-school envelope (negative balance) - interest accrues during school
-    const loan_debt = T(
-        { t_k: params.start_time },
-        f_out,
-        P({ b: params.amount }),
-        theta_growth_during
-    );
-    envelopes[params.to_key].functions.push(loan_debt);
-
-    // Calculate when payments begin: graduation_date + 6 months (180 days)
-    const payment_start_time = params.graduation_date + 180;
-
-    // Calculate accumulated debt using daily compound interest
-    const interest_accrual_days = payment_start_time - params.start_time;
-    const during_school_rate = envelopes[params.to_key].growth_rate; // Get rate from during-school envelope (higher for private)
-    const accumulated_debt_amount = calculateAccumulatedDebt(params.amount, during_school_rate, interest_accrual_days);
-
-    // Transfer debt out of during-school envelope
-    const debt_transfer_out = T(
-        { t_k: payment_start_time },
-        f_in, // Positive to remove the negative debt balance
-        P({ a: accumulated_debt_amount }),
-        theta_growth_during
-    );
-    envelopes[params.to_key].functions.push(debt_transfer_out);
-
-    // Transfer accumulated debt into after-school envelope
-    const debt_transfer_in = T(
-        { t_k: payment_start_time },
-        f_out, // Negative to create debt balance
-        P({ b: accumulated_debt_amount }),
-        theta_growth_after
-    );
-    envelopes[params.after_school_key].functions.push(debt_transfer_in);
-
-    // Standard 10-year repayment schedule starting after transfer
-    const loan_term_years = params.loan_term_years;
-    const payment_end_time = payment_start_time + loan_term_years * 365;
-
-    // Get interest rate from the during-school envelope (private loans typically have higher rates)
-    const interest_rate = envelopes[params.to_key].growth_rate; // Default 6.5% for private loans
-
-    // First payment is 30 days after transfer
-    // Monthly payments from cash (includes both principal and interest)
-    const monthly_payments = R(
-        { t0: payment_start_time + 365.25 / 12, dt: 365.25 / 12, tf: payment_end_time },
-        f_monthly_payment,
-        P({ P: accumulated_debt_amount, r: interest_rate, y: loan_term_years }),
-        theta_growth_source
-    );
-    envelopes[params.from_key].functions.push(monthly_payments);
-
-    // Monthly principal payments to reduce debt in after-school envelope
-    const principal_payments = R(
-        { t0: payment_start_time + 365.25 / 12, dt: 365.25 / 12, tf: payment_end_time },
-        f_principal_payment,
-        P({ P: accumulated_debt_amount, r: interest_rate, y: loan_term_years }),
-        theta_growth_after
-    );
-    envelopes[params.after_school_key].functions.push(principal_payments);
-
-    // --- Student Loan Envelope Correction at End of Payment Cycle ---
-    const student_loan_end_time = payment_end_time;
-    const studentLoanEnvelope = envelopes[params.after_school_key];
-    let student_loan_balance = 0.0;
-    for (const func of studentLoanEnvelope.functions) {
-        student_loan_balance += func(student_loan_end_time);
-    }
-    if (Math.abs(student_loan_balance) > 1e-6) {
-        const [theta_growth_source, theta_growth_after] = get_growth_parameters(
-            envelopes, params.from_key, params.after_school_key
-        );
-        const correction_inflow = T(
-            { t_k: student_loan_end_time },
-            f_in,
-            P({ a: Math.abs(student_loan_balance) }),
-            theta_growth_after
-        );
-        studentLoanEnvelope.functions.push(correction_inflow);
-        const correction_outflow = T(
-            { t_k: student_loan_end_time },
-            f_out,
-            P({ b: Math.abs(student_loan_balance) }),
+            P({ a: student_loan_balance }),
             theta_growth_source
         );
         envelopes[params.from_key].functions.push(correction_outflow);
