@@ -353,8 +353,8 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
 
   // Function to determine time interval based on zoom level
   const getTimeIntervalFromZoom = (zoom: number): TimeInterval => {
-
-    if (zoom >= 250) return 'day';
+    if (zoom >= 500) return 'day';
+    if (zoom >= 250) return 'half_week';
     if (zoom >= 60) return 'week';
     if (zoom >= 10) return 'month';
     if (zoom >= 5) return 'quarter';
@@ -380,37 +380,27 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
       const visibleRangeWidth = baseRange.endDate - baseRange.startDate;
       const padding = visibleRangeWidth * 3; // 3x padding
 
+      console.log('🔍 Padding:', padding);
       const paddedRange = {
         startDate: Math.max(0, baseRange.startDate - padding),
         endDate: Math.min(80 * 365, baseRange.endDate + padding)
       };
 
-      // console.log('🔍 Range calculation:', {
-      //   original: baseRange,
-      //   width: visibleRangeWidth,
-      //   padding,
-      //   padded: paddedRange
-      // });
+      console.log('🔍 Simulation Input Parameters:', {
+        baseRange,
+        visibleRangeWidth,
+        padding,
+        paddedRange,
+        intervalToUse,
+        getIntervalInDays: getIntervalInDays(intervalToUse)
+      });
 
       return paddedRange;
     })() : undefined;
 
-    // console.log('🔍 runSimulationManually called', {
-    //   hasPlan: !!plan,
-    //   timeInterval: intervalToUse,
-    //   wasOverridden: !!intervalOverride,
-    //   visibleRange: rangeToUse ? {
-    //     startDate: rangeToUse.startDate,
-    //     endDate: rangeToUse.endDate,
-    //     startFormatted: formatDate(rangeToUse.startDate, birthDate, 'full', true, false),
-    //     endFormatted: formatDate(rangeToUse.endDate, birthDate, 'full', true, false)
-    //   } : 'none'
-    // });
-
     if (!plan || !schema) return;
 
     try {
-      // console.log('🚀 Starting simulation execution');
       setIsLoading(true);
 
       // Set birth date from plan
@@ -436,7 +426,6 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
         birthDate,
         (updates) => {
           if (updates.length > 0) {
-            // console.log('📝 Applying plan updates from simulation:', updates);
             const updatedPlan = { ...plan };
             updates.forEach(update => {
               const event = updatedPlan.events.find(e => e.id === update.eventId);
@@ -448,7 +437,6 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
                   } else {
                     param.value = update.value;
                   }
-                  // console.log(`✅ Updated ${update.paramType} for event ${update.eventId} to ${update.value}`);
                 }
               }
             });
@@ -457,6 +445,13 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
         },
         rangeToUse
       );
+
+      console.log('🔍 Simulation Results:', {
+        resultLength: simulationResult.length,
+        firstPoint: simulationResult[0],
+        lastPoint: simulationResult[simulationResult.length - 1],
+        rangeInDays: simulationResult[simulationResult.length - 1].date - simulationResult[0].date
+      });
 
       // Store the simulation data
       setNetWorthData(simulationResult);
@@ -628,9 +623,9 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
         width={width}
         height={height}
         scaleXMin={1.0}
-        scaleXMax={400}
+        scaleXMax={1000}
         scaleYMin={1.0}
-        scaleYMax={400}
+        scaleYMax={1000}
         initialTransformMatrix={{
           scaleX: 1.0,
           scaleY: 1.0,
@@ -720,8 +715,8 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
 
               // Calculate the visible range with some padding to prevent edge effects
               const paddedRange = {
-                startDate: Math.max(0, actualRange.startDate - 365), // Add 1 year padding
-                endDate: Math.min(80 * 365, actualRange.endDate + 365) // Add 1 year padding
+                startDate: Math.max(0, actualRange.startDate), // Add 1 year padding
+                endDate: Math.min(80 * 365, actualRange.endDate) // Add 1 year padding
               };
 
               console.log('🎯 Running simulation with range:', {
@@ -847,70 +842,75 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
               Math.pow(point.x - transformedX, 2) +
               Math.pow(point.y - transformedY, 2)
             );
-            //console.log("distance: ", distance)
 
-            // Only update if within threshold (adjust 0.5 as needed)
+            // Only update visual position if within threshold
             if (distance < 150) {
+              setClosestPoint(closestPoint);
+            }
+          };
+
+          const handleAnnotationDragEnd = (e: React.MouseEvent) => {
+            if (!draggingAnnotation || !closestPoint) {
+              setDraggingAnnotation(null);
+              setClosestPoint(null);
+              return;
+            }
+
+            const point = getSVGPoint(e);
+            const dataPoint = screenToData(point.x, point.y, zoom, visibleYScale);
+
+            // Calculate final position and distance
+            const screenX = xScale(closestPoint.date);
+            const screenY = visibleYScale(closestPoint.value);
+            const transformedX = (screenX * zoom.transformMatrix.scaleX) + zoom.transformMatrix.translateX;
+            const transformedY = (screenY * zoom.transformMatrix.scaleY) + zoom.transformMatrix.translateY;
+
+            const distance = Math.sqrt(
+              Math.pow(point.x - transformedX, 2) +
+              Math.pow(point.y - transformedY, 2)
+            );
+
+            // Only update parameter if within threshold
+            if (distance < 150 && plan) {
               // Find the event in the plan
-              if (plan) {
-                // Try main event first
-                let event = plan.events.find(e => e.id === draggingAnnotation.eventId);
-                if (event) {
-                  if (draggingAnnotation.isEndingEvent) {
-                    const endTimeParam = event.parameters.find(p => p.type === 'end_time');
-                    if (endTimeParam) {
-                      // Convert days since birth to date string for the parameter
-                      const dateString = daysSinceBirthToDateString(closestPoint.date, plan.birth_date);
-                      updateParameter(event.id, endTimeParam.type, dateString);
-                    }
-                  } else {
-                    const startTimeParam = event.parameters.find(p => p.type === 'start_time');
-                    if (startTimeParam) {
-                      // Convert days since birth to date string for the parameter
-                      const dateString = daysSinceBirthToDateString(closestPoint.date, plan.birth_date);
-                      updateParameter(event.id, startTimeParam.type, dateString);
-                    }
+              let event = plan.events.find(e => e.id === draggingAnnotation.eventId);
+              if (event) {
+                if (draggingAnnotation.isEndingEvent) {
+                  const endTimeParam = event.parameters.find(p => p.type === 'end_time');
+                  if (endTimeParam) {
+                    const dateString = daysSinceBirthToDateString(closestPoint.date, plan.birth_date);
+                    updateParameter(event.id, endTimeParam.type, dateString);
                   }
-                  // Log event info during drag
-                  //console.log('[Drag Move] Dragging event:', event.id, event.description || event.type);
                 } else {
-                  // Try updating event
-                  for (const parentEvent of plan.events) {
-                    const updatingEvent = parentEvent.updating_events?.find(ue => ue.id === draggingAnnotation.eventId);
-                    if (updatingEvent) {
-                      if (draggingAnnotation.isEndingEvent) {
-                        const endTimeParam = updatingEvent.parameters.find(p => p.type === 'end_time');
-                        if (endTimeParam) {
-                          // Convert days since birth to date string for the parameter
-                          const dateString = daysSinceBirthToDateString(closestPoint.date, plan.birth_date);
-                          updateParameter(updatingEvent.id, endTimeParam.type, dateString);
-                        }
-                      } else {
-                        const startTimeParam = updatingEvent.parameters.find(p => p.type === 'start_time');
-                        if (startTimeParam) {
-                          // Convert days since birth to date string for the parameter
-                          const dateString = daysSinceBirthToDateString(closestPoint.date, plan.birth_date);
-                          updateParameter(updatingEvent.id, startTimeParam.type, dateString);
-                        }
+                  const startTimeParam = event.parameters.find(p => p.type === 'start_time');
+                  if (startTimeParam) {
+                    const dateString = daysSinceBirthToDateString(closestPoint.date, plan.birth_date);
+                    updateParameter(event.id, startTimeParam.type, dateString);
+                  }
+                }
+              } else {
+                // Try updating event
+                for (const parentEvent of plan.events) {
+                  const updatingEvent = parentEvent.updating_events?.find(ue => ue.id === draggingAnnotation.eventId);
+                  if (updatingEvent) {
+                    if (draggingAnnotation.isEndingEvent) {
+                      const endTimeParam = updatingEvent.parameters.find(p => p.type === 'end_time');
+                      if (endTimeParam) {
+                        const dateString = daysSinceBirthToDateString(closestPoint.date, plan.birth_date);
+                        updateParameter(updatingEvent.id, endTimeParam.type, dateString);
                       }
-                      // Log event info during drag
-                      //console.log('[Drag Move] Dragging updating event:', updatingEvent.id, updatingEvent.description || updatingEvent.type);
-                      break;
+                    } else {
+                      const startTimeParam = updatingEvent.parameters.find(p => p.type === 'start_time');
+                      if (startTimeParam) {
+                        const dateString = daysSinceBirthToDateString(closestPoint.date, plan.birth_date);
+                        updateParameter(updatingEvent.id, startTimeParam.type, dateString);
+                      }
                     }
+                    break;
                   }
                 }
               }
             }
-            setClosestPoint(closestPoint);
-          };
-
-          const handleAnnotationDragEnd = (e: React.MouseEvent) => {
-            if (!draggingAnnotation) return;
-
-            const point = getSVGPoint(e);
-            const dataPoint = screenToData(point.x, point.y, zoom, visibleYScale);
-            const closestPoint = findClosestPoint(netWorthData, dataPoint.x);
-            const closestIndex = netWorthData.findIndex(p => p.date === closestPoint?.date);
 
             setDraggingAnnotation(null);
             setClosestPoint(null);
@@ -1068,11 +1068,32 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
                     boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
                   }}
                   onClick={() => {
+                    handleZoomToWindow({ months: 1 });
+                    setAutoZoomTrigger({ months: 1 });
+                  }}
+                >
+                  1M
+                </button>
+                <button
+                  style={{
+                    background: 'rgba(51, 89, 102, 0.06)',
+                    color: '#335966',
+                    border: '1px solid #e5e7eb',
+                    borderRadius: 6,
+                    padding: '4px 12px',
+                    fontSize: 13,
+                    fontWeight: 500,
+                    opacity: 0.85,
+                    transition: 'background 0.2s',
+                    cursor: 'pointer',
+                    boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
+                  }}
+                  onClick={() => {
                     handleZoomToWindow({ months: 3 });
                     setAutoZoomTrigger({ months: 3 });
                   }}
                 >
-                  3m
+                  3M
                 </button>
                 <button
                   style={{
@@ -1405,9 +1426,10 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
 
                 {/* Net Worth Line and Data Circles rendered outside the zoom <g> so their thickness and size are fixed */}
                 {/* Locked Plan Net Worth Line (light gray, overlay) */}
+                {/* Using visibleLockedNetWorthData which contains ${visibleLockedNetWorthData.length} points in current view */}
                 {lockedNetWorthData.length > 0 && (
                   <LinePath
-                    data={lockedNetWorthData}
+                    data={visibleLockedNetWorthData}
                     x={d => xScale(d.date) * zoom.transformMatrix.scaleX + zoom.transformMatrix.translateX}
                     y={d => visibleYScale(d.value) * zoom.transformMatrix.scaleY + zoom.transformMatrix.translateY}
                     stroke="#d1d5db"
@@ -1416,8 +1438,12 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
                     strokeDasharray="4,2"
                   />
                 )}
+
+                {/* Main Net Worth Line */}
+                {/* Using visibleData which contains ${visibleData.length} points in current view */}
+                {/* Full dataset has ${netWorthData.length} points, filtering to visible range for performance */}
                 <LinePath
-                  data={netWorthData}
+                  data={visibleData}
                   x={d => xScale(d.date) * zoom.transformMatrix.scaleX + zoom.transformMatrix.translateX}
                   y={d => visibleYScale(d.value) * zoom.transformMatrix.scaleY + zoom.transformMatrix.translateY}
                   stroke="#335966"

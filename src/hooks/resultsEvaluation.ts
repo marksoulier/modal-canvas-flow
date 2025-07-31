@@ -99,8 +99,17 @@ export function evaluateResults(
         timePoints = [startDate];
 
         // Add points in visible range at specified interval
-        for (let t = visibleRange.startDate; t <= visibleRange.endDate; t += frequency) {
-            timePoints.push(t);
+        if (visibleRange) {
+            console.log('📊 Adding points in visible range:', {
+                rangeStart: visibleRange.startDate,
+                rangeEnd: visibleRange.endDate,
+                interval: frequency,
+                expectedPoints: Math.ceil((visibleRange.endDate - visibleRange.startDate) / frequency)
+            });
+
+            for (let t = visibleRange.startDate; t <= visibleRange.endDate; t += frequency) {
+                timePoints.push(t);
+            }
         }
     }
 
@@ -123,6 +132,16 @@ export function evaluateResults(
             envelopes[key].functions.reduce((sum, func) => sum + func(t), 0)
         );
     }
+
+    console.log('📊 Evaluation Results:', {
+        timePointsLength: timePoints.length,
+        timeRange: {
+            first: timePoints[0],
+            last: timePoints[timePoints.length - 1],
+            span: timePoints[timePoints.length - 1] - timePoints[0]
+        },
+        resultKeysCount: Object.keys(results).length
+    });
 
     // Apply inflation adjustment if needed
     if (currentDay !== undefined && inflationRate !== undefined) {

@@ -74,13 +74,15 @@ export const daysToDate = (daysSinceBirth: number, birthDate: Date): Date => {
 };
 
 // Get interval in days based on selected time interval
-export type TimeInterval = 'day' | 'week' | 'month' | 'quarter' | 'half_year' | 'year';
+export type TimeInterval = 'day' | 'half_week' | 'week' | 'month' | 'quarter' | 'half_year' | 'year';
 export type ExtendedTimeInterval = TimeInterval | 'full' | 'month_year';
 
 export const getIntervalInDays = (interval: TimeInterval): number => {
     switch (interval) {
         case 'day':
             return 1;
+        case 'half_week':
+            return 3.5;
         case 'week':
             return 7;
         case 'month':
@@ -92,7 +94,7 @@ export const getIntervalInDays = (interval: TimeInterval): number => {
         case 'year':
             return 365;
         default:
-            return 365;
+            return 1;
     }
 };
 
