@@ -108,13 +108,13 @@ const EventLibraryModal: React.FC<EventLibraryModalProps> = ({ isOpen, onClose, 
         <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
           {/* Event List */}
           <div className="w-full lg:w-1/2 border-b lg:border-b-0 lg:border-r border-gray-200 overflow-y-auto h-[30vh] lg:h-full bg-white">
-            <div className="p-1.5">
-              <div className="grid grid-cols-2 gap-1.5">
+            <div className="p-2 sm:p-3">
+              <div className="grid grid-cols-2 gap-2 sm:gap-3">
                 {filteredEvents.map((event) => (
                   <button
                     key={event.type}
                     onClick={() => setSelectedEvent(event.type)}
-                    className={`w-full text-left p-2 rounded-lg border transition-colors ${selectedEvent === event.type
+                    className={`w-full text-left p-2.5 sm:p-3 rounded-lg border transition-colors ${selectedEvent === event.type
                       ? ''
                       : 'border-gray-200 hover:bg-gray-50'
                       }`}
@@ -138,7 +138,7 @@ const EventLibraryModal: React.FC<EventLibraryModalProps> = ({ isOpen, onClose, 
           </div>
 
           {/* Event Details */}
-          <div className="w-full lg:w-1/2 p-2 overflow-y-auto bg-white">
+          <div className="w-full lg:w-1/2 p-3 sm:p-4 overflow-y-auto bg-white">
             {selectedEvent ? (
               <div>
                 {(() => {
@@ -146,7 +146,7 @@ const EventLibraryModal: React.FC<EventLibraryModalProps> = ({ isOpen, onClose, 
                   if (!event) return null;
                   const disclaimer = getEventDisclaimer(event.type);
                   return (
-                    <div className="space-y-3">
+                    <div className="space-y-4">
                       <div className="flex items-start justify-between gap-2">
                         <div>
                           <div className="flex items-center gap-2 mb-1.5">
@@ -192,13 +192,13 @@ const EventLibraryModal: React.FC<EventLibraryModalProps> = ({ isOpen, onClose, 
                       </button>
 
                       {/* Parameters List (user-friendly, no header) */}
-                      <div className="mt-2 space-y-1.5">
+                      <div className="mt-3 space-y-2">
                         {event.parameters.map(param => (
                           <button
                             key={param.type}
                             type="button"
                             onClick={handleAddEvent}
-                            className="w-full text-left flex flex-col bg-gray-50 rounded-md px-2.5 py-1.5 border border-gray-100 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-[#03c6fc] cursor-pointer transition"
+                            className="w-full text-left flex flex-col bg-gray-50 rounded-md px-3 py-2 border border-gray-100 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-[#03c6fc] cursor-pointer transition"
                             tabIndex={0}
                           >
                             <span className="font-medium text-gray-900 text-xs">{getParameterDisplayName(event.type, param.type)}</span>

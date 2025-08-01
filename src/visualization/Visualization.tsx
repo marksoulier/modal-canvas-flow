@@ -295,15 +295,11 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
     displayType: string;
     description: string;
   } | null>(null);
-  const [autoZoomTrigger, setAutoZoomTrigger] = useState<{ years?: number; months?: number; days?: number } | null>(null);
 
   // Animation states
   const [animationProgress, setAnimationProgress] = useState(0);
   const [isAnimating, setIsAnimating] = useState(false);
   const [pathLength, setPathLength] = useState(0);
-
-  const pathRef = useRef<SVGPathElement | null>(null);
-
   // Animation function
   const animateData = useCallback(() => {
     setIsAnimating(true);
@@ -1193,16 +1189,6 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
 
           // Store the function in the ref for context access
           setZoomToDateRangeRef.current = setZoomToDateRange;
-          // Auto-trigger second zoom after component rerenders
-          useEffect(() => {
-            if (autoZoomTrigger !== null) {
-              const timer = setTimeout(() => {
-                handleZoomToWindow(autoZoomTrigger);
-                setAutoZoomTrigger(null);
-              }, 250); // Small delay to ensure render completes
-              return () => clearTimeout(timer);
-            }
-          }, [autoZoomTrigger, netWorthData]); // Trigger when netWorthData changes (after rerender)
 
           return (
             <>
@@ -1235,7 +1221,6 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
                   }}
                   onClick={() => {
                     handleZoomToWindow({ months: 1 });
-                    setAutoZoomTrigger({ months: 1 });
                   }}
                 >
                   1M
@@ -1256,7 +1241,6 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
                   }}
                   onClick={() => {
                     handleZoomToWindow({ months: 3 });
-                    setAutoZoomTrigger({ months: 3 });
                   }}
                 >
                   3M
@@ -1277,7 +1261,6 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
                   }}
                   onClick={() => {
                     handleZoomToWindow({ years: 1 });
-                    setAutoZoomTrigger({ years: 1 });
                   }}
                 >
                   1yr
@@ -1298,7 +1281,6 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
                   }}
                   onClick={() => {
                     handleZoomToWindow({ years: 5 });
-                    setAutoZoomTrigger({ years: 5 });
                   }}
                 >
                   5yr
@@ -1319,7 +1301,6 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
                   }}
                   onClick={() => {
                     handleZoomToWindow({ years: 10 });
-                    setAutoZoomTrigger({ years: 10 });
                   }}
                 >
                   10yr
