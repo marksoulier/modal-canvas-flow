@@ -1977,7 +1977,7 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
               )}
 
               {/* Tool tip for the first day above goal lined in yellow goal like retirment line for now  only boarder gold color*/}
-              {firstDayAboveGoal && (
+              {/* {firstDayAboveGoal && (
                 <div
                   style={{
                     position: 'absolute',
@@ -1997,7 +1997,7 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
                 >
                   {formatDate(firstDayAboveGoal, birthDate, 'full', true, true)}
                 </div>
-              )}
+              )} */}
 
               {/* Difference label in the middle of the connecting line */}
               {/* {firstDayAboveGoal && netWorthValues && (
