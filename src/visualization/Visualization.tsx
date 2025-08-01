@@ -1976,6 +1976,29 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
                 </div>
               )}
 
+              {/* Tool tip for the first day above goal lined in yellow goal like retirment line for now  only boarder gold color*/}
+              {firstDayAboveGoal && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    left: (xScale(firstDayAboveGoal) * zoom.transformMatrix.scaleX) + zoom.transformMatrix.translateX,
+                    bottom: 24, // just above the x axis
+                    transform: 'translateX(-50%)',
+                    background: 'rgba(255,255,255,0.85)',
+                    border: '1px solid #ffd700',
+                    color: '#6b7280',
+                    padding: '4px 10px',
+                    borderRadius: '4px',
+                    fontSize: '12px',
+                    pointerEvents: 'none',
+                    zIndex: 9,
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.04)'
+                  }}
+                >
+                  {formatDate(firstDayAboveGoal, birthDate, 'full', true, true)}
+                </div>
+              )}
+
               {/* Difference label in the middle of the connecting line */}
               {/* {firstDayAboveGoal && netWorthValues && (
                 <div

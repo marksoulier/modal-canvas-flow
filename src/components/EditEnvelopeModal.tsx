@@ -98,6 +98,7 @@ const EditEnvelopeModal: React.FC<EditEnvelopeModalProps> = ({ isOpen, onClose, 
 
   const growthOptions = [
     { value: 'None', label: 'None' },
+    { value: 'Simple Interest', label: 'Simple Interest' },
     { value: 'Appreciation', label: 'Appreciation' },
     { value: 'Daily Compound', label: 'Daily Compound' },
     { value: 'Monthly Compound', label: 'Monthly Compound' },

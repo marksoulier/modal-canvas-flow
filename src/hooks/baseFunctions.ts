@@ -103,8 +103,9 @@ export const inflationAdjust = (
 export const f_growth = (theta_g: Record<string, any>, t: number): number => {
     const growth_type = theta_g.type;
     const r = theta_g.r;
-
-    if (growth_type === "Daily Compound") {
+    if (growth_type === "Simple Interest") {
+        return 1 + r * (t / 365.25);
+    } else if (growth_type === "Daily Compound") {
         return Math.pow(1 + r / 365.25, t);
     } else if (growth_type === "Monthly Compound") {
         return Math.pow(1 + r / 12, 12 * t / 365);
