@@ -20,16 +20,77 @@ const EXAMPLE_PLAN_MAPPING: Record<string, ExamplePlanConfig> = {
 
 // Utility functions for date conversion
 export const dateStringToDaysSinceBirth = (dateString: string, birthDate: string): number => {
-    const birth = new Date(birthDate + 'T00:00:00');
-    const targetDate = new Date(dateString + 'T00:00:00');
-    return Math.floor((targetDate.getTime() - birth.getTime()) / (24 * 60 * 60 * 1000));
+    const birth = new Date(birthDate + 'T00:00:00'); // Use UTC midnight
+    const targetDate = new Date(dateString + 'T00:00:00'); // Use UTC midnight
+    // Add 1 to account for inclusive counting of days (both start and end date count)
+    return Math.round((targetDate.getTime() - birth.getTime()) / (24 * 60 * 60 * 1000));
 };
 
 export const daysSinceBirthToDateString = (days: number, birthDate: string): string => {
     const birth = new Date(birthDate + 'T00:00:00');
     const targetDate = new Date(birth.getTime() + days * 24 * 60 * 60 * 1000);
-    return targetDate.toISOString().split('T')[0]; // Format as YYYY-MM-DD
+    // Format as YYYY-MM-DD using local time
+    return `${targetDate.getFullYear()}-${String(targetDate.getMonth() + 1).padStart(2, '0')}-${String(targetDate.getDate()).padStart(2, '0')}`;
 };
+
+// Helper to calculate age in years from days since birth
+export const getAgeFromDays = (daysSinceBirth: number, birthDateString: string): number => {
+    const birthDate = new Date(birthDateString + 'T00:00:00');
+    const targetDate = new Date(birthDate.getTime() + daysSinceBirth * 24 * 60 * 60 * 1000);
+
+    let years = targetDate.getFullYear() - birthDate.getFullYear();
+
+    // Adjust for cases where we haven't reached the birthday in the target year
+    if (targetDate.getMonth() < birthDate.getMonth() ||
+        (targetDate.getMonth() === birthDate.getMonth() &&
+            targetDate.getDate() < birthDate.getDate())) {
+        years--;
+    }
+
+    return years;
+};
+
+// Helper to calculate days since birth from age in years
+export const getDaysFromAge = (age: number, birthDateString: string): number => {
+    const birthDate = new Date(birthDateString + 'T00:00:00');
+    const targetDate = new Date(birthDate.getTime());
+
+    // Set to same day/month but years ahead
+    targetDate.setFullYear(birthDate.getFullYear() + age);
+
+    // Calculate exact days between dates
+    const millisecondsPerDay = 24 * 60 * 60 * 1000;
+    return Math.floor((targetDate.getTime() - birthDate.getTime()) / millisecondsPerDay);
+};
+
+// Calculate age from birth date string and target date string
+export const getAgeFromDateStrings = (birthDateString: string, targetDateString: string): number => {
+    const birthDate = new Date(birthDateString + 'T00:00:00');
+    const targetDate = new Date(targetDateString + 'T00:00:00');
+
+    let years = targetDate.getFullYear() - birthDate.getFullYear();
+
+    // Adjust for cases where we haven't reached the birthday in the target year
+    const birthMonth = birthDate.getMonth();
+    const targetMonth = targetDate.getMonth();
+    if (targetMonth < birthMonth || (targetMonth === birthMonth && targetDate.getDate() < birthDate.getDate())) {
+        years--;
+    }
+
+    return years;
+};
+
+// Calculate age from birth date to a specific target date (for DatePicker context)
+export const getAgeFromBirthToDate = getAgeFromDateStrings; // Same exact calculation
+
+// Calculate target date from birth date and age
+export const getTargetDateFromBirthAndAge = (birthDateString: string, age: number): string => {
+    const birthDate = new Date(birthDateString + 'T00:00:00');
+    const targetDate = new Date(birthDate.getTime());
+    targetDate.setFullYear(birthDate.getFullYear() + age);
+    return targetDate.toISOString().split('T')[0];
+};
+
 
 // Map of Lucide icon names to schema icon names
 export const iconMap: Record<string, string> = {

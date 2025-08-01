@@ -11,7 +11,7 @@ import { DollarSign, Target, Home, Plane, Users, Coffee, TrendingUp, PiggyBank, 
 import { usePlan } from '../contexts/PlanContext';
 import { useAuth } from '../contexts/AuthContext';
 import { toast } from 'sonner';
-import { getDaysFromAge, getAgeFromDays, getTargetDateFromBirthAndAge } from '../visualization/viz_utils';
+import { getDaysFromAge, getAgeFromDays, getTargetDateFromBirthAndAge } from '../contexts/PlanContext';
 import DatePicker from './DatePicker';
 
 interface OnboardingFlowProps {

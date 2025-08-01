@@ -100,12 +100,12 @@ export function evaluateResults(
 
         // Add points in visible range at specified interval
         if (visibleRange) {
-            console.log('📊 Adding points in visible range:', {
-                rangeStart: visibleRange.startDate,
-                rangeEnd: visibleRange.endDate,
-                interval: frequency,
-                expectedPoints: Math.ceil((visibleRange.endDate - visibleRange.startDate) / frequency)
-            });
+            // console.log('📊 Adding points in visible range:', {
+            //     rangeStart: visibleRange.startDate,
+            //     rangeEnd: visibleRange.endDate,
+            //     interval: frequency,
+            //     expectedPoints: Math.ceil((visibleRange.endDate - visibleRange.startDate) / frequency)
+            // });
 
             for (let t = visibleRange.startDate; t <= visibleRange.endDate; t += frequency) {
                 timePoints.push(t);
@@ -133,15 +133,15 @@ export function evaluateResults(
         );
     }
 
-    console.log('📊 Evaluation Results:', {
-        timePointsLength: timePoints.length,
-        timeRange: {
-            first: timePoints[0],
-            last: timePoints[timePoints.length - 1],
-            span: timePoints[timePoints.length - 1] - timePoints[0]
-        },
-        resultKeysCount: Object.keys(results).length
-    });
+    // console.log('📊 Evaluation Results:', {
+    //     timePointsLength: timePoints.length,
+    //     timeRange: {
+    //         first: timePoints[0],
+    //         last: timePoints[timePoints.length - 1],
+    //         span: timePoints[timePoints.length - 1] - timePoints[0]
+    //     },
+    //     resultKeysCount: Object.keys(results).length
+    // });
 
     // Apply inflation adjustment if needed
     if (currentDay !== undefined && inflationRate !== undefined) {
@@ -151,7 +151,7 @@ export function evaluateResults(
         };
     }
 
-    console.log('📊 Results:', { results, timePoints });
+    //console.log('📊 Results:', { results, timePoints });
 
     return { results, timePoints };
 }

@@ -1,7 +1,10 @@
-import React from 'react';
-import { TooltipWithBounds, defaultStyles } from '@visx/tooltip';
+import { type ReactNode } from 'react';
 import chroma from 'chroma-js';
-import { dateStringToDaysSinceBirth } from '../contexts/PlanContext';
+import {
+    dateStringToDaysSinceBirth,
+    getAgeFromDays,
+    daysSinceBirthToDateString
+} from '../contexts/PlanContext';
 
 // Format number as currency with suffixes
 export const formatNumber = (value: { valueOf(): number }): string => {
@@ -21,57 +24,7 @@ export const formatNumber = (value: { valueOf(): number }): string => {
     return `${sign}$${absNum.toFixed(2)}`;
 };
 
-// Helper to calculate age in years from days since birth
-export const getAgeFromDays = (daysSinceBirth: number): number => {
-    return Math.floor(daysSinceBirth / 365.25);
-};
 
-// Helper to calculate days since birth from age in years
-export const getDaysFromAge = (age: number): number => {
-    return Math.round(age * 365.25);
-};
-
-// Calculate age from birth date string and target date string
-export const getAgeFromDateStrings = (birthDateString: string, targetDateString: string): number => {
-    const birthDate = new Date(birthDateString + 'T00:00:00');
-    const targetDate = new Date(targetDateString + 'T00:00:00');
-    const daysSinceBirth = Math.floor((targetDate.getTime() - birthDate.getTime()) / (24 * 60 * 60 * 1000));
-    return Math.floor(daysSinceBirth / 365.25);
-};
-
-// Calculate age from birth date to a specific target date (for DatePicker context)
-export const getAgeFromBirthToDate = (birthDateString: string, targetDateString: string): number => {
-    const birthDate = new Date(birthDateString + 'T00:00:00');
-    const targetDate = new Date(targetDateString + 'T00:00:00');
-    const daysSinceBirth = Math.floor((targetDate.getTime() - birthDate.getTime()) / (24 * 60 * 60 * 1000));
-    return Math.floor(daysSinceBirth / 365.25);
-};
-
-// Calculate birth date string from current birth date string and desired age
-export const getBirthDateStringFromAge = (currentBirthDateString: string, desiredAge: number): string => {
-    const currentBirthDate = new Date(currentBirthDateString + 'T00:00:00');
-    const today = new Date();
-    const daysSinceBirth = Math.round(desiredAge * 365.25);
-    const newBirthDate = new Date(today);
-    newBirthDate.setDate(today.getDate() - daysSinceBirth);
-    return newBirthDate.toISOString().split('T')[0];
-};
-
-// Calculate target date from birth date and age
-export const getTargetDateFromBirthAndAge = (birthDateString: string, age: number): string => {
-    const birthDate = new Date(birthDateString + 'T00:00:00');
-    const targetDate = new Date(birthDate.getTime());
-    targetDate.setDate(birthDate.getDate() + Math.round(age * 365.25));
-    return targetDate.toISOString().split('T')[0];
-};
-
-// Convert days since birth to actual date
-export const daysToDate = (daysSinceBirth: number, birthDate: Date): Date => {
-    // Create a new date object to avoid mutating the original
-    const result = new Date(birthDate.getTime());
-    result.setDate(result.getDate() + daysSinceBirth);
-    return result;
-};
 
 // Get interval in days based on selected time interval
 export type TimeInterval = 'day' | 'half_week' | 'week' | 'month' | 'quarter' | 'half_year' | 'year';
@@ -106,7 +59,8 @@ export const formatDate = (
     showAge: boolean = false,
     showAgeAsJSX: boolean = false
 ): string | JSX.Element => {
-    const date = daysToDate(daysSinceBirth, birthDate);
+    const isoDateStr = daysSinceBirthToDateString(daysSinceBirth, birthDate.toISOString().split('T')[0]);
+    const date = new Date(isoDateStr + 'T00:00:00');
     let dateStr = '';
     switch (interval) {
         case 'year':
@@ -143,7 +97,7 @@ export const formatDate = (
             dateStr = date.toLocaleDateString();
     }
     if (showAge) {
-        const age = getAgeFromDays(daysSinceBirth);
+        const age = getAgeFromDays(daysSinceBirth, birthDate.toISOString().split('T')[0]);
         if (showAgeAsJSX) {
             return <><span>{dateStr} </span><span style={{ color: '#b0b0b0', fontWeight: 400 }}>({age})</span></>;
         }

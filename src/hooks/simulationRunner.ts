@@ -86,7 +86,7 @@ export async function runSimulation(
         const planUpdates: Array<{ eventId: number, paramType: string, value: number }> = [];
 
         for (const event of parsedEvents) {
-            console.log("Event: ", event)
+            //console.log("Event: ", event)
 
             // Skip manual_correction events during the first pass
             if (event.type === 'manual_correction') {
@@ -184,7 +184,7 @@ export async function runSimulation(
                 .filter(([key, env]) => key !== 'simulation_settings')
         );
 
-        console.log("allEvalEnvelopes", allEvalEnvelopes);
+        //console.log("allEvalEnvelopes", allEvalEnvelopes);
 
         let allResults;
         if (plan.adjust_for_inflation) {

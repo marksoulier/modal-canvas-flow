@@ -9,7 +9,7 @@ import {
     PopoverTrigger,
 } from './ui/popover';
 import { cn } from '../lib/utils';
-import { getAgeFromBirthToDate, getBirthDateStringFromAge, getTargetDateFromBirthAndAge } from '../visualization/viz_utils';
+import { getAgeFromBirthToDate, getTargetDateFromBirthAndAge } from '../contexts/PlanContext';
 import { usePlan } from '../contexts/PlanContext';
 
 interface DatePickerProps {

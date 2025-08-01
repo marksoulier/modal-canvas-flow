@@ -41,6 +41,7 @@ import type { Plan } from '../contexts/PlanContext';
 const DEBUG = false;
 const IS_ANIMATION_ENABLED = true;
 const ZOOM_ANIMATION_DURATION = 750; // milliseconds
+const SIMULATION_ANIMATION_DURATION = 1000; // milliseconds
 
 // Helper function for zoom animation with easing
 const animateZoom = (
@@ -307,7 +308,7 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
   const animateData = useCallback(() => {
     setIsAnimating(true);
     const startTime = Date.now();
-    const duration = 2000; // 2 seconds animation
+    const duration = SIMULATION_ANIMATION_DURATION; // 2 seconds animation
 
     const animate = () => {
       const currentTime = Date.now();
@@ -477,20 +478,20 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
       const visibleRangeWidth = baseRange.endDate - baseRange.startDate;
       const padding = visibleRangeWidth * 5; // 5x padding
 
-      console.log('🔍 Padding:', padding);
+      //console.log('🔍 Padding:', padding);
       const paddedRange = {
         startDate: Math.max(0, baseRange.startDate - padding),
         endDate: Math.min(80 * 365, baseRange.endDate + padding)
       };
 
-      console.log('🔍 Simulation Input Parameters:', {
-        baseRange,
-        visibleRangeWidth,
-        padding,
-        paddedRange,
-        intervalToUse,
-        getIntervalInDays: getIntervalInDays(intervalToUse)
-      });
+      // console.log('🔍 Simulation Input Parameters:', {
+      //   baseRange,
+      //   visibleRangeWidth,
+      //   padding,
+      //   paddedRange,
+      //   intervalToUse,
+      //   getIntervalInDays: getIntervalInDays(intervalToUse)
+      // });
 
       return paddedRange;
     })() : undefined;
@@ -543,16 +544,16 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
         rangeToUse
       );
 
-      console.log('🔍 Simulation Results:', {
-        resultLength: simulationResult.length,
-        firstPoint: simulationResult[0],
-        lastPoint: simulationResult[simulationResult.length - 1],
-        rangeInDays: simulationResult[simulationResult.length - 1].date - simulationResult[0].date
-      });
+      // console.log('🔍 Simulation Results:', {
+      //   resultLength: simulationResult.length,
+      //   firstPoint: simulationResult[0],
+      //   lastPoint: simulationResult[simulationResult.length - 1],
+      //   rangeInDays: simulationResult[simulationResult.length - 1].date - simulationResult[0].date
+      // });
 
       // Store the simulation data
       setNetWorthData(simulationResult);
-      console.log('📊 Simulation results length:', simulationResult.length);
+      //console.log('📊 Simulation results length:', simulationResult.length);
 
       // Run simulation for locked plan if it exists
       if (plan_locked) {
@@ -578,7 +579,7 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
           // Only keep {date, value} for locked plan data
           const lockedData = lockedResult.map(({ date, value }) => ({ date, value }));
           setLockedNetWorthData(lockedData);
-          console.log('📊 Locked simulation results length:', lockedData.length);
+          //console.log('📊 Locked simulation results length:', lockedData.length);
         } catch (err) {
           console.error('Locked plan simulation failed:', err);
           setLockedNetWorthData([]);
@@ -610,7 +611,7 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
 
   // Expose manual simulation trigger for external use
   const triggerSimulation = useCallback(() => {
-    console.log('🎯 Manual simulation triggered with current interval and visible range:', timeInterval, currentVisibleRange);
+    //console.log('🎯 Manual simulation triggered with current interval and visible range:', timeInterval, currentVisibleRange);
     runSimulationManually(timeInterval, currentVisibleRange ? {
       startDate: currentVisibleRange.startDate,
       endDate: currentVisibleRange.endDate
@@ -805,7 +806,7 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
           useEffect(() => {
             const newInterval = getTimeIntervalFromZoom(globalZoom);
             if (newInterval !== timeInterval) {
-              console.log('🎯 Time interval changed from', timeInterval, 'to', newInterval);
+              //console.log('🎯 Time interval changed from', timeInterval, 'to', newInterval);
 
               // Get the actual visible range without padding
               const actualRange = getActualVisibleDateRange(zoom, xScale, width);
@@ -816,15 +817,15 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
                 endDate: Math.min(80 * 365, actualRange.endDate) // Add 1 year padding
               };
 
-              console.log('🎯 Running simulation with range:', {
-                interval: newInterval,
-                visibleRange: {
-                  startDate: paddedRange.startDate,
-                  endDate: paddedRange.endDate,
-                  startFormatted: formatDate(paddedRange.startDate, birthDate, 'full', true, false),
-                  endFormatted: formatDate(paddedRange.endDate, birthDate, 'full', true, false)
-                }
-              });
+              // console.log('🎯 Running simulation with range:', {
+              //   interval: newInterval,
+              //   visibleRange: {
+              //     startDate: paddedRange.startDate,
+              //     endDate: paddedRange.endDate,
+              //     startFormatted: formatDate(paddedRange.startDate, birthDate, 'full', true, false),
+              //     endFormatted: formatDate(paddedRange.endDate, birthDate, 'full', true, false)
+              //   }
+              // });
 
               // Run simulation with new interval and padded range
               setIsIntervalChange(true);
@@ -845,6 +846,18 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
           }, [schema]);
 
           const allEventsByDate = getAllEventsByDate(plan!, schema || undefined);
+          // console.log('📅 Events by Date in Visualization:', {
+          //   totalDates: Object.keys(allEventsByDate).length,
+          //   allDates: Object.keys(allEventsByDate).map(date => ({
+          //     date: Number(date),
+          //     formattedDate: formatDate(Number(date), birthDate, 'full', true, false),
+          //     events: allEventsByDate[Number(date)].map(e => ({
+          //       eventId: e.event.id,
+          //       displayId: e.displayId,
+          //       isEndingEvent: e.isEndingEvent
+          //     }))
+          //   }))
+          // });
 
           // Utility to apply a transform matrix to a point
           function applyMatrixToPoint(matrix: any, point: { x: number; y: number }) {
@@ -968,21 +981,50 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
               Math.pow(point.y - transformedY, 2)
             );
 
-            // Only update parameter if within threshold
-            if (distance < 150 && plan) {
+            // Only update parameter if within threshold AND there was actual dragging
+            if (distance < 150 && plan && hasDragged) {
+              console.log('🎯 Drag End Position:', {
+                mousePoint: point,
+                dataPoint,
+                closestPoint: {
+                  date: closestPoint.date,
+                  formattedDate: formatDate(closestPoint.date, birthDate, 'full', true, false)
+                },
+                screenCoords: { x: screenX, y: screenY },
+                transformedCoords: { x: transformedX, y: transformedY },
+                distance
+              });
+
               // Find the event in the plan
               let event = plan.events.find(e => e.id === draggingAnnotation.eventId);
+              console.log("🎯 Found Event:", {
+                event,
+                eventId: draggingAnnotation.eventId,
+                isEndingEvent: draggingAnnotation.isEndingEvent
+              });
               if (event) {
                 if (draggingAnnotation.isEndingEvent) {
                   const endTimeParam = event.parameters.find(p => p.type === 'end_time');
                   if (endTimeParam) {
                     const dateString = daysSinceBirthToDateString(closestPoint.date, plan.birth_date);
+                    console.log('🎯 Updating End Time:', {
+                      eventId: event.id,
+                      originalDays: closestPoint.date,
+                      convertedDateString: dateString,
+                      birthDate: plan.birth_date
+                    });
                     updateParameter(event.id, endTimeParam.type, dateString);
                   }
                 } else {
                   const startTimeParam = event.parameters.find(p => p.type === 'start_time');
                   if (startTimeParam) {
                     const dateString = daysSinceBirthToDateString(closestPoint.date, plan.birth_date);
+                    console.log('🎯 Updating Start Time:', {
+                      eventId: event.id,
+                      originalDays: closestPoint.date,
+                      convertedDateString: dateString,
+                      birthDate: plan.birth_date
+                    });
                     updateParameter(event.id, startTimeParam.type, dateString);
                   }
                 }
