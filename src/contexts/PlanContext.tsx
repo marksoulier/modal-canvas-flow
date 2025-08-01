@@ -13,8 +13,16 @@ interface ExamplePlanConfig {
 
 const EXAMPLE_PLAN_MAPPING: Record<string, ExamplePlanConfig> = {
     'apr-vs-apy-example': {
-        regularPlan: 'Test 1',
-        lockedPlan: 'Test 2'
+        regularPlan: 'APR vs APY',
+        lockedPlan: 'APR vs APY'
+    },
+    'retirement-example': {
+        regularPlan: 'Mikes Retirement Plan',
+        lockedPlan: 'Mikes Retirement Plan'
+    },
+    'journey-20-example': {
+        regularPlan: 'Journey of $20',
+        lockedPlan: 'Journey of $20'
     }
 };
 

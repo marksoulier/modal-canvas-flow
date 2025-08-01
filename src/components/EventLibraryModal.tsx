@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Search, Calendar, Plus } from 'lucide-react';
+import { Search, Calendar, Plus } from 'lucide-react';
 import { iconMap } from '../contexts/PlanContext';
 import * as LucideIcons from 'lucide-react';
 import { usePlan } from '../contexts/PlanContext';
@@ -52,77 +52,93 @@ const EventLibraryModal: React.FC<EventLibraryModalProps> = ({ isOpen, onClose, 
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-6xl w-full h-[85vh] flex flex-col">
+      <DialogContent className="max-w-[95vw] md:max-w-6xl w-full max-h-[90vh] md:h-[85vh] flex flex-col">
         <DialogHeader className="flex items-center justify-between p-2 border-b border-gray-200">
           <DialogTitle className="text-xl font-semibold text-gray-900">Financial Life Events Library</DialogTitle>
         </DialogHeader>
 
         {/* Search and Filters */}
-        <div className="p-3 border-b border-gray-200 space-y-4">
-          <div className="relative">
-            <Search size={20} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[#03c6fc]" />
-            <input
-              type="text"
-              placeholder="Search events..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#03c6fc] focus:border-transparent text-gray-900 bg-white"
-            />
-          </div>
+        <div className="p-2 sm:p-3 border-b border-gray-200">
+          <div className="flex items-start gap-3">
+            {/* Search bar taking 40% width */}
+            <div className="relative w-[40%]">
+              <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[#03c6fc]" />
+              <input
+                type="text"
+                placeholder="Search events..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#03c6fc] focus:border-transparent text-gray-900 bg-white text-sm"
+              />
+            </div>
 
-          {/* Category Filter Buttons */}
-          <div className="flex flex-wrap gap-2">
-            {categories.map((category) => (
-              <button
-                key={category}
-                onClick={() => setSelectedCategory(category)}
-                className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${selectedCategory === category
-                  ? ''
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
-                style={selectedCategory === category
-                  ? { border: '1.5px solid #03c6fc', background: 'rgba(3,198,252,0.08)', color: '#222' }
-                  : {}}
-              >
-                {category}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Content */}
-        <div className="flex-1 flex overflow-hidden">
-          {/* Event List */}
-          <div className="w-1/2 border-r border-gray-200 overflow-y-auto h-full bg-white">
-            <div className="p-4 space-y-3">
-              {filteredEvents.map((event) => (
+            {/* Category Filter Buttons to the right */}
+            <div className="flex-1 flex flex-wrap gap-1.5 items-center min-h-[38px]">
+              {categories.map((category) => (
                 <button
-                  key={event.type}
-                  onClick={() => setSelectedEvent(event.type)}
-                  className={`w-full text-left p-4 rounded-lg border transition-colors ${selectedEvent === event.type
+                  key={category}
+                  onClick={() => setSelectedCategory(category)}
+                  className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${selectedCategory === category
                     ? ''
-                    : 'border-gray-200 hover:bg-gray-50'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                     }`}
-                  style={selectedEvent === event.type
-                    ? { borderColor: '#03c6fc', background: 'rgba(3,198,252,0.06)' }
+                  style={selectedCategory === category
+                    ? { border: '1.5px solid #03c6fc', background: 'rgba(3,198,252,0.08)', color: '#222' }
                     : {}}
                 >
-                  <div className="flex items-start gap-3">
-                    <div className="mt-2 flex-shrink-0 text-[#03c6fc]">
-                      {getIconComponent(event.icon)}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-medium text-gray-900">{getEventDisplayType(event.type)}</h3>
-                      <p className="text-sm text-gray-500 mt-1">{event.category}</p>
-                    </div>
-                  </div>
+                  {category}
                 </button>
               ))}
             </div>
           </div>
+        </div>
+
+        {/* Add some custom styles for hiding scrollbar */}
+        <style>{`
+          .hide-scrollbar::-webkit-scrollbar {
+            display: none;
+          }
+          .hide-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+          }
+        `}</style>
+
+        {/* Content */}
+        <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
+          {/* Event List */}
+          <div className="w-full lg:w-1/2 border-b lg:border-b-0 lg:border-r border-gray-200 overflow-y-auto h-[30vh] lg:h-full bg-white">
+            <div className="p-1.5">
+              <div className="grid grid-cols-2 gap-1.5">
+                {filteredEvents.map((event) => (
+                  <button
+                    key={event.type}
+                    onClick={() => setSelectedEvent(event.type)}
+                    className={`w-full text-left p-2 rounded-lg border transition-colors ${selectedEvent === event.type
+                      ? ''
+                      : 'border-gray-200 hover:bg-gray-50'
+                      }`}
+                    style={selectedEvent === event.type
+                      ? { borderColor: '#03c6fc', background: 'rgba(3,198,252,0.06)' }
+                      : {}}
+                  >
+                    <div className="flex items-start gap-2">
+                      <div className="mt-0.5 flex-shrink-0 text-[#03c6fc]">
+                        {getIconComponent(event.icon)}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-medium text-gray-900 text-sm">{getEventDisplayType(event.type)}</h3>
+                        <p className="text-xs text-gray-500 mt-0.5">{event.category}</p>
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
 
           {/* Event Details */}
-          <div className="w-1/2 p-6 overflow-y-auto bg-white">
+          <div className="w-full lg:w-1/2 p-2 overflow-y-auto bg-white">
             {selectedEvent ? (
               <div>
                 {(() => {
@@ -130,14 +146,14 @@ const EventLibraryModal: React.FC<EventLibraryModalProps> = ({ isOpen, onClose, 
                   if (!event) return null;
                   const disclaimer = getEventDisclaimer(event.type);
                   return (
-                    <div className="space-y-6">
-                      <div className="flex items-start justify-between">
+                    <div className="space-y-3">
+                      <div className="flex items-start justify-between gap-2">
                         <div>
-                          <div className="flex items-center gap-3 mb-3">
+                          <div className="flex items-center gap-2 mb-1.5">
                             <span className="text-[#03c6fc]">{getIconComponent(event.icon)}</span>
-                            <h3 className="text-2xl font-semibold text-gray-900">{getEventDisplayType(event.type)}</h3>
+                            <h3 className="text-lg font-semibold text-gray-900">{getEventDisplayType(event.type)}</h3>
                           </div>
-                          <span className="inline-block px-2 py-1 bg-gray-100 text-gray-700 font-medium text-[0.95rem] rounded-md">
+                          <span className="inline-block px-2 py-0.5 sm:py-1 bg-gray-100 text-gray-700 font-medium text-xs sm:text-sm rounded-md">
                             {event.category}
                           </span>
                         </div>
@@ -145,10 +161,10 @@ const EventLibraryModal: React.FC<EventLibraryModalProps> = ({ isOpen, onClose, 
                         {/* Add Event Button - Top Right */}
                         <button
                           onClick={handleAddEvent}
-                          className="px-4 py-2 rounded-lg transition-all font-medium flex items-center justify-center gap-2 text-sm bg-[#03c6fc]/10 backdrop-blur-sm hover:bg-[#03c6fc]/20 text-slate-700 shadow-sm border border-[#03c6fc]/20 hover:border-[#03c6fc]/40 flex-shrink-0"
+                          className="px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg transition-all font-medium flex items-center justify-center gap-1.5 sm:gap-2 text-xs sm:text-sm bg-[#03c6fc]/10 backdrop-blur-sm hover:bg-[#03c6fc]/20 text-slate-700 shadow-sm border border-[#03c6fc]/20 hover:border-[#03c6fc]/40 flex-shrink-0"
                           style={{ boxShadow: '0 2px 8px rgba(3,198,252,0.04)' }}
                         >
-                          <Plus size={16} />
+                          <Plus size={14} />
                           Add Event
                         </button>
                       </div>
@@ -158,7 +174,7 @@ const EventLibraryModal: React.FC<EventLibraryModalProps> = ({ isOpen, onClose, 
                         <button
                           type="button"
                           onClick={handleAddEvent}
-                          className="w-full text-left bg-yellow-50 border border-yellow-200 text-yellow-800 rounded-md px-4 py-3 text-sm mt-2 transition hover:bg-yellow-100 focus:outline-none focus:ring-2 focus:ring-yellow-300 cursor-pointer"
+                          className="w-full text-left bg-yellow-50 border border-yellow-200 text-yellow-800 rounded-md px-3 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm mt-2 transition hover:bg-yellow-100 focus:outline-none focus:ring-2 focus:ring-yellow-300 cursor-pointer"
                           tabIndex={0}
                         >
                           {disclaimer}
@@ -169,24 +185,24 @@ const EventLibraryModal: React.FC<EventLibraryModalProps> = ({ isOpen, onClose, 
                       <button
                         type="button"
                         onClick={handleAddEvent}
-                        className="w-full text-left text-gray-700 leading-relaxed mt-2 bg-transparent border-none p-0 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-[#03c6fc] cursor-pointer rounded-md transition"
+                        className="w-full text-left text-gray-700 leading-relaxed mt-2 bg-transparent border-none p-0 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-[#03c6fc] cursor-pointer rounded-md transition text-xs sm:text-sm"
                         tabIndex={0}
                       >
                         {event.description}
                       </button>
 
                       {/* Parameters List (user-friendly, no header) */}
-                      <div className="mt-4 space-y-3">
+                      <div className="mt-2 space-y-1.5">
                         {event.parameters.map(param => (
                           <button
                             key={param.type}
                             type="button"
                             onClick={handleAddEvent}
-                            className="w-full text-left flex flex-col bg-gray-50 rounded-md px-4 py-2 border border-gray-100 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-[#03c6fc] cursor-pointer transition"
+                            className="w-full text-left flex flex-col bg-gray-50 rounded-md px-2.5 py-1.5 border border-gray-100 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-[#03c6fc] cursor-pointer transition"
                             tabIndex={0}
                           >
-                            <span className="font-medium text-gray-900 text-sm">{getParameterDisplayName(event.type, param.type)}</span>
-                            <span className="text-gray-600 text-sm mt-0.5">{param.description}</span>
+                            <span className="font-medium text-gray-900 text-xs">{getParameterDisplayName(event.type, param.type)}</span>
+                            <span className="text-gray-600 text-xs mt-0.5">{param.description}</span>
                           </button>
                         ))}
                       </div>
