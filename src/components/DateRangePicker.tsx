@@ -204,36 +204,44 @@ const DateRangePicker: React.FC<DateRangePickerProps> = ({ className }) => {
                 <PopoverTrigger asChild>
                     <Button
                         variant="ghost"
-                        className="text-black hover:text-gray-700 hover:bg-transparent p-0 h-auto font-normal"
+                        className="bg-white/90 backdrop-blur-sm hover:bg-white/95 text-gray-500 hover:text-gray-700 rounded-lg shadow-sm border border-gray-100 px-4 py-2.5 h-auto font-medium transition-all duration-200 flex items-center gap-2"
                     >
                         <span className="text-sm">
                             {displayText}
                         </span>
+                        <ChevronDownIcon className="h-4 w-4 opacity-50" />
                     </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-4 bg-white/95 backdrop-blur-sm border border-gray-200">
+                <PopoverContent className="w-auto p-4 bg-white/95 backdrop-blur-sm border border-gray-200 shadow-lg rounded-lg">
                     <div className="space-y-4">
-                        <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-6">
                             <div className="space-y-2">
-                                <label className="text-sm font-medium text-gray-700">Start Date</label>
+                                <label className="text-sm font-medium text-gray-500">Start Date</label>
                                 <DatePicker
                                     value={startDateString}
                                     onChange={setStartDateString}
                                 />
                             </div>
                             <div className="space-y-2">
-                                <label className="text-sm font-medium text-gray-700">End Date</label>
+                                <label className="text-sm font-medium text-gray-500">End Date</label>
                                 <DatePicker
                                     value={endDateString}
                                     onChange={setEndDateString}
                                 />
                             </div>
                         </div>
-                        <div className="flex gap-2">
-                            <Button onClick={handleApply} className="flex-1">
+                        <div className="flex gap-2 pt-2">
+                            <Button
+                                onClick={handleApply}
+                                className="flex-1 bg-[#03c6fc]/10 hover:bg-[#03c6fc]/20 text-slate-700 border border-[#03c6fc]/20 hover:border-[#03c6fc]/40"
+                            >
                                 Apply
                             </Button>
-                            <Button onClick={handleReset} variant="outline" className="flex-1">
+                            <Button
+                                onClick={handleReset}
+                                variant="outline"
+                                className="flex-1 text-gray-500 hover:text-gray-700 border-gray-200 hover:border-gray-300 hover:bg-gray-50"
+                            >
                                 Reset
                             </Button>
                         </div>

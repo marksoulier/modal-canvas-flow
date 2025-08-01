@@ -173,11 +173,11 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSignIn, mode, 
 
     try {
       console.log('🔄 Google sign in attempt');
-      console.log('🔄 Window location origin:', window.location.origin + '/modal-canvas-flow/');
-      const { data, error } = await supabase.auth.signInWithOAuth({
+      console.log('🔄 Window location origin:', window.location.origin + '/');
+      const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: window.location.origin + '/modal-canvas-flow/',
+          redirectTo: window.location.origin + '/',
         },
       });
       if (error) throw error;

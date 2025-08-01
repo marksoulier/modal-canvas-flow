@@ -5,6 +5,19 @@ import defaultPlanData from '@/data/plan.json';
 import defaultLockedPlanData from '@/data/plan_locked.json';
 import { useAuth } from './AuthContext';
 
+// Example plan mapping
+interface ExamplePlanConfig {
+    regularPlan: string;
+    lockedPlan: string;
+}
+
+const EXAMPLE_PLAN_MAPPING: Record<string, ExamplePlanConfig> = {
+    'apr-vs-apy-example': {
+        regularPlan: 'Test 1',
+        lockedPlan: 'Test 2'
+    }
+};
+
 // Utility functions for date conversion
 export const dateStringToDaysSinceBirth = (dateString: string, birthDate: string): number => {
     const birth = new Date(birthDate + 'T00:00:00');
@@ -210,6 +223,7 @@ interface PlanContextType {
     triggerSimulation: () => void; // <-- add this new method
     registerTriggerSimulation: (fn: () => void) => void; // <-- add this new method
     updatePlanDirectly: (planData: Plan) => void; // <-- add this new method for direct plan updates without viewing window reset
+    isExampleViewing: boolean; // Add this new property
 }
 
 // Schema and default data are now imported directly
@@ -258,6 +272,7 @@ export function PlanProvider({ children }: PlanProviderProps) {
     const [isInitialized, setIsInitialized] = useState(false);
     const [isVisualizationReady, setIsVisualizationReady] = useState(false); // <-- add this new state
     const [shouldTriggerSimulation, setShouldTriggerSimulation] = useState(false);
+    const [isExampleViewing, setIsExampleViewing] = useState(false); // Add this new state
 
     // Ref to store the setZoomToDateRange function from Visualization
     const setZoomToDateRangeRef = useRef<((startDay: number, endDay: number) => void) | null>(null);
@@ -268,7 +283,59 @@ export function PlanProvider({ children }: PlanProviderProps) {
     // Ref to store the triggerSimulation function from Visualization
     const triggerSimulationRef = useRef<(() => void) | null>(null);
 
-    const { upsertAnonymousPlan } = useAuth();
+    const { upsertAnonymousPlan, fetchDefaultPlans } = useAuth();
+
+    // Helper function to set visualization date range
+    const setVisualizationDateRange = useCallback((planData: Plan) => {
+        if (planData.view_start_date && planData.view_end_date) {
+            // Convert ISO dates to day numbers
+            const birthDate = new Date(planData.birth_date + 'T00:00:00');
+            const startDate = new Date(planData.view_start_date + 'T00:00:00');
+            const endDate = new Date(planData.view_end_date + 'T00:00:00');
+
+            const startDay = Math.floor((startDate.getTime() - birthDate.getTime()) / (1000 * 60 * 60 * 24));
+            const endDay = Math.floor((endDate.getTime() - birthDate.getTime()) / (1000 * 60 * 60 * 24));
+
+            console.log('📅 Setting visualization date range:', {
+                startDate: planData.view_start_date,
+                endDate: planData.view_end_date,
+                startDay,
+                endDay
+            });
+
+            // Set zoom to the specified range (this will be called after the visualization is ready)
+            setTimeout(() => {
+                // Use the ref directly
+                if (setZoomToDateRangeRef.current) {
+                    setZoomToDateRangeRef.current(startDay, endDay);
+                } else {
+                    console.warn('setZoomToDateRange not ready yet, will retry in 500ms');
+                    // Retry after a longer delay
+                    setTimeout(() => {
+                        if (setZoomToDateRangeRef.current) {
+                            setZoomToDateRangeRef.current(startDay, endDay);
+                        }
+                    }, 500);
+                }
+            }, 100);
+        }
+    }, []);
+
+    // Helper function to load plan data and set visualization range
+    const loadPlanData = useCallback((planData: Plan, lockedPlanData?: Plan) => {
+        // Reset visualization ready state when loading new plan
+        setIsVisualizationReady(false);
+        setShouldTriggerSimulation(true);
+        setPlan(planData);
+        if (lockedPlanData) {
+            setPlanLocked(lockedPlanData);
+        } else {
+            setPlanLocked(planData);
+        }
+        console.log("planData.view_start_date: ", planData.view_start_date);
+        console.log("planData.view_end_date: ", planData.view_end_date);
+        setVisualizationDateRange(planData);
+    }, [setVisualizationDateRange]);
 
     // Load schema on mount
     useEffect(() => {
@@ -280,55 +347,105 @@ export function PlanProvider({ children }: PlanProviderProps) {
         }
     }, []);
 
-    // --- Clean startup: load from localStorage if available, else load default plan ---
+    // --- Clean startup: check URL parameters, then load from localStorage if available, else load default plan ---
     useEffect(() => {
         if (isInitialized) return; // Prevent double init
+
         const tryLoadPlan = async () => {
-            let loaded = false;
-            let lockedLoaded = false;
-            if (ENABLE_AUTO_PERSIST_PLAN) {
-                const stored = localStorage.getItem(LOCALSTORAGE_PLAN_KEY);
-                const storedLocked = localStorage.getItem(LOCALSTORAGE_PLAN_LOCKED_KEY);
-                if (stored) {
-                    try {
-                        const parsed = JSON.parse(stored);
-                        loadPlanData(parsed);
-                        loaded = true;
-                    } catch (e) {
-                        console.warn('Failed to parse plan from localStorage:', e);
+            try {
+                // Check URL parameters first
+                const urlParams = new URLSearchParams(window.location.search);
+                const planId = urlParams.get('plan_id');
+
+                console.log('🔍 Checking URL parameters:', { planId });
+
+                // If we have a mapped example plan
+                if (planId && planId in EXAMPLE_PLAN_MAPPING) {
+                    console.log('📍 Found matching example plan config:', EXAMPLE_PLAN_MAPPING[planId]);
+                    const planConfig = EXAMPLE_PLAN_MAPPING[planId];
+
+                    // Get default plans
+                    console.log('🔄 Fetching default plans...');
+                    const defaultPlans = await fetchDefaultPlans();
+                    console.log('📋 Default plans fetched:', defaultPlans.map(p => p.plan_name));
+
+                    // Find the matching plans
+                    const regularPlan = defaultPlans.find(p => p.plan_name === planConfig.regularPlan);
+                    const lockedPlan = defaultPlans.find(p => p.plan_name === planConfig.lockedPlan);
+
+                    console.log('🎯 Found plans:', {
+                        regularPlan: regularPlan?.plan_name,
+                        lockedPlan: lockedPlan?.plan_name
+                    });
+
+                    if (regularPlan && lockedPlan) {
+                        // Load both plans using the new parameter
+                        console.log('📥 Loading example plans...');
+                        loadPlanData(regularPlan.plan_data, lockedPlan.plan_data);
+                        setIsExampleViewing(true); // Set example viewing mode
+                        setIsInitialized(true);
+                        console.log('✅ Example plans loaded successfully');
+                        return;
+                    } else {
+                        console.warn('⚠️ Could not find both regular and locked plans:', {
+                            regularPlanFound: !!regularPlan,
+                            lockedPlanFound: !!lockedPlan
+                        });
                     }
                 }
-                if (storedLocked) {
-                    try {
-                        const parsedLocked = JSON.parse(storedLocked);
-                        // For locked plan, we don't need to set visualization range
-                        setPlanLocked(parsedLocked);
-                        lockedLoaded = true;
-                    } catch (e) {
-                        console.warn('Failed to parse locked plan from localStorage:', e);
+
+                // Continue with normal initialization if no example plan found
+                console.log('➡️ Continuing with normal initialization...');
+                let loaded = false;
+                let lockedLoaded = false;
+                let mainPlan = null;
+                let lockedPlan = null;
+
+                if (ENABLE_AUTO_PERSIST_PLAN) {
+                    const stored = localStorage.getItem(LOCALSTORAGE_PLAN_KEY);
+                    const storedLocked = localStorage.getItem(LOCALSTORAGE_PLAN_LOCKED_KEY);
+
+                    if (stored) {
+                        try {
+                            mainPlan = JSON.parse(stored);
+                            loaded = true;
+                        } catch (e) {
+                            console.warn('Failed to parse plan from localStorage:', e);
+                        }
+                    }
+
+                    if (storedLocked) {
+                        try {
+                            lockedPlan = JSON.parse(storedLocked);
+                            lockedLoaded = true;
+                        } catch (e) {
+                            console.warn('Failed to parse locked plan from localStorage:', e);
+                        }
                     }
                 }
-            }
-            if (!loaded) {
-                // Fallback to default plan
-                try {
-                    setPlan(defaultPlanData);
-                } catch (error) {
-                    console.error('Error loading default plan:', error);
+
+                // If no stored plans, use defaults
+                if (!loaded) {
+                    mainPlan = defaultPlanData;
                 }
-            }
-            if (!lockedLoaded) {
-                // Fallback to default locked plan
-                try {
-                    setPlanLocked(defaultLockedPlanData);
-                } catch (error) {
-                    console.error('Error loading default locked plan:', error);
+                if (!lockedLoaded) {
+                    lockedPlan = defaultLockedPlanData;
                 }
+
+                // Load the plans
+                loadPlanData(mainPlan, lockedPlan);
+                setIsInitialized(true);
+
+            } catch (error) {
+                console.error('Loading Default Plans:', error);
+                // Load default plans as fallback
+                loadPlanData(defaultPlanData, defaultLockedPlanData);
+                setIsInitialized(true);
             }
-            setIsInitialized(true);
         };
+
         tryLoadPlan();
-    }, [isInitialized]);
+    }, [isInitialized, fetchDefaultPlans, loadPlanData]);
 
     // Effect to handle simulation triggering after plan updates
     useEffect(() => {
@@ -423,54 +540,6 @@ export function PlanProvider({ children }: PlanProviderProps) {
             }
         }
     }, [isVisualizationReady, plan, addViewRangeToPlan, upsertAnonymousPlan]);
-
-    // Helper function to set visualization date range
-    // This function can be used by other components to set the visualization date range
-    // Example usage: setVisualizationDateRange(planData) where planData has view_start_date and view_end_date
-    const setVisualizationDateRange = useCallback((planData: Plan) => {
-        if (planData.view_start_date && planData.view_end_date) {
-            // Convert ISO dates to day numbers
-            const birthDate = new Date(planData.birth_date + 'T00:00:00');
-            const startDate = new Date(planData.view_start_date + 'T00:00:00');
-            const endDate = new Date(planData.view_end_date + 'T00:00:00');
-
-            const startDay = Math.floor((startDate.getTime() - birthDate.getTime()) / (1000 * 60 * 60 * 24));
-            const endDay = Math.floor((endDate.getTime() - birthDate.getTime()) / (1000 * 60 * 60 * 24));
-
-            console.log('📅 Setting visualization date range:', {
-                startDate: planData.view_start_date,
-                endDate: planData.view_end_date,
-                startDay,
-                endDay
-            });
-
-            // Set zoom to the specified range (this will be called after the visualization is ready)
-            setTimeout(() => {
-                // Use the ref directly
-                if (setZoomToDateRangeRef.current) {
-                    setZoomToDateRangeRef.current(startDay, endDay);
-                } else {
-                    console.warn('setZoomToDateRange not ready yet, will retry in 500ms');
-                    // Retry after a longer delay
-                    setTimeout(() => {
-                        if (setZoomToDateRangeRef.current) {
-                            setZoomToDateRangeRef.current(startDay, endDay);
-                        }
-                    }, 500);
-                }
-            }, 100);
-        }
-    }, []);
-
-    // Helper function to load plan data and set visualization range
-    const loadPlanData = useCallback((planData: Plan) => {
-        // Reset visualization ready state when loading new plan
-        setIsVisualizationReady(false);
-        setPlan(planData);
-        console.log("planData.view_start_date: ", planData.view_start_date);
-        console.log("planData.view_end_date: ", planData.view_end_date);
-        setVisualizationDateRange(planData);
-    }, [setVisualizationDateRange]);
 
     const loadPlan = useCallback((planData: Plan) => {
         loadPlanData(planData);
@@ -944,6 +1013,7 @@ export function PlanProvider({ children }: PlanProviderProps) {
             if (!prevPlan) return null;
             return { ...prevPlan, adjust_for_inflation: value };
         });
+        setShouldTriggerSimulation(true);
     }, [plan]);
 
     // Calculate currentDay from plan.birth_date and today
@@ -1275,6 +1345,7 @@ export function PlanProvider({ children }: PlanProviderProps) {
             // Direct plan update without triggering viewing window reset
             setPlan(planData);
         },
+        isExampleViewing, // Add this to the context value
     };
 
     // Don't render children until we've attempted to load the default plan and schema

@@ -28,8 +28,30 @@ import OnboardingFlow from '../components/OnboardingFlow';
 import { extractSchema, validateProblem } from '../hooks/schemaChecker';
 import { formatNumber } from '../visualization/viz_utils';
 import PremiumConfirmationModal from '../components/PremiumConfirmationModal';
+import ExitViewingModeDialog from '../components/ExitViewingModeDialog';
 
-const Index = () => {
+export default function Index() {
+  // Auth context
+  const { user, signOut: authSignOut, logAnonymousButtonClick } = useAuth();
+
+  // Plan context
+  const {
+    plan,
+    schema,
+    loadPlanFromFile,
+    savePlanToFile,
+    updatePlanTitle,
+    loadPlan,
+    lockPlan,
+    addEvent,
+    copyPlanToLock,
+    isExampleViewing
+  } = usePlan();
+
+  // Get onboarding state from localStorage first
+  const hasCompletedOnboarding = Boolean(localStorage.getItem('onboarding-completed'));
+
+  // Modal states
   const [helpModalOpen, setHelpModalOpen] = useState(false);
   const [saveModalOpen, setSaveModalOpen] = useState(false);
   const [eventLibraryOpen, setEventLibraryOpen] = useState(false);
@@ -39,9 +61,11 @@ const Index = () => {
   const [subscriptionModalOpen, setSubscriptionModalOpen] = useState(false);
   const [userAccountModalOpen, setUserAccountModalOpen] = useState(false);
   const [eventParametersOpen, setEventParametersOpen] = useState(false);
+  const [errorOpen, setErrorOpen] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
   const [addEnvelopeModalOpen, setAddEnvelopeModalOpen] = useState(false);
   const [envelopeManagerModalOpen, setEnvelopeManagerModalOpen] = useState(false);
-  const [onboardingOpen, setOnboardingOpen] = useState(!localStorage.getItem('onboarding-completed')); // Show onboarding on first visit
+  const [onboardingOpen, setOnboardingOpen] = useState(!hasCompletedOnboarding && !isExampleViewing);
   const [editingEventId, setEditingEventId] = useState<number | null>(null);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [tempTitle, setTempTitle] = useState('');
@@ -51,14 +75,32 @@ const Index = () => {
   const [isAddingEnvelope, setIsAddingEnvelope] = useState(false);
   const [premiumConfirmationOpen, setPremiumConfirmationOpen] = useState(false);
 
-  // Use real authentication from AuthContext
-  const { user, signOut: authSignOut, logAnonymousButtonClick } = useAuth();
+  // Add state for exit viewing mode dialog
+  const [exitViewingModalOpen, setExitViewingModalOpen] = useState(false);
+  const [isExiting, setIsExiting] = useState(false);
 
-  const { plan, schema, loadPlanFromFile, savePlanToFile, updatePlanTitle, loadPlan, lockPlan, addEvent, copyPlanToLock } = usePlan();
+  // Function to handle exiting viewing mode
+  const handleExitViewingMode = () => {
+    setIsExiting(true);
+    // Remove URL parameters
+    window.history.pushState({}, '', window.location.pathname);
+    // Clear stored plans from localStorage
+    localStorage.removeItem('user_plan_v1');
+    localStorage.removeItem('user_plan_locked_v1');
+    // Reload the page
+    window.location.reload();
+  };
 
-  const [errorOpen, setErrorOpen] = useState(false);
-  const [errorMessage, setErrorMessage] = useState('');
+  // Function to check if we should show exit dialog
+  const checkViewingMode = (action: () => void) => {
+    if (isExampleViewing) {
+      setExitViewingModalOpen(true);
+    } else {
+      action();
+    }
+  };
 
+  // Modify onboarding state to respect example viewing mode
   const showPostSignInModals = useCallback(() => {
     if (!localStorage.getItem('has-seen-subscription-modal')) {
       setUserAccountModalOpen(true);
@@ -269,6 +311,16 @@ const Index = () => {
     setIsAddingEnvelope(false);
   };
 
+  // Modify the event library open handler
+  const handleEventLibraryOpen = () => {
+    checkViewingMode(() => setEventLibraryOpen(true));
+  };
+
+  // Modify the menu open handler
+  const handleMenuClick = () => {
+    checkViewingMode(() => setHelpModalOpen(true));
+  };
+
   return (
     <div className="min-h-screen bg-white relative overflow-hidden">
       {/* Error Toast at the top */}
@@ -305,8 +357,16 @@ const Index = () => {
           {/* Hamburger Dropdown Menu */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <button className="p-3 bg-white/90 backdrop-blur-sm hover:bg-white/95 rounded-lg shadow-sm border border-gray-100 transition-all duration-200">
-                <Menu size={20} className="text-gray-600" />
+              <button
+                className="p-3 bg-white shadow-sm border border-gray-200 rounded-lg hover:bg-gray-50 text-gray-600 hover:text-gray-800 hover:border-gray-300 transition-all duration-200 z-50"
+                onClick={(e) => {
+                  if (isExampleViewing) {
+                    e.preventDefault();
+                    setExitViewingModalOpen(true);
+                  }
+                }}
+              >
+                <Menu size={20} />
               </button>
             </DropdownMenuTrigger>
 
@@ -373,23 +433,24 @@ const Index = () => {
                 </div>
               )}
             </div>
+
             <DropdownMenuContent className="w-56 bg-white border border-gray-200 shadow-lg ml-2">
               <DropdownMenuItem
-                onClick={handleOpen}
+                onClick={() => checkViewingMode(handleOpen)}
                 className="cursor-pointer"
               >
                 <FolderOpen className="mr-2 h-4 w-4" />
                 Open
               </DropdownMenuItem>
               <DropdownMenuItem
-                onClick={() => setSaveModalOpen(true)}
+                onClick={() => checkViewingMode(() => setSaveModalOpen(true))}
                 className="cursor-pointer"
               >
                 <Save className="mr-2 h-4 w-4" />
                 Save
               </DropdownMenuItem>
               <DropdownMenuItem
-                onClick={() => setPlanPreferencesModalOpen(true)}
+                onClick={() => checkViewingMode(() => setPlanPreferencesModalOpen(true))}
                 className="cursor-pointer"
               >
                 <FileText className="mr-2 h-4 w-4" />
@@ -397,21 +458,21 @@ const Index = () => {
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem
-                onClick={() => setHelpModalOpen(true)}
+                onClick={() => checkViewingMode(() => setHelpModalOpen(true))}
                 className="cursor-pointer"
               >
                 <HelpCircle className="mr-2 h-4 w-4" />
                 Help
               </DropdownMenuItem>
               <DropdownMenuItem
-                onClick={() => setOnboardingOpen(true)}
+                onClick={() => checkViewingMode(() => setOnboardingOpen(true))}
                 className="cursor-pointer"
               >
                 <HelpCircle className="mr-2 h-4 w-4" />
                 Onboarding
               </DropdownMenuItem>
               <DropdownMenuItem
-                onClick={handleAccount}
+                onClick={() => checkViewingMode(handleAccount)}
                 className="cursor-pointer"
               >
                 <User className="mr-2 h-4 w-4" />
@@ -427,7 +488,7 @@ const Index = () => {
             if (logAnonymousButtonClick) {
               await logAnonymousButtonClick('add_event');
             }
-            setEventLibraryOpen(true);
+            handleEventLibraryOpen();
           }}
           className="fixed bottom-16 left-1/2 transform -translate-x-1/2 bg-[#03c6fc]/10 backdrop-blur-sm hover:bg-[#03c6fc]/20 text-slate-700 px-5 py-2.5 rounded-lg shadow-sm border border-[#03c6fc]/20 hover:border-[#03c6fc]/40 transition-all duration-200 flex items-center gap-2 text-sm font-medium"
         >
@@ -516,7 +577,7 @@ const Index = () => {
         onClose={() => setPlanPreferencesModalOpen(false)}
         onAddEvent={() => {
           setPlanPreferencesModalOpen(false);
-          setEventLibraryOpen(true);
+          handleEventLibraryOpen();
         }}
         onAddEnvelope={() => {
           setPlanPreferencesModalOpen(false);
@@ -553,8 +614,14 @@ const Index = () => {
         isOpen={premiumConfirmationOpen}
         onClose={() => setPremiumConfirmationOpen(false)}
       />
+
+      {/* Add the ExitViewingModeDialog */}
+      <ExitViewingModeDialog
+        isOpen={exitViewingModalOpen}
+        onClose={() => setExitViewingModalOpen(false)}
+        onConfirm={handleExitViewingMode}
+        isLoading={isExiting}
+      />
     </div>
   );
 };
-
-export default Index;

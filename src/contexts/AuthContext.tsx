@@ -207,7 +207,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Clear any existing session first
         await supabase.auth.signOut();
 
-        const redirectUrl = `${window.location.origin}/modal-canvas-flow/`;
+        const redirectUrl = `${window.location.origin}/`;
 
         const { data, error } = await supabase.auth.signUp({
             email,
@@ -483,6 +483,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const upsertAnonymousOnboarding = async (onboardingData: any) => {
         const anonId = getOrCreateAnonId();
         //console.log("anonId", anonId);
+
+        // Function to detect device type
+        const getDeviceType = () => {
+            const ua = navigator.userAgent;
+            if (/(tablet|ipad|playbook|silk)|(android(?!.*mobi))/i.test(ua)) {
+                return 'tablet';
+            }
+            if (/Mobile|Android|iP(hone|od)|IEMobile|BlackBerry|Kindle|Silk-Accelerated|(hpw|web)OS|Opera M(obi|ini)/.test(ua)) {
+                return 'mobile';
+            }
+            return 'desktop';
+        };
+
+        // Function to check if screen size is mobile
+        const isMobileScreen = () => {
+            return window.innerWidth < 1024; // matches our lg breakpoint in Tailwind
+        };
+
         let extraData: Record<string, any> = {
             user_agent: navigator.userAgent,
             session_start: new Date().toISOString(),
@@ -492,6 +510,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             screen_height: window.screen.height,
             device_pixel_ratio: window.devicePixelRatio,
             browser_language: navigator.language,
+            device_type: getDeviceType(),
+            is_mobile_screen: isMobileScreen(),
+            window_width: window.innerWidth,
+            window_height: window.innerHeight,
         };
         // Fetch geolocation data from ipapi.co if in browser
         if (typeof window !== 'undefined') {
@@ -608,7 +630,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const fetchDefaultPlans = async () => {
         // Use a hardcoded anonymous key for default plans that everyone can access
-        const defaultAnonId = 'd7c733e0-9a8b-4584-a5a3-434288295ea5';
+        const defaultAnonId = '4b0d10db-78d9-4209-a6eb-bb0886aa15d8';
         const { data, error } = await supabase
             .from('anonymous_plans')
             .select('plan_name, plan_data, plan_image')

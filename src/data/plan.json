@@ -1,11 +1,19 @@
 {
-  "title": "Demo Plan",
+  "title": "Plan Title",
   "birth_date": "2001-01-01",
   "inflation_rate": 0.024,
   "adjust_for_inflation": false,
   "retirement_goal": 0,
   "view_start_date": "2025-01-01",
   "view_end_date": "2035-12-31",
-  "envelopes": [],
+  "envelopes": [
+    {
+      "name": "Other (Cash)",
+      "category": "Cash",
+      "growth": "None",
+      "rate": 0,
+      "account_type": "regular"
+    }
+  ],
   "events": []
 }

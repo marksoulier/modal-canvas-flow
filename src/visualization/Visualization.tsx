@@ -378,7 +378,7 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
     // Apply padding to the range if we have one
     const rangeToUse = baseRange ? (() => {
       const visibleRangeWidth = baseRange.endDate - baseRange.startDate;
-      const padding = visibleRangeWidth * 3; // 3x padding
+      const padding = visibleRangeWidth * 5; // 5x padding
 
       console.log('🔍 Padding:', padding);
       const paddedRange = {
