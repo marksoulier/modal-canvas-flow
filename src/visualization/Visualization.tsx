@@ -39,6 +39,52 @@ import { getAllEventsByDate } from './Events';
 import type { Plan } from '../contexts/PlanContext';
 
 const DEBUG = false;
+const IS_ANIMATION_ENABLED = true;
+const ZOOM_ANIMATION_DURATION = 750; // milliseconds
+
+// Helper function for zoom animation with easing
+const animateZoom = (
+  startState: { scaleX: number; translateX: number },
+  endState: { scaleX: number; translateX: number },
+  onUpdate: (state: { scaleX: number; translateX: number }) => void,
+  onComplete?: () => void
+) => {
+  // If animation is disabled, immediately go to end state
+  if (!IS_ANIMATION_ENABLED) {
+    onUpdate(endState);
+    onComplete?.();
+    return;
+  }
+
+  const startTime = Date.now();
+
+  const animate = () => {
+    const currentTime = Date.now();
+    const elapsed = currentTime - startTime;
+    const progress = Math.min(elapsed / ZOOM_ANIMATION_DURATION, 1);
+
+    // Easing function (easeInOutCubic)
+    const eased = progress < 0.5
+      ? 4 * progress * progress * progress
+      : 1 - Math.pow(-2 * progress + 2, 3) / 2;
+
+    // Interpolate between start and end states
+    const currentState = {
+      scaleX: startState.scaleX + (endState.scaleX - startState.scaleX) * eased,
+      translateX: startState.translateX + (endState.translateX - startState.translateX) * eased
+    };
+
+    onUpdate(currentState);
+
+    if (progress < 1) {
+      requestAnimationFrame(animate);
+    } else {
+      onComplete?.();
+    }
+  };
+
+  requestAnimationFrame(animate);
+};
 
 // Helper function to normalize -0 to 0 and small values near zero
 const normalizeZero = (value: number): number => {
@@ -233,6 +279,8 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
   const [hoveredEventId, setHoveredEventId] = useState<number | null>(null);
   const [lastMouse, setLastMouse] = useState<{ x: number, y: number } | null>(null);
   const [dragStartPos, setDragStartPos] = useState<{ x: number; y: number } | null>(null);
+  // Track if the last simulation was triggered by an interval change
+  const [isIntervalChange, setIsIntervalChange] = useState(false);
   const [currentVisibleRange, setCurrentVisibleRange] = useState<{
     startDate: number;
     endDate: number;
@@ -247,6 +295,55 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
     description: string;
   } | null>(null);
   const [autoZoomTrigger, setAutoZoomTrigger] = useState<{ years?: number; months?: number; days?: number } | null>(null);
+
+  // Animation states
+  const [animationProgress, setAnimationProgress] = useState(0);
+  const [isAnimating, setIsAnimating] = useState(false);
+  const [pathLength, setPathLength] = useState(0);
+
+  const pathRef = useRef<SVGPathElement | null>(null);
+
+  // Animation function
+  const animateData = useCallback(() => {
+    setIsAnimating(true);
+    const startTime = Date.now();
+    const duration = 2000; // 2 seconds animation
+
+    const animate = () => {
+      const currentTime = Date.now();
+      const elapsed = currentTime - startTime;
+      // Use easeInOutQuad for smoother animation
+      const rawProgress = Math.min(elapsed / duration, 1);
+      const progress = rawProgress < 0.5
+        ? 2 * rawProgress * rawProgress
+        : 1 - Math.pow(-2 * rawProgress + 2, 2) / 2;
+
+      setAnimationProgress(progress);
+
+      if (progress < 1) {
+        requestAnimationFrame(animate);
+      } else {
+        setIsAnimating(false);
+      }
+    };
+
+    requestAnimationFrame(animate);
+  }, []);
+
+  // Trigger animation when data changes
+  useEffect(() => {
+    if (netWorthData.length > 0) {
+      // Only animate if animation is enabled AND this wasn't triggered by an interval change
+      if (IS_ANIMATION_ENABLED && !isIntervalChange) {
+        setAnimationProgress(0); // Reset animation
+        animateData();
+      } else {
+        setAnimationProgress(1); // Show full data immediately
+      }
+      // Reset the interval change flag after handling
+      setIsIntervalChange(false);
+    }
+  }, [netWorthData, animateData]);
 
   // State for locked plan simulation results
   const [lockedNetWorthData, setLockedNetWorthData] = useState<{ date: number, value: number }[]>([]);
@@ -730,6 +827,7 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
               });
 
               // Run simulation with new interval and padded range
+              setIsIntervalChange(true);
               runSimulationManually(newInterval, paddedRange);
 
               // Update state after simulation is triggered
@@ -970,14 +1068,27 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
 
             const windowWidth = clampedEnd - windowStart;
             if (windowWidth <= 0) return;
-            const scaleX = width / (xScale(clampedEnd) - xScale(windowStart));
-            const translateX = -xScale(windowStart) * scaleX + 80;
 
-            zoom.setTransformMatrix({
-              ...zoom.transformMatrix,
-              scaleX,
-              translateX,
-            });
+            const targetScaleX = width / (xScale(clampedEnd) - xScale(windowStart));
+            const targetTranslateX = -xScale(windowStart) * targetScaleX + 80;
+
+            // Animate or immediately update based on IS_ANIMATION_ENABLED
+            animateZoom(
+              {
+                scaleX: zoom.transformMatrix.scaleX,
+                translateX: zoom.transformMatrix.translateX
+              },
+              {
+                scaleX: targetScaleX,
+                translateX: targetTranslateX
+              },
+              (state) => {
+                zoom.setTransformMatrix({
+                  ...zoom.transformMatrix,
+                  ...state
+                });
+              }
+            );
           };
 
           // Method to set zoom to show a specific date range
@@ -994,23 +1105,35 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
             const rangeWidth = endDay - startDay;
             if (rangeWidth <= 0) return;
 
-            const scaleX = width / (xScale(endDay) - xScale(startDay));
-            const translateX = -xScale(startDay) * scaleX;
+            const targetScaleX = width / (xScale(endDay) - xScale(startDay));
+            const targetTranslateX = -xScale(startDay) * targetScaleX;
 
             console.log('🎯 Calculated zoom parameters:', {
-              scaleX,
-              translateX,
+              targetScaleX,
+              targetTranslateX,
               xScaleStartDay: xScale(startDay),
               xScaleEndDay: xScale(endDay),
               xScaleRange: xScale(endDay) - xScale(startDay),
               width
             });
 
-            zoom.setTransformMatrix({
-              ...zoom.transformMatrix,
-              scaleX,
-              translateX,
-            });
+            // Animate or immediately update based on IS_ANIMATION_ENABLED
+            animateZoom(
+              {
+                scaleX: zoom.transformMatrix.scaleX,
+                translateX: zoom.transformMatrix.translateX
+              },
+              {
+                scaleX: targetScaleX,
+                translateX: targetTranslateX
+              },
+              (state) => {
+                zoom.setTransformMatrix({
+                  ...zoom.transformMatrix,
+                  ...state
+                });
+              }
+            );
 
             // Log what the zoom will show after setting
             setTimeout(() => {
@@ -1041,6 +1164,7 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
 
           return (
             <>
+
               {/* Zoom Buttons - Top Center */}
               <div
                 style={{
@@ -1322,8 +1446,11 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
                           yScale={visibleYScale}
                           stroke="none"
                           fill={color.area}
-                          fillOpacity={0.8}
+                          fillOpacity={0.8 * animationProgress}
                           curve={curveLinear}
+                          style={{
+                            clipPath: `polygon(0 0, ${animationProgress * 100}% 0, ${animationProgress * 100}% 100%, 0 100%)`
+                          }}
                         />
                       </g>
                     );
@@ -1343,8 +1470,11 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
                           y={(d) => visibleYScale(d.stackedParts[partKey].y1)}
                           stroke={color.line}
                           strokeWidth={1 / globalZoom}
-                          strokeOpacity={1}
+                          strokeOpacity={animationProgress}
                           curve={curveLinear}
+                          style={{
+                            clipPath: `polygon(0 0, ${animationProgress * 100}% 0, ${animationProgress * 100}% 100%, 0 100%)`
+                          }}
                         />
                       </g>
                     );
@@ -1442,30 +1572,56 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
                 {/* Main Net Worth Line */}
                 {/* Using visibleData which contains ${visibleData.length} points in current view */}
                 {/* Full dataset has ${netWorthData.length} points, filtering to visible range for performance */}
-                <LinePath
-                  data={visibleData}
-                  x={d => xScale(d.date) * zoom.transformMatrix.scaleX + zoom.transformMatrix.translateX}
-                  y={d => visibleYScale(d.value) * zoom.transformMatrix.scaleY + zoom.transformMatrix.translateY}
-                  stroke="#335966"
-                  strokeWidth={baseLineWidth}
-                  curve={curveLinear}
-                />
-                {visibleData.map((point, index) => {
-                  const canvasX = xScale(point.date) * zoom.transformMatrix.scaleX + zoom.transformMatrix.translateX;
-                  const canvasY = visibleYScale(point.value) * zoom.transformMatrix.scaleY + zoom.transformMatrix.translateY;
-                  const isClosestPoint = closestPoint && point.date === closestPoint.date;
-                  return (
-                    <circle
-                      key={`point-${index}`}
-                      cx={canvasX}
-                      cy={canvasY}
-                      r={basePointRadius}
-                      fill={isClosestPoint ? "#03c6fc" : "#335966"}
-                      stroke="#fff"
-                      strokeWidth={baseLineWidth}
-                    />
-                  );
-                })}
+                <g>
+                  <LinePath
+                    innerRef={node => {
+                      if (node) {
+                        const length = node.getTotalLength();
+                        if (length !== pathLength) {
+                          setPathLength(length);
+                        }
+                      }
+                    }}
+                    data={visibleData}
+                    x={d => xScale(d.date) * zoom.transformMatrix.scaleX + zoom.transformMatrix.translateX}
+                    y={d => visibleYScale(d.value) * zoom.transformMatrix.scaleY + zoom.transformMatrix.translateY}
+                    stroke="#335966"
+                    strokeWidth={baseLineWidth}
+                    curve={curveLinear}
+                    style={{
+                      strokeDasharray: `${pathLength}px`,
+                      strokeDashoffset: `${pathLength * (1 - animationProgress)}px`,
+                      transition: 'none'
+                    }}
+                  />
+
+                  {/* Circles with animation */}
+                  {visibleData.map((point, index) => {
+                    const canvasX = xScale(point.date) * zoom.transformMatrix.scaleX + zoom.transformMatrix.translateX;
+                    const canvasY = visibleYScale(point.value) * zoom.transformMatrix.scaleY + zoom.transformMatrix.translateY;
+                    const isClosestPoint = closestPoint && point.date === closestPoint.date;
+
+                    // Calculate if this point should be visible based on animation progress
+                    const pointProgress = index / (visibleData.length - 1);
+                    const isVisible = pointProgress <= animationProgress;
+
+                    return (
+                      <circle
+                        key={`point-${index}`}
+                        cx={canvasX}
+                        cy={canvasY}
+                        r={basePointRadius}
+                        fill={isClosestPoint ? "#03c6fc" : "#335966"}
+                        stroke="#fff"
+                        strokeWidth={baseLineWidth}
+                        style={{
+                          opacity: isVisible ? 1 : 0,
+                          transition: 'opacity 0.1s ease-in'
+                        }}
+                      />
+                    );
+                  })}
+                </g>
 
                 {/* Timeline Annotations (outside zoom transform) */}
                 {(() => {
