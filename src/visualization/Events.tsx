@@ -79,4 +79,122 @@ export function getAllEventsByDate(plan: Plan, schema?: Schema) {
         }
     }
     return map;
+}
+
+// Function to get interpolated x-coordinate for an event
+export function getInterpolatedX(eventDate: number, dataPoints: any[], xScale: any): number {
+    let leftPoint = null;
+    let rightPoint = null;
+
+    for (let i = 0; i < dataPoints.length - 1; i++) {
+        if (dataPoints[i].date <= eventDate && dataPoints[i + 1].date >= eventDate) {
+            leftPoint = dataPoints[i];
+            rightPoint = dataPoints[i + 1];
+            break;
+        }
+    }
+
+    if (leftPoint && rightPoint) {
+        const proportion = (eventDate - leftPoint.date) / (rightPoint.date - leftPoint.date);
+        return xScale(leftPoint.date) + proportion * (xScale(rightPoint.date) - xScale(leftPoint.date));
+    }
+
+    // If event date is before the first data point
+    if (dataPoints.length > 0 && eventDate < dataPoints[0].date) {
+        return xScale(eventDate);
+    }
+
+    // If event date is after the last data point
+    if (dataPoints.length > 0 && eventDate > dataPoints[dataPoints.length - 1].date) {
+        return xScale(eventDate);
+    }
+
+    return xScale(eventDate); // Fallback to the event's own date if no points are found
+}
+
+// Function to get interpolated y-value for an event based on surrounding data points
+export function getInterpolatedY(eventDate: number, dataPoints: any[], yScale: any): number {
+    let leftPoint = null;
+    let rightPoint = null;
+
+    for (let i = 0; i < dataPoints.length - 1; i++) {
+        if (dataPoints[i].date <= eventDate && dataPoints[i + 1].date >= eventDate) {
+            leftPoint = dataPoints[i];
+            rightPoint = dataPoints[i + 1];
+            break;
+        }
+    }
+
+    if (leftPoint && rightPoint) {
+        // Linear interpolation between the two points
+        const proportion = (eventDate - leftPoint.date) / (rightPoint.date - leftPoint.date);
+        const interpolatedValue = leftPoint.value + proportion * (rightPoint.value - leftPoint.value);
+        return yScale(interpolatedValue);
+    }
+
+    // If event date is before the first data point
+    if (dataPoints.length > 0 && eventDate < dataPoints[0].date) {
+        return yScale(dataPoints[0].value);
+    }
+
+    // If event date is after the last data point
+    if (dataPoints.length > 0 && eventDate > dataPoints[dataPoints.length - 1].date) {
+        return yScale(dataPoints[dataPoints.length - 1].value);
+    }
+
+    // If no data points are available, return a default position
+    return 0;
+}
+
+// Function to check if two events overlap based on their canvas positions
+export function doEventsOverlap(
+    event1: { canvasX: number },
+    event2: { canvasX: number },
+    annotationWidth: number = 40 // Width of the timeline annotation
+): boolean {
+    return Math.abs(event1.canvasX - event2.canvasX) < annotationWidth;
+}
+
+// Function to group overlapping events
+export function groupOverlappingEvents(
+    events: { date: number, displayId: string, canvasX: number }[],
+    annotationWidth: number = 40
+): { [groupId: string]: string[] } {
+    const groups: { [groupId: string]: string[] } = {};
+    let currentGroupId = 0;
+
+    // Sort events by canvas X position
+    const sortedEvents = [...events].sort((a, b) => a.canvasX - b.canvasX);
+
+    for (let i = 0; i < sortedEvents.length; i++) {
+        const currentEvent = sortedEvents[i];
+        let foundGroup = false;
+
+        // Check existing groups for overlap
+        for (const [groupId, groupEvents] of Object.entries(groups)) {
+            // Get the events data for the current group
+            const groupEventsData = groupEvents.map(displayId =>
+                events.find(e => e.displayId === displayId)!
+            );
+
+            // Check if current event overlaps with any event in the group
+            const overlapsWithGroup = groupEventsData.some(groupEvent =>
+                doEventsOverlap(currentEvent, groupEvent, annotationWidth)
+            );
+
+            if (overlapsWithGroup) {
+                groups[groupId].push(currentEvent.displayId);
+                foundGroup = true;
+                break;
+            }
+        }
+
+        // If no overlapping group found, create a new group
+        if (!foundGroup) {
+            groups[currentGroupId.toString()] = [currentEvent.displayId];
+            currentGroupId++;
+        }
+    }
+
+    return groups;
 } 

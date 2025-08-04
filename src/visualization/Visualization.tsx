@@ -35,7 +35,7 @@ import type {
   TimeInterval,
   Datum
 } from './viz_utils';
-import { getAllEventsByDate } from './Events';
+import { getAllEventsByDate, getInterpolatedX, getInterpolatedY, groupOverlappingEvents } from './Events';
 import type { Plan } from '../contexts/PlanContext';
 
 const DEBUG = false;
@@ -136,7 +136,6 @@ const splitDataForMixedCurves = (data: any[], getValueFn: (d: any) => number): {
 };
 
 interface DraggingAnnotation {
-  index: number; // the day/data point
   eventId: number; // The actual event ID for parameter updates
   displayId: string; // Unique display ID for dragging
   offsetX: number;
@@ -1647,38 +1646,25 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
                 </g>
 
                 {/* Timeline Annotations (outside zoom transform) */}
-                {(() => {
-                  // 1. Build a map: snappedDataPointDate -> [events]
-                  const snappedEventsMap: { [snappedDate: number]: Array<{ event: any, originalDate: number, isEndingEvent: boolean, displayId: string }> } = {};
+                {((): JSX.Element[] => {
+                  // 1. Build a map of events by their exact dates (no snapping to data points)
+                  const eventsByExactDate: { [exactDate: number]: Array<{ event: any, originalDate: number, isEndingEvent: boolean, displayId: string }> } = {};
+                  const visibleDataPoints = netWorthData.filter(p =>
+                    p.date >= xScale.domain()[0] && p.date <= xScale.domain()[1]
+                  );
+
                   for (const [dateStr, eventsAtDate] of Object.entries(allEventsByDate)) {
                     const date = Number(dateStr);
-                    // Find the closest visible data point that is greater than or equal to the event date
-                    const visibleDataPoints = netWorthData.filter(p =>
-                      p.date >= xScale.domain()[0] && p.date <= xScale.domain()[1]
-                    );
-                    if (visibleDataPoints.length === 0) continue;
 
-                    // Find the closest data point that is >= the event date
-                    const futureDataPoints = visibleDataPoints.filter(p => p.date >= date);
-                    let closestDataPoint;
+                    // Skip events outside the visible range
+                    if (date < xScale.domain()[0] || date > xScale.domain()[1]) continue;
 
-                    if (futureDataPoints.length > 0) {
-                      // If we have future data points, find the closest one
-                      closestDataPoint = futureDataPoints.reduce((closest, current) =>
-                        Math.abs(current.date - date) < Math.abs(closest.date - date) ? current : closest
-                      );
-                    } else {
-                      // If no future data points, use the latest available data point
-                      closestDataPoint = visibleDataPoints[visibleDataPoints.length - 1];
-                    }
-
-                    if (!closestDataPoint) continue;
-                    // For each event at this date, add to the snapped map
+                    // For each event at this date, add to the map using the exact date
                     for (const event of eventsAtDate) {
-                      if (!snappedEventsMap[closestDataPoint.date]) {
-                        snappedEventsMap[closestDataPoint.date] = [];
+                      if (!eventsByExactDate[date]) {
+                        eventsByExactDate[date] = [];
                       }
-                      snappedEventsMap[closestDataPoint.date].push({
+                      eventsByExactDate[date].push({
                         event: event.event,
                         originalDate: date,
                         isEndingEvent: event.isEndingEvent,
@@ -1686,98 +1672,122 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
                       });
                     }
                   }
-                  // 2. Render each group stacked
-                  return Object.entries(snappedEventsMap).flatMap(([snappedDateStr, events]) => {
-                    const snappedDate = Number(snappedDateStr);
-                    // Find the closest data point (should exist)
-                    const closestDataPoint = netWorthData.find(p => p.date === snappedDate);
-                    if (!closestDataPoint) return null;
-                    const canvasX = xScale(closestDataPoint.date) * zoom.transformMatrix.scaleX + zoom.transformMatrix.translateX;
-                    const canvasY = visibleYScale(closestDataPoint.value) * zoom.transformMatrix.scaleY + zoom.transformMatrix.translateY;
-                    return events.map(({ event, isEndingEvent, displayId }, i) => {
-                      const isDraggingMain = draggingAnnotation?.displayId === displayId;
-                      const yOffset = i * 50;
-                      const DRAG_Y_OFFSET = 80; // adjust this value for better alignment
-                      const x = isDraggingMain
-                        ? cursorPos!.x - draggingAnnotation!.offsetX - 20
-                        : canvasX - 20;
-                      const y = isDraggingMain
-                        ? cursorPos!.y - draggingAnnotation!.offsetY - DRAG_Y_OFFSET
-                        : canvasY - DRAG_Y_OFFSET - yOffset;
-                      const isHighlighted = hoveredEventId === event.id;
-                      return (
-                        <foreignObject
-                          key={`annotation-${displayId}`}
-                          x={x}
-                          y={y}
-                          width={40}
-                          height={40}
-                          style={{
-                            overflow: 'visible',
-                            cursor: isDraggingMain ? 'grabbing' : 'move'
-                          }}
-                          onMouseDown={(e) => {
-                            handleAnnotationDragStart(e, event.id, displayId, closestDataPoint.date, yOffset, DRAG_Y_OFFSET, isEndingEvent);
-                          }}
-                          onMouseEnter={() => {
-                            setHoveredEventId(event.id);
-                            setEventDescriptionTooltip({
-                              left: x + 50, // adjust as needed for best placement
-                              top: y,
-                              displayType: event.title || getEventDisplayType(event.type),
-                              description: event.description || '',
-                            });
-                          }}
-                          onMouseLeave={() => {
-                            setHoveredEventId(null);
-                            setEventDescriptionTooltip(null);
-                          }}
-                        >
-                          <ContextMenu>
-                            <ContextMenuTrigger asChild>
-                              <div>
-                                <TimelineAnnotation
-                                  icon={getEventIcon(event.type)}
-                                  label={event.description}
-                                  highlighted={isHighlighted}
-                                  isRecurring={event.is_recurring}
-                                  isEnding={isEndingEvent}
-                                  onClick={() => {
-                                    if (!hasDragged) {
-                                      onAnnotationClick?.(event.id);
-                                    }
-                                    setHasDragged(false);
-                                  }}
-                                />
-                              </div>
-                            </ContextMenuTrigger>
-                            <ContextMenuContent>
-                              <ContextMenuItem asChild>
-                                <Button
-                                  variant="destructive"
-                                  size="sm"
-                                  className="w-full h-7 text-xs justify-start bg-red-50 text-red-600 border-red-200 hover:bg-red-100 hover:text-red-700"
-                                  onClick={() => {
-                                    deleteEvent(event.id);
-                                    onAnnotationDelete?.(event.id);
-                                    // Clear tooltip when event is deleted
-                                    setEventDescriptionTooltip(null);
-                                    setHoveredEventId(null);
-                                  }}
-                                >
-                                  <Trash2 className="mr-2 h-4 w-4" />
-                                  Delete Event
-                                </Button>
-                              </ContextMenuItem>
-                            </ContextMenuContent>
-                          </ContextMenu>
-                        </foreignObject>
-                      );
-                    });
+
+                  // First, collect all events with their dates and canvas positions
+                  const allEvents = Object.entries(eventsByExactDate).flatMap(([exactDateStr, events]) => {
+                    const date = Number(exactDateStr);
+                    // Calculate the canvas X position for each event
+                    const canvasX = getInterpolatedX(date, visibleDataPoints, xScale) * zoom.transformMatrix.scaleX + zoom.transformMatrix.translateX;
+                    return events.map(event => ({
+                      ...event,
+                      date,
+                      canvasX
+                    }));
+                  });
+
+                  // Group overlapping events based on their canvas positions
+                  const overlappingGroups = groupOverlappingEvents(allEvents, 40);
+
+                  // 2. Render each event with appropriate offset if it's in an overlapping group
+                  return allEvents.map((eventData: any) => {
+                    const exactDate = eventData.date;
+
+                    // Calculate the interpolated x position for this event
+                    const canvasX = getInterpolatedX(exactDate, visibleDataPoints, xScale) * zoom.transformMatrix.scaleX + zoom.transformMatrix.translateX;
+
+                    // Calculate the interpolated y position for this event
+                    const interpolatedY = getInterpolatedY(exactDate, visibleDataPoints, visibleYScale);
+                    const canvasY = interpolatedY * zoom.transformMatrix.scaleY + zoom.transformMatrix.translateY;
+
+                    // Find which group this event belongs to and its position in that group
+                    let yOffset = 0;
+                    for (const [, groupEvents] of Object.entries(overlappingGroups)) {
+                      const eventIndex = groupEvents.indexOf(eventData.displayId);
+                      if (eventIndex !== -1) {
+                        yOffset = eventIndex * 50; // Apply offset based on position in group
+                        break;
+                      }
+                    }
+                    const { event, isEndingEvent, displayId } = eventData;
+                    const isDraggingMain = draggingAnnotation?.displayId === displayId;
+                    const DRAG_Y_OFFSET = 80; // adjust this value for better alignment
+                    const x = isDraggingMain
+                      ? cursorPos!.x - draggingAnnotation!.offsetX - 20
+                      : canvasX - 20;
+                    const y = isDraggingMain
+                      ? cursorPos!.y - draggingAnnotation!.offsetY - DRAG_Y_OFFSET
+                      : canvasY - DRAG_Y_OFFSET - yOffset;
+                    const isHighlighted = hoveredEventId === event.id;
+                    return (
+                      <foreignObject
+                        key={`annotation-${displayId}`}
+                        x={x}
+                        y={y}
+                        width={40}
+                        height={40}
+                        style={{
+                          overflow: 'visible',
+                          cursor: isDraggingMain ? 'grabbing' : 'move'
+                        }}
+                        onMouseDown={(e) => {
+                          handleAnnotationDragStart(e, event.id, displayId, exactDate, yOffset, DRAG_Y_OFFSET, isEndingEvent);
+                        }}
+                        onMouseEnter={() => {
+                          setHoveredEventId(event.id);
+                          setEventDescriptionTooltip({
+                            left: x + 50, // adjust as needed for best placement
+                            top: y,
+                            displayType: event.title || getEventDisplayType(event.type),
+                            description: event.description || '',
+                          });
+                        }}
+                        onMouseLeave={() => {
+                          setHoveredEventId(null);
+                          setEventDescriptionTooltip(null);
+                        }}
+                      >
+                        <ContextMenu>
+                          <ContextMenuTrigger asChild>
+                            <div>
+                              <TimelineAnnotation
+                                icon={getEventIcon(event.type)}
+                                label={event.description}
+                                highlighted={isHighlighted}
+                                isRecurring={event.is_recurring}
+                                isEnding={isEndingEvent}
+                                onClick={() => {
+                                  if (!hasDragged) {
+                                    onAnnotationClick?.(event.id);
+                                  }
+                                  setHasDragged(false);
+                                }}
+                              />
+                            </div>
+                          </ContextMenuTrigger>
+                          <ContextMenuContent>
+                            <ContextMenuItem asChild>
+                              <Button
+                                variant="destructive"
+                                size="sm"
+                                className="w-full h-7 text-xs justify-start bg-red-50 text-red-600 border-red-200 hover:bg-red-100 hover:text-red-700"
+                                onClick={() => {
+                                  deleteEvent(event.id);
+                                  onAnnotationDelete?.(event.id);
+                                  // Clear tooltip when event is deleted
+                                  setEventDescriptionTooltip(null);
+                                  setHoveredEventId(null);
+                                }}
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Delete Event
+                              </Button>
+                            </ContextMenuItem>
+                          </ContextMenuContent>
+                        </ContextMenu>
+                      </foreignObject>
+                    );
                   });
                 })()}
-
-
 
                 {/* Axes with visible domain */}
                 {
