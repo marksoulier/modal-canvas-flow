@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Trash2, HelpCircle } from 'lucide-react';
+import { Trash2, HelpCircle, Calendar, Clock, FileText, DollarSign, Percent } from 'lucide-react';
 import {
     Dialog,
     DialogContent,
@@ -30,7 +30,7 @@ import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from './
 import DatePicker from './DatePicker';
 import { Pencil } from 'lucide-react';
 import { valueToDay } from '../hooks/resultsEvaluation';
-
+import { format, parseISO } from 'date-fns';
 
 interface EventParametersFormProps {
     isOpen: boolean;
@@ -50,6 +50,7 @@ const EventParametersForm: React.FC<EventParametersFormProps> = ({
     onAddEnvelope
 }) => {
     const { plan, schema, getEventIcon, updateParameter, deleteEvent, getParameterDisplayName, getParameterUnits, getEventDisplayType, addUpdatingEvent, getParameterDescription, updateEventDescription, updateEventTitle, canEventBeRecurring, updateEventRecurring, getParameterOptions, currentDay, getEnvelopeDisplayName, getEventFunctionsParts, updateEventFunctionParts, getEventFunctionPartsState, getEventFunctionPartsIcon, getEventFunctionPartsDescription } = usePlan();
+    
     // State for local parameter editing (now supports main and updating events)
     const [parameters, setParameters] = useState<Record<number, Record<number, { type: string; value: string | number }>>>({});
     const [loading, setLoading] = useState(false);
@@ -79,6 +80,50 @@ const EventParametersForm: React.FC<EventParametersFormProps> = ({
         if (param) return { eventType: (event as any).type, paramType: param.type };
         return null;
     }
+
+    // Helper function to format date strings for display
+    const formatDateForDisplay = (dateString: string): string => {
+        try {
+            const date = parseISO(dateString);
+            return format(date, 'MMMM dd, yyyy');
+        } catch {
+            return dateString;
+        }
+    };
+
+    // Helper to get readable parameter values
+    const getReadableParameterValue = (param: Parameter, eventForParam: Event | UpdatingEvent): string => {
+        const paramUnits = getParameterUnits((eventForParam as any).type, param.type);
+        const value = param.value;
+        
+        if (paramUnits === 'date' && typeof value === 'string') {
+            return formatDateForDisplay(value);
+        }
+        if (paramUnits === 'usd' && typeof value === 'number') {
+            return `$${value.toLocaleString()}`;
+        }
+        if (paramUnits === 'percentage' && typeof value === 'number') {
+            return `${(value * 100).toFixed(2)}%`;
+        }
+        if (paramUnits === 'envelope' && typeof value === 'string') {
+            return getEnvelopeDisplayName(value);
+        }
+        return String(value);
+    };
+
+    // Get icon for parameter type
+    const getParameterIcon = (paramUnits: string) => {
+        switch (paramUnits) {
+            case 'date':
+                return <Calendar className="w-4 h-4 text-primary/60" />;
+            case 'usd':
+                return <DollarSign className="w-4 h-4 text-emerald-600/60" />;
+            case 'percentage':
+                return <Percent className="w-4 h-4 text-blue-600/60" />;
+            default:
+                return <FileText className="w-4 h-4 text-muted-foreground/60" />;
+        }
+    };
 
     useEffect(() => {
         if (schema && plan) {
@@ -952,8 +997,69 @@ const EventParametersForm: React.FC<EventParametersFormProps> = ({
         );
     };
 
-    // For rendering parameters, use the helper to get the right event/updating event
+    if (!schema || !plan) return null;
+
+    // Find the event by ID
     const { event: foundEvent, parentEvent: foundParentEvent } = findEventOrUpdatingEventById(plan, eventId);
+    const event = foundEvent as Event | UpdatingEvent | null;
+    if (!event) {
+        return (
+            <Dialog open={isOpen} onOpenChange={onClose}>
+                <DialogContent className="max-w-3xl">
+                    <DialogHeader>
+                        <DialogTitle>Event Not Found</DialogTitle>
+                        <DialogDescription>The requested event could not be found.</DialogDescription>
+                    </DialogHeader>
+                </DialogContent>
+            </Dialog>
+        );
+    }
+
+    const eventType = (event as any).type;
+    const eventIcon = getEventIcon(eventType);
+    const eventDisplayType = getEventDisplayType(eventType);
+
+    // Find the schema event
+    let eventDef = schema.events.find(e => e.type === eventType);
+    let eventName = eventDisplayType;
+
+    // Collect read-only parameters for display
+    const readOnlyParams: { param: Parameter; event: Event | UpdatingEvent; label: string; value: string; units: string }[] = [];
+    
+    // Check main event parameters
+    if (event && (event as any).parameters) {
+        const schemaEvent = schema.events.find(e => e.type === (event as any).type);
+        (event as any).parameters.forEach((param: Parameter) => {
+            const schemaParam = schemaEvent?.parameters.find(p => p.type === param.type);
+            if (schemaParam?.editable === false) {
+                readOnlyParams.push({
+                    param,
+                    event: event as Event | UpdatingEvent,
+                    label: getParameterDisplayName((event as any).type, param.type),
+                    value: getReadableParameterValue(param, event as Event | UpdatingEvent),
+                    units: getParameterUnits((event as any).type, param.type)
+                });
+            }
+        });
+    }
+
+    // Collect date parameters for display
+    const dateParams: { param: Parameter; event: Event | UpdatingEvent; label: string; value: string }[] = [];
+    if (event && (event as any).parameters) {
+        (event as any).parameters.forEach((param: Parameter) => {
+            const paramUnits = getParameterUnits((event as any).type, param.type);
+            if (paramUnits === 'date') {
+                dateParams.push({
+                    param,
+                    event: event as Event | UpdatingEvent,
+                    label: getParameterDisplayName((event as any).type, param.type),
+                    value: getReadableParameterValue(param, event as Event | UpdatingEvent)
+                });
+            }
+        });
+    }
+
+    // For rendering parameters, use the helper to get the right event/updating event
     const currentEvent = foundEvent && !foundParentEvent ? foundEvent : null;
     const currentUpdatingEvent = foundEvent && foundParentEvent ? foundEvent : null;
 
@@ -978,450 +1084,536 @@ const EventParametersForm: React.FC<EventParametersFormProps> = ({
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent className="sm:max-w-md max-h-[80vh] overflow-y-auto p-6">
-                <DialogHeader className="mb-0">
-                    <div className="space-y-3">
-                        {/* Event type - left aligned */}
-                        <div className="flex items-center gap-3 mb-5">
-                            {currentEvent && getEventIcon((currentEvent as any).type)}
-                            {currentUpdatingEvent && getEventIcon((currentUpdatingEvent as any).type)}
-                            <DialogTitle>
-                                {currentEvent
-                                    ? getEventDisplayType((currentEvent as any).type)
-                                    : currentUpdatingEvent
-                                        ? getEventDisplayType((currentUpdatingEvent as any).type)
-                                        : 'Event'}
-                            </DialogTitle>
-                        </div>
-                        {/* Title Input - centered */}
-                        <div className="flex justify-center">
-                            <Input
-                                value={title}
-                                onChange={e => setTitle(e.target.value)}
-                                onBlur={e => updateEventTitle(eventId, e.target.value)}
-                                placeholder="Enter event title..."
-                                className="w-48 border-gray-200 focus:border-gray-400 focus:ring-gray-400 text-sm"
-                            />
-                        </div>
-                    </div>
-                </DialogHeader>
-
-
-                <form onSubmit={handleSubmit} className="space-y-4">
-                    {/* Parameters Section */}
-                    <div className="space-y-4">
-                        <h3 className="text-sm font-medium text-gray-700 border-b border-gray-200 pb-2">
-                            Parameters
-                        </h3>
-                        {currentEvent && currentEvent.parameters && currentEvent.parameters
-                            .filter((param) => shouldShowParameter(param.type))
-                            .map((param) => (
-                                <div key={param.id} className="space-y-2">
-                                    <div className="space-y-1">
-                                        <Label htmlFor={param.id.toString()} className="text-sm font-medium">
-                                            {getParameterDisplayName((currentEvent as any).type, param.type)}
-                                        </Label>
-                                        <p className="text-xs text-muted-foreground">
-                                            {getEventDefinition(plan, schema, eventId)?.parameters.find((p: any) => p.type === param.type)?.description}
-                                        </p>
-                                    </div>
-                                    {currentEvent && renderInput(param, currentEvent as any)}
-                                </div>
-                            ))}
-                        {canEventBeRecurring(eventId) && (
-                            <div className="flex flex-col gap-2 p-3 bg-blue-50 rounded-lg border border-blue-200">
-                                <div className="flex items-center gap-3">
-                                    <label className="flex items-center gap-2 text-sm font-medium cursor-pointer">
-                                        <input
-                                            type="checkbox"
-                                            checked={isRepeating}
-                                            onChange={(e) => handleRepeatToggle(e.target.checked)}
-                                            className="form-checkbox h-4 w-4 text-blue-500 border-gray-300 rounded"
-                                            style={{ accentColor: '#3b82f6' }}
-                                        />
-                                        Repeat Event
-                                    </label>
-                                    <TooltipProvider>
-                                        <Tooltip>
-                                            <TooltipTrigger asChild>
-                                                <HelpCircle className="h-4 w-4 text-blue-400 hover:text-blue-600 cursor-help" />
-                                            </TooltipTrigger>
-                                            <TooltipContent side="top" className="max-w-xs">
-                                                <p className="text-sm">
-                                                    Enable this to make the event repeat over time. When enabled, you can set
-                                                    the end date and frequency for the recurring event.
-                                                </p>
-                                            </TooltipContent>
-                                        </Tooltip>
-                                    </TooltipProvider>
-                                </div>
-                                {isRepeating && currentEvent && (
-                                    <div className="flex flex-col gap-2 mt-2">
-                                        {['frequency_days', 'end_time'].map((type) =>
-                                            currentEvent.parameters
-                                                .filter(param => param.type === type)
-                                                .map(param => (
-                                                    <div key={param.id} className="space-y-1">
-                                                        <Label htmlFor={param.id.toString()} className="text-sm font-medium">
-                                                            {getParameterDisplayName((currentEvent as any).type, param.type)}
-                                                        </Label>
-                                                        <p className="text-xs text-muted-foreground">
-                                                            {getEventDefinition(plan, schema, eventId)?.parameters.find((p: any) => p.type === param.type)?.description}
-                                                        </p>
-                                                        {renderInput(param, currentEvent as any)}
-                                                    </div>
-                                                ))
-                                        )}
-                                    </div>
-                                )}
+            <DialogContent className="max-w-7xl w-[95vw] max-h-[90vh] overflow-hidden flex flex-col">
+                <DialogHeader className="space-y-3 border-b border-border pb-4">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                            <span className="text-2xl">{eventIcon}</span>
+                            <div>
+                                <DialogTitle className="text-xl font-semibold text-foreground">{eventName}</DialogTitle>
+                                <DialogDescription className="text-sm text-muted-foreground">
+                                    Customize this financial life event
+                                </DialogDescription>
                             </div>
-                        )}
-                    </div>
-
-                    {/* Event Functions Section */}
-                    {currentEvent && (() => {
-                        const eventType = (currentEvent as any).type;
-                        const eventFunctions = getEventFunctionsParts(eventType);
-
-                        if (eventFunctions && eventFunctions.length > 0) {
-                            return (
-                                <div className="space-y-4">
-                                    <h3 className="text-sm font-medium text-gray-700 border-b border-gray-200 pb-2">
-                                        Event Functions
-                                    </h3>
-                                    <div className="space-y-3">
-                                        {eventFunctions.map((func) => {
-                                            const isEnabled = getEventFunctionPartsState(eventId, func.title);
-                                            const iconComponent = getEventFunctionPartsIcon(eventType, func.title);
-
-                                            return (
-                                                <div key={func.title} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
-                                                    <div className="flex items-center gap-3">
-                                                        <div className="flex items-center gap-2">
-                                                            {iconComponent}
-                                                            <div>
-                                                                <div className="text-sm font-medium text-gray-900">
-                                                                    {func.title}
-                                                                </div>
-                                                                <div className="text-xs text-gray-500">
-                                                                    {getEventFunctionPartsDescription(eventType, func.title)}
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                    <div className="flex items-center gap-2">
-                                                        <label className="flex items-center gap-2 text-sm cursor-pointer">
-                                                            <input
-                                                                type="checkbox"
-                                                                checked={isEnabled}
-                                                                onChange={(e) => updateEventFunctionParts(eventId, func.title, e.target.checked)}
-                                                                className="form-checkbox h-4 w-4 text-blue-500 border-gray-300 rounded"
-                                                                style={{ accentColor: '#3b82f6' }}
-                                                            />
-                                                            <span className="text-sm text-gray-700">
-                                                                {isEnabled ? 'Enabled' : 'Disabled'}
-                                                            </span>
-                                                        </label>
-                                                    </div>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                </div>
-                            );
-                        }
-                        return null;
-                    })()}
-
-                    {/* Description Input */}
-                    <div className="space-y-2">
-                        <Label htmlFor="event-description" className="text-sm font-medium text-gray-700">
-                            Description
-                        </Label>
-                        {descExpanded ? (
-                            <Textarea
-                                id="event-description"
-                                value={description}
-                                onChange={e => setDescription(e.target.value)}
-                                onBlur={e => { updateEventDescription(eventId, e.target.value); setDescExpanded(false); }}
-                                className="w-full border-gray-200 focus:border-gray-400 focus:ring-gray-400"
-                                rows={2}
-                                autoFocus
-                            />
-                        ) : (
-                            <Input
-                                id="event-description"
-                                value={description}
-                                onFocus={() => setDescExpanded(true)}
-                                onChange={e => setDescription(e.target.value)}
-                                className="w-full cursor-pointer border-gray-200 focus:border-gray-400 focus:ring-gray-400"
-                                readOnly
-                                placeholder="Enter event description..."
-                            />
-                        )}
-                    </div>
-
-                    <div className="flex flex-col gap-3 pt-6">
+                        </div>
                         <Button
-                            type="submit"
-                            className="w-full"
-                            disabled={loading}
-                        >
-                            {loading ? 'Saving...' : 'Save Event'}
-                        </Button>
-
-                        <Button
-                            type="button"
                             variant="destructive"
+                            size="sm"
                             onClick={() => {
                                 deleteEvent(eventId);
                                 onClose();
                             }}
-                            className="w-full bg-red-50 text-red-600 border-red-200 hover:bg-red-100 hover:text-red-700"
-                            disabled={loading}
+                            className="flex items-center gap-2"
                         >
-                            <Trash2 className="mr-2 h-4 w-4" />
+                            <Trash2 size={16} />
                             Delete Event
                         </Button>
                     </div>
-                </form>
-                {/* --- Updating Events Section --- */}
-                {mainEvent && (
-                    <div className="pt-8 border-t mt-8">
-                        <div className="flex items-center justify-between mb-2">
-                            <h3 className="text-md font-semibold">Updating Events</h3>
-                            {updatingEventTypes.length > 0 && (
-                                <div className="flex gap-2 items-center">
-                                    <Select
-                                        value={newUpdatingEventType}
-                                        onValueChange={setNewUpdatingEventType}
-                                    >
-                                        <SelectTrigger className="w-40">
-                                            <SelectValue placeholder="Add updating event" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {mainEventSchema?.updating_events
-                                                ?.filter(ue => ue.display_event !== false)
-                                                .map(ue => (
-                                                    <SelectItem key={ue.type} value={ue.type}>{ue.display_type}</SelectItem>
-                                                ))}
-                                        </SelectContent>
-                                    </Select>
-                                    <Button
-                                        type="button"
-                                        size="sm"
-                                        onClick={handleAddUpdatingEvent}
-                                        disabled={!newUpdatingEventType}
-                                    >
-                                        Add
-                                    </Button>
-                                </div>
-                            )}
-                        </div>
-                        {mainEvent.updating_events && mainEvent.updating_events.length > 0 ? (
-                            <Accordion type="single" collapsible>
-                                {mainEvent.updating_events.map((ue) => {
-                                    const ueSchema = getUpdatingEventSchema(mainEvent.type, ue.type);
-                                    return (
-                                        <AccordionItem key={ue.id} value={String(ue.id)}>
-                                            <AccordionTrigger className="flex items-center gap-2">
-                                                {getEventIcon(ue.type)}
-                                                <span className="font-medium">{ueSchema?.display_type || ueSchema?.description || ue.type}</span>
-                                            </AccordionTrigger>
-                                            <AccordionContent>
-                                                <div className="space-y-4">
-                                                    {/* Repeat Event Toggle for Updating Event */}
-                                                    {(() => {
-                                                        const mainSchemaEvent = schema?.events.find(e => e.type === mainEvent.type);
-                                                        const updatingSchemaEvent = mainSchemaEvent?.updating_events?.find(ue_schema => ue_schema.type === ue.type);
-                                                        const canBeRecurring = (updatingSchemaEvent as any)?.can_be_reocurring === true;
-                                                        const isRecurring = (ue as any).is_recurring || false;
+                </DialogHeader>
 
-                                                        return canBeRecurring && (
-                                                            <div className="flex items-center gap-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
-                                                                <label className="flex items-center gap-2 text-sm font-medium cursor-pointer">
+                {/* Two-panel layout */}
+                <div className="flex-1 flex gap-6 overflow-hidden">
+                    {/* Left Panel - Form */}
+                    <div className="flex-1 overflow-y-auto pr-2">
+                        <form onSubmit={handleSubmit} className="space-y-6 py-4">
+                            <div className="bg-card rounded-lg border border-border p-6">
+                                <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
+                                    <FileText className="w-5 h-5 text-primary" />
+                                    Event Details
+                                </h3>
+                                
+                                {/* Title Input */}
+                                <div className="space-y-2 mb-4">
+                                    <Label htmlFor="event-title" className="text-sm font-medium text-foreground">Title</Label>
+                                    <Input
+                                        id="event-title"
+                                        value={title}
+                                        onChange={(e) => setTitle(e.target.value)}
+                                        onBlur={() => updateEventTitle(eventId, title)}
+                                        placeholder="Enter event title"
+                                        className="bg-background"
+                                    />
+                                </div>
+
+                                {/* Description */}
+                                <div className="space-y-2">
+                                    <Label htmlFor="event-description" className="text-sm font-medium text-foreground">Description</Label>
+                                    <Textarea
+                                        id="event-description"
+                                        value={description}
+                                        onChange={(e) => setDescription(e.target.value)}
+                                        onBlur={() => updateEventDescription(eventId, description)}
+                                        placeholder="Enter event description"
+                                        className="bg-background min-h-[80px]"
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Parameters Section */}
+                            <div className="bg-card rounded-lg border border-border p-6">
+                                <h3 className="text-lg font-semibold text-foreground mb-4">Parameters</h3>
+                                <div className="space-y-4">
+                                    {currentEvent && currentEvent.parameters && currentEvent.parameters
+                                        .filter((param) => shouldShowParameter(param.type))
+                                        .map((param) => (
+                                            <div key={param.id} className="space-y-2">
+                                                <div className="space-y-1">
+                                                    <Label htmlFor={param.id.toString()} className="text-sm font-medium">
+                                                        {getParameterDisplayName((currentEvent as any).type, param.type)}
+                                                    </Label>
+                                                    <p className="text-xs text-muted-foreground">
+                                                        {getEventDefinition(plan, schema, eventId)?.parameters.find((p: any) => p.type === param.type)?.description}
+                                                    </p>
+                                                </div>
+                                                {currentEvent && renderInput(param, currentEvent as any)}
+                                            </div>
+                                        ))}
+                                    {canEventBeRecurring(eventId) && (
+                                        <div className="flex flex-col gap-2 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                                            <div className="flex items-center gap-3">
+                                                <label className="flex items-center gap-2 text-sm font-medium cursor-pointer">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={isRepeating}
+                                                        onChange={(e) => handleRepeatToggle(e.target.checked)}
+                                                        className="form-checkbox h-4 w-4 text-blue-500 border-gray-300 rounded"
+                                                        style={{ accentColor: '#3b82f6' }}
+                                                    />
+                                                    Repeat Event
+                                                </label>
+                                                <TooltipProvider>
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <HelpCircle className="h-4 w-4 text-blue-400 hover:text-blue-600 cursor-help" />
+                                                        </TooltipTrigger>
+                                                        <TooltipContent side="top" className="max-w-xs">
+                                                            <p className="text-sm">
+                                                                Enable this to make the event repeat over time. When enabled, you can set
+                                                                the end date and frequency for the recurring event.
+                                                            </p>
+                                                        </TooltipContent>
+                                                    </Tooltip>
+                                                </TooltipProvider>
+                                            </div>
+                                            {isRepeating && currentEvent && (
+                                                <div className="flex flex-col gap-2 mt-2">
+                                                    {['frequency_days', 'end_time'].map((type) =>
+                                                        currentEvent.parameters
+                                                            .filter(param => param.type === type)
+                                                            .map(param => (
+                                                                <div key={param.id} className="space-y-1">
+                                                                    <Label htmlFor={param.id.toString()} className="text-sm font-medium">
+                                                                        {getParameterDisplayName((currentEvent as any).type, param.type)}
+                                                                    </Label>
+                                                                    <p className="text-xs text-muted-foreground">
+                                                                        {getEventDefinition(plan, schema, eventId)?.parameters.find((p: any) => p.type === param.type)?.description}
+                                                                    </p>
+                                                                    {renderInput(param, currentEvent as any)}
+                                                                </div>
+                                                            ))
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Event Functions Section */}
+                            {currentEvent && (() => {
+                                const eventType = (currentEvent as any).type;
+                                const eventFunctions = getEventFunctionsParts(eventType);
+
+                                if (eventFunctions && eventFunctions.length > 0) {
+                                    return (
+                                        <div className="bg-card rounded-lg border border-border p-6">
+                                            <h3 className="text-lg font-semibold text-foreground mb-4">Event Functions</h3>
+                                            <div className="space-y-3">
+                                                {eventFunctions.map((func) => {
+                                                    const isEnabled = getEventFunctionPartsState(eventId, func.title);
+                                                    const iconComponent = getEventFunctionPartsIcon(eventType, func.title);
+
+                                                    return (
+                                                        <div key={func.title} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
+                                                            <div className="flex items-center gap-3">
+                                                                <div className="flex items-center gap-2">
+                                                                    {iconComponent}
+                                                                    <div>
+                                                                        <div className="text-sm font-medium text-gray-900">
+                                                                            {func.title}
+                                                                        </div>
+                                                                        <div className="text-xs text-gray-500">
+                                                                            {getEventFunctionPartsDescription(eventType, func.title)}
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                            <div className="flex items-center gap-2">
+                                                                <label className="flex items-center gap-2 text-sm cursor-pointer">
                                                                     <input
                                                                         type="checkbox"
-                                                                        checked={isRecurring}
-                                                                        onChange={(e) => {
-                                                                            updateEventRecurring(ue.id, e.target.checked);
-                                                                        }}
+                                                                        checked={isEnabled}
+                                                                        onChange={(e) => updateEventFunctionParts(eventId, func.title, e.target.checked)}
                                                                         className="form-checkbox h-4 w-4 text-blue-500 border-gray-300 rounded"
                                                                         style={{ accentColor: '#3b82f6' }}
                                                                     />
-                                                                    Repeat Event
+                                                                    <span className="text-sm text-gray-700">
+                                                                        {isEnabled ? 'Enabled' : 'Disabled'}
+                                                                    </span>
                                                                 </label>
-                                                                <TooltipProvider>
-                                                                    <Tooltip>
-                                                                        <TooltipTrigger asChild>
-                                                                            <HelpCircle className="h-4 w-4 text-blue-400 hover:text-blue-600 cursor-help" />
-                                                                        </TooltipTrigger>
-                                                                        <TooltipContent side="top" className="max-w-xs">
-                                                                            <p className="text-sm">
-                                                                                Enable this to make the event repeat over time. When enabled, you can set
-                                                                                the end date and frequency for the recurring event.
-                                                                            </p>
-                                                                        </TooltipContent>
-                                                                    </Tooltip>
-                                                                </TooltipProvider>
                                                             </div>
-                                                        );
-                                                    })()}
-
-                                                    {ue.parameters.filter(param => {
-                                                        const recurringOnlyParams = ['end_time', 'frequency_days'];
-                                                        if (recurringOnlyParams.includes(param.type)) {
-                                                            return (ue as any).is_recurring || false;
-                                                        }
-                                                        return true;
-                                                    }).map(param => (
-                                                        <div key={param.id} className="space-y-1">
-                                                            <Label className="text-sm font-medium">
-                                                                {getParameterDisplayName(ue.type, param.type)}
-                                                            </Label>
-                                                            <p className="text-xs text-muted-foreground">
-                                                                {getParameterDescription(ue.type, param.type)}
-                                                            </p>
-                                                            {renderInput(param, ue)}
                                                         </div>
-                                                    ))}
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    );
+                                }
+                                return null;
+                            })()}
 
-                                                    {/* Event Functions Section for Updating Event */}
-                                                    {(() => {
-                                                        const eventType = ue.type;
-                                                        const eventFunctions = getEventFunctionsParts(eventType);
+                            {/* --- Updating Events Section --- */}
+                            {mainEvent && (
+                                <div className="bg-card rounded-lg border border-border p-6">
+                                    <div className="flex items-center justify-between mb-4">
+                                        <h3 className="text-lg font-semibold text-foreground">Updating Events</h3>
+                                        {updatingEventTypes.length > 0 && (
+                                            <div className="flex gap-2 items-center">
+                                                <Select
+                                                    value={newUpdatingEventType}
+                                                    onValueChange={setNewUpdatingEventType}
+                                                >
+                                                    <SelectTrigger className="w-40">
+                                                        <SelectValue placeholder="Add updating event" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        {mainEventSchema?.updating_events
+                                                            ?.filter(ue => ue.display_event !== false)
+                                                            .map(ue => (
+                                                                <SelectItem key={ue.type} value={ue.type}>{ue.display_type}</SelectItem>
+                                                            ))}
+                                                    </SelectContent>
+                                                </Select>
+                                                <Button
+                                                    type="button"
+                                                    size="sm"
+                                                    onClick={handleAddUpdatingEvent}
+                                                    disabled={!newUpdatingEventType}
+                                                >
+                                                    Add
+                                                </Button>
+                                            </div>
+                                        )}
+                                    </div>
+                                    {mainEvent.updating_events && mainEvent.updating_events.length > 0 ? (
+                                        <Accordion type="single" collapsible>
+                                            {mainEvent.updating_events.map((ue) => {
+                                                const ueSchema = getUpdatingEventSchema(mainEvent.type, ue.type);
+                                                return (
+                                                    <AccordionItem key={ue.id} value={String(ue.id)}>
+                                                        <AccordionTrigger className="flex items-center gap-2">
+                                                            {getEventIcon(ue.type)}
+                                                            <span className="font-medium">{ueSchema?.display_type || ueSchema?.description || ue.type}</span>
+                                                        </AccordionTrigger>
+                                                        <AccordionContent>
+                                                            <div className="space-y-4">
+                                                                {/* Repeat Event Toggle for Updating Event */}
+                                                                {(() => {
+                                                                    const mainSchemaEvent = schema?.events.find(e => e.type === mainEvent.type);
+                                                                    const updatingSchemaEvent = mainSchemaEvent?.updating_events?.find(ue_schema => ue_schema.type === ue.type);
+                                                                    const canBeRecurring = (updatingSchemaEvent as any)?.can_be_reocurring === true;
+                                                                    const isRecurring = (ue as any).is_recurring || false;
 
-                                                        if (eventFunctions && eventFunctions.length > 0) {
-                                                            return (
-                                                                <div className="space-y-3">
-                                                                    <h4 className="text-sm font-medium text-gray-700 border-b border-gray-200 pb-2">
-                                                                        Event Functions
-                                                                    </h4>
-                                                                    <div className="space-y-2">
-                                                                        {eventFunctions.map((func) => {
-                                                                            const isEnabled = getEventFunctionPartsState(ue.id, func.title);
-                                                                            const iconComponent = getEventFunctionPartsIcon(eventType, func.title);
+                                                                    return canBeRecurring && (
+                                                                        <div className="flex items-center gap-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                                                                            <label className="flex items-center gap-2 text-sm font-medium cursor-pointer">
+                                                                                <input
+                                                                                    type="checkbox"
+                                                                                    checked={isRecurring}
+                                                                                    onChange={(e) => {
+                                                                                        updateEventRecurring(ue.id, e.target.checked);
+                                                                                    }}
+                                                                                    className="form-checkbox h-4 w-4 text-blue-500 border-gray-300 rounded"
+                                                                                    style={{ accentColor: '#3b82f6' }}
+                                                                                />
+                                                                                Repeat Event
+                                                                            </label>
+                                                                            <TooltipProvider>
+                                                                                <Tooltip>
+                                                                                    <TooltipTrigger asChild>
+                                                                                        <HelpCircle className="h-4 w-4 text-blue-400 hover:text-blue-600 cursor-help" />
+                                                                                    </TooltipTrigger>
+                                                                                    <TooltipContent side="top" className="max-w-xs">
+                                                                                        <p className="text-sm">
+                                                                                            Enable this to make the event repeat over time. When enabled, you can set
+                                                                                            the end date and frequency for the recurring event.
+                                                                                        </p>
+                                                                                    </TooltipContent>
+                                                                                </Tooltip>
+                                                                            </TooltipProvider>
+                                                                        </div>
+                                                                    );
+                                                                })()}
 
-                                                                            return (
-                                                                                <div key={func.title} className="flex items-center justify-between p-2 bg-gray-50 rounded border border-gray-200">
-                                                                                    <div className="flex items-center gap-2">
-                                                                                        <div className="flex items-center gap-2">
-                                                                                            {iconComponent}
-                                                                                            <div>
-                                                                                                <div className="text-xs font-medium text-gray-900">
-                                                                                                    {func.title}
+                                                                {ue.parameters.filter(param => {
+                                                                    const recurringOnlyParams = ['end_time', 'frequency_days'];
+                                                                    if (recurringOnlyParams.includes(param.type)) {
+                                                                        return (ue as any).is_recurring || false;
+                                                                    }
+                                                                    return true;
+                                                                }).map(param => (
+                                                                    <div key={param.id} className="space-y-1">
+                                                                        <Label className="text-sm font-medium">
+                                                                            {getParameterDisplayName(ue.type, param.type)}
+                                                                        </Label>
+                                                                        <p className="text-xs text-muted-foreground">
+                                                                            {getParameterDescription(ue.type, param.type)}
+                                                                        </p>
+                                                                        {renderInput(param, ue)}
+                                                                    </div>
+                                                                ))}
+
+                                                                {/* Event Functions Section for Updating Event */}
+                                                                {(() => {
+                                                                    const eventType = ue.type;
+                                                                    const eventFunctions = getEventFunctionsParts(eventType);
+
+                                                                    if (eventFunctions && eventFunctions.length > 0) {
+                                                                        return (
+                                                                            <div className="space-y-3">
+                                                                                <h4 className="text-sm font-medium text-gray-700 border-b border-gray-200 pb-2">
+                                                                                    Event Functions
+                                                                                </h4>
+                                                                                <div className="space-y-2">
+                                                                                    {eventFunctions.map((func) => {
+                                                                                        const isEnabled = getEventFunctionPartsState(ue.id, func.title);
+                                                                                        const iconComponent = getEventFunctionPartsIcon(eventType, func.title);
+
+                                                                                        return (
+                                                                                            <div key={func.title} className="flex items-center justify-between p-2 bg-gray-50 rounded border border-gray-200">
+                                                                                                <div className="flex items-center gap-2">
+                                                                                                    <div className="flex items-center gap-2">
+                                                                                                        {iconComponent}
+                                                                                                        <div>
+                                                                                                            <div className="text-xs font-medium text-gray-900">
+                                                                                                                {func.title}
+                                                                                                            </div>
+                                                                                                            <div className="text-xs text-gray-500">
+                                                                                                                {getEventFunctionPartsDescription(eventType, func.title)}
+                                                                                                            </div>
+                                                                                                        </div>
+                                                                                                    </div>
                                                                                                 </div>
-                                                                                                <div className="text-xs text-gray-500">
-                                                                                                    {getEventFunctionPartsDescription(eventType, func.title)}
+                                                                                                <div className="flex items-center gap-2">
+                                                                                                    <label className="flex items-center gap-2 text-xs cursor-pointer">
+                                                                                                        <input
+                                                                                                            type="checkbox"
+                                                                                                            checked={isEnabled}
+                                                                                                            onChange={(e) => updateEventFunctionParts(ue.id, func.title, e.target.checked)}
+                                                                                                            className="form-checkbox h-3 w-3 text-blue-500 border-gray-300 rounded"
+                                                                                                            style={{ accentColor: '#3b82f6' }}
+                                                                                                        />
+                                                                                                        <span className="text-xs text-gray-700">
+                                                                                                            {isEnabled ? 'Enabled' : 'Disabled'}
+                                                                                                        </span>
+                                                                                                    </label>
                                                                                                 </div>
                                                                                             </div>
-                                                                                        </div>
-                                                                                    </div>
-                                                                                    <div className="flex items-center gap-2">
-                                                                                        <label className="flex items-center gap-2 text-xs cursor-pointer">
-                                                                                            <input
-                                                                                                type="checkbox"
-                                                                                                checked={isEnabled}
-                                                                                                onChange={(e) => updateEventFunctionParts(ue.id, func.title, e.target.checked)}
-                                                                                                className="form-checkbox h-3 w-3 text-blue-500 border-gray-300 rounded"
-                                                                                                style={{ accentColor: '#3b82f6' }}
-                                                                                            />
-                                                                                            <span className="text-xs text-gray-700">
-                                                                                                {isEnabled ? 'Enabled' : 'Disabled'}
-                                                                                            </span>
-                                                                                        </label>
-                                                                                    </div>
+                                                                                        );
+                                                                                    })}
                                                                                 </div>
-                                                                            );
-                                                                        })}
+                                                                            </div>
+                                                                        );
+                                                                    }
+                                                                    return null;
+                                                                })()}
+
+                                                                {/* Updating Event Title and Description Edit Box */}
+                                                                <div className="mt-4 space-y-3">
+                                                                    {/* Title Input */}
+                                                                    <div className="space-y-1">
+                                                                        <Label htmlFor={`updating-event-title-${ue.id}`} className="text-xs font-medium text-gray-700">
+                                                                            Title
+                                                                        </Label>
+                                                                        <Input
+                                                                            id={`updating-event-title-${ue.id}`}
+                                                                            value={updatingTitles[ue.id] || ''}
+                                                                            onChange={e => setUpdatingTitles(prev => ({ ...prev, [ue.id]: e.target.value }))}
+                                                                            onBlur={e => updateEventTitle(ue.id, e.target.value)}
+                                                                            placeholder="Enter event title..."
+                                                                            className="w-full border-gray-200 focus:border-gray-400 focus:ring-gray-400 text-xs"
+                                                                        />
                                                                     </div>
+
+                                                                    {/* Description Input */}
+                                                                    <div className="space-y-1">
+                                                                        <Label htmlFor={`updating-event-description-${ue.id}`} className="text-xs font-medium text-gray-700">
+                                                                            Description
+                                                                        </Label>
+                                                                        {updatingDescExpanded[ue.id] ? (
+                                                                            <Textarea
+                                                                                id={`updating-event-description-${ue.id}`}
+                                                                                value={updatingDescriptions[ue.id] || ''}
+                                                                                onChange={e => setUpdatingDescriptions(prev => ({ ...prev, [ue.id]: e.target.value }))}
+                                                                                onBlur={e => { updateEventDescription(ue.id, e.target.value); setUpdatingDescExpanded(prev => ({ ...prev, [ue.id]: false })); }}
+                                                                                className="w-full mt-1 mb-2"
+                                                                                rows={2}
+                                                                                autoFocus
+                                                                            />
+                                                                        ) : (
+                                                                            <Input
+                                                                                id={`updating-event-description-${ue.id}`}
+                                                                                value={updatingDescriptions[ue.id] || ''}
+                                                                                onFocus={() => setUpdatingDescExpanded(prev => ({ ...prev, [ue.id]: true }))}
+                                                                                onChange={e => setUpdatingDescriptions(prev => ({ ...prev, [ue.id]: e.target.value }))}
+                                                                                className="w-full mt-1 cursor-pointer mb-2"
+                                                                                readOnly
+                                                                            />
+                                                                        )}
+                                                                    </div>
+                                                                    <Button
+                                                                        type="button"
+                                                                        variant="destructive"
+                                                                        size="sm"
+                                                                        onClick={() => deleteEvent(ue.id)}
+                                                                        className="bg-red-50 text-red-600 border-red-200 hover:bg-red-100 hover:text-red-700"
+                                                                    >
+                                                                        <Trash2 className="mr-2 h-4 w-4" /> Delete Updating Event
+                                                                    </Button>
                                                                 </div>
-                                                            );
-                                                        }
-                                                        return null;
-                                                    })()}
+                                                            </div>
+                                                        </AccordionContent>
+                                                    </AccordionItem>
+                                                );
+                                            })}
+                                        </Accordion>
+                                    ) : (
+                                        <p className="text-xs text-muted-foreground mt-2">No updating events.</p>
+                                    )}
+                                </div>
+                            )}
 
-                                                    {/* Updating Event Title and Description Edit Box */}
-                                                    <div className="mt-4 space-y-3">
-                                                        {/* Title Input */}
-                                                        <div className="space-y-1">
-                                                            <Label htmlFor={`updating-event-title-${ue.id}`} className="text-xs font-medium text-gray-700">
-                                                                Title
-                                                            </Label>
-                                                            <Input
-                                                                id={`updating-event-title-${ue.id}`}
-                                                                value={updatingTitles[ue.id] || ''}
-                                                                onChange={e => setUpdatingTitles(prev => ({ ...prev, [ue.id]: e.target.value }))}
-                                                                onBlur={e => updateEventTitle(ue.id, e.target.value)}
-                                                                placeholder="Enter event title..."
-                                                                className="w-full border-gray-200 focus:border-gray-400 focus:ring-gray-400 text-xs"
-                                                            />
-                                                        </div>
+                            {/* Go to Parent Event Button */}
+                            {foundParentEvent && (
+                                <div className="mb-4">
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        onClick={() => {
+                                            onClose();
+                                            onSelectEvent(foundParentEvent.id);
+                                        }}
+                                    >
+                                        Go to Parent Event
+                                    </Button>
+                                </div>
+                            )}
 
-                                                        {/* Description Input */}
-                                                        <div className="space-y-1">
-                                                            <Label htmlFor={`updating-event-description-${ue.id}`} className="text-xs font-medium text-gray-700">
-                                                                Description
-                                                            </Label>
-                                                            {updatingDescExpanded[ue.id] ? (
-                                                                <Textarea
-                                                                    id={`updating-event-description-${ue.id}`}
-                                                                    value={updatingDescriptions[ue.id] || ''}
-                                                                    onChange={e => setUpdatingDescriptions(prev => ({ ...prev, [ue.id]: e.target.value }))}
-                                                                    onBlur={e => { updateEventDescription(ue.id, e.target.value); setUpdatingDescExpanded(prev => ({ ...prev, [ue.id]: false })); }}
-                                                                    className="w-full mt-1 mb-2"
-                                                                    rows={2}
-                                                                    autoFocus
-                                                                />
-                                                            ) : (
-                                                                <Input
-                                                                    id={`updating-event-description-${ue.id}`}
-                                                                    value={updatingDescriptions[ue.id] || ''}
-                                                                    onFocus={() => setUpdatingDescExpanded(prev => ({ ...prev, [ue.id]: true }))}
-                                                                    onChange={e => setUpdatingDescriptions(prev => ({ ...prev, [ue.id]: e.target.value }))}
-                                                                    className="w-full mt-1 cursor-pointer mb-2"
-                                                                    readOnly
-                                                                />
-                                                            )}
-                                                        </div>
-                                                        <Button
-                                                            type="button"
-                                                            variant="destructive"
-                                                            size="sm"
-                                                            onClick={() => deleteEvent(ue.id)}
-                                                            className="bg-red-50 text-red-600 border-red-200 hover:bg-red-100 hover:text-red-700"
-                                                        >
-                                                            <Trash2 className="mr-2 h-4 w-4" /> Delete Updating Event
-                                                        </Button>
-                                                    </div>
+                            <div className="flex flex-col gap-3 pt-6">
+                                <Button
+                                    type="submit"
+                                    className="w-full"
+                                    disabled={loading}
+                                >
+                                    {loading ? 'Saving...' : 'Save Event'}
+                                </Button>
+                            </div>
+                        </form>
+                    </div>
+
+                    {/* Right Panel - Display Information */}
+                    <div className="w-80 border-l border-border pl-6 overflow-y-auto">
+                        <div className="space-y-6 py-4">
+                            {/* Event Summary */}
+                            <div className="bg-muted/30 rounded-lg p-4">
+                                <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+                                    <span className="text-lg">{eventIcon}</span>
+                                    Event Overview
+                                </h3>
+                                <div className="space-y-2">
+                                    <p className="text-sm font-medium text-foreground">{title || eventName}</p>
+                                    {description && (
+                                        <p className="text-xs text-muted-foreground">{description}</p>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Dates Section */}
+                            {dateParams.length > 0 && (
+                                <div className="bg-card rounded-lg border border-border p-4">
+                                    <h4 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+                                        <Calendar className="w-4 h-4 text-primary" />
+                                        Important Dates
+                                    </h4>
+                                    <div className="space-y-3">
+                                        {dateParams.map((item, index) => (
+                                            <div key={index} className="flex flex-col gap-1">
+                                                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                                                    {item.label}
+                                                </span>
+                                                <span className="text-sm text-foreground font-medium">
+                                                    {item.value}
+                                                </span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Read-only Information */}
+                            {readOnlyParams.length > 0 && (
+                                <div className="bg-card rounded-lg border border-border p-4">
+                                    <h4 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+                                        <Clock className="w-4 h-4 text-muted-foreground" />
+                                        Read-only Information
+                                    </h4>
+                                    <div className="space-y-3">
+                                        {readOnlyParams.map((item, index) => (
+                                            <div key={index} className="flex flex-col gap-1">
+                                                <div className="flex items-center gap-2">
+                                                    {getParameterIcon(item.units)}
+                                                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                                                        {item.label}
+                                                    </span>
                                                 </div>
-                                            </AccordionContent>
-                                        </AccordionItem>
-                                    );
-                                })}
-                            </Accordion>
-                        ) : (
-                            <p className="text-xs text-muted-foreground mt-2">No updating events.</p>
-                        )}
-                    </div>
-                )}
+                                                <span className="text-sm text-foreground font-medium">
+                                                    {item.value}
+                                                </span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
 
-
-                {/* Go to Parent Event Button */}
-                {foundParentEvent && (
-                    <div className="mb-4">
-                        <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => {
-                                onClose();
-                                onSelectEvent(foundParentEvent.id);
-                            }}
-                        >
-                            Go to Parent Event
-                        </Button>
+                            {/* Quick Actions */}
+                            <div className="bg-card rounded-lg border border-border p-4">
+                                <h4 className="text-sm font-semibold text-foreground mb-3">Quick Actions</h4>
+                                <div className="space-y-2">
+                                    <Button 
+                                        variant="outline" 
+                                        size="sm" 
+                                        className="w-full justify-start text-xs"
+                                        onClick={onClose}
+                                    >
+                                        Save Changes
+                                    </Button>
+                                    <Button 
+                                        variant="ghost" 
+                                        size="sm" 
+                                        className="w-full justify-start text-xs text-muted-foreground"
+                                        onClick={() => {
+                                            deleteEvent(eventId);
+                                            onClose();
+                                        }}
+                                    >
+                                        <Trash2 className="w-3 h-3 mr-2" />
+                                        Delete Event
+                                    </Button>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                )}
+                </div>
             </DialogContent>
         </Dialog>
     );
