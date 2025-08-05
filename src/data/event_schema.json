@@ -873,7 +873,7 @@
         {
             "type": "loan_amortization",
             "display_type": "Personal Loan",
-            "display_event": true,
+            "display_event": false,
             "is_recurring": false,
             "can_be_reocurring": true,
             "weight": 10,

@@ -241,7 +241,9 @@ export const Legend = ({
     nonNetworthCurrentValues?: { [key: string]: number };
     lockedNetWorthValue?: number;
     hoveredArea?: { envelope: string; category: string } | null;
-}) => {
+    }) => {
+
+    
     // Group envelopes by category
     const categoryMap: Record<string, string[]> = {};
     envelopes.forEach((envelope) => {
@@ -312,7 +314,7 @@ export const Legend = ({
                     // - more than one envelope in category, or
                     // - the only envelope does NOT start with 'Other'
                     const showEnvelopes = envs.length > 1 || (envs.length === 1 && !/^other/i.test(envs[0]));
-                    const isCategoryHovered = hoveredArea?.category === category;
+                    const isCategoryHovered = hoveredArea?.category === "category";
                     return (
                         <div key={category} style={{
                             marginBottom: 12,
@@ -342,7 +344,7 @@ export const Legend = ({
                                         .filter(envelope => Number((currentValues[envelope] || 0).toFixed(2)) !== 0) // Filter out values that round to 0.00
                                         .map((envelope) => {
                                             const envColor = envelopeColors[envelope] || catColor;
-                                            const isHovered = hoveredArea?.envelope === envelope;
+                                            const isHovered = hoveredArea?.envelope === "envelope";
                                             return (
                                                 <div key={envelope} className="flex items-center justify-between space-x-4" style={{
                                                     backgroundColor: isHovered ? 'rgba(51, 89, 102, 0.1)' : 'transparent',
@@ -382,7 +384,7 @@ export const Legend = ({
                     const catColor = categoryColors[category] || { area: '#ff6b6b', line: '#ff4757' };
                     const categorySum = envs.reduce((sum, env) => sum + ((nonNetworthCurrentValues && nonNetworthCurrentValues[env]) || 0), 0);
                     const showEnvelopes = envs.length > 1 || (envs.length === 1 && !/^other/i.test(envs[0]));
-                    const isCategoryHovered = hoveredArea?.category === category;
+                    const isCategoryHovered = hoveredArea?.category === "category";
                     return (
                         <div key={`non-networth-${category}`} style={{
                             marginBottom: 12,
@@ -415,7 +417,7 @@ export const Legend = ({
                                         .filter(envelope => Number((nonNetworthCurrentValues[envelope] || 0).toFixed(2)) !== 0) // Filter out values that round to 0.00
                                         .map((envelope) => {
                                             const envColor = envelopeColors[envelope] || catColor;
-                                            const isHovered = hoveredArea?.envelope === envelope;
+                                            const isHovered = hoveredArea?.envelope === "envelope";
                                             return (
                                                 <div key={envelope} className="flex items-center justify-between space-x-4" style={{
                                                     backgroundColor: isHovered ? 'rgba(51, 89, 102, 0.1)' : 'transparent',
