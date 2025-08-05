@@ -38,6 +38,7 @@ interface EventParametersFormProps {
     eventId: number;
     onSelectEvent: (eventId: number) => void;
     onOpenEnvelopeModal?: (envelopeName: string) => void;
+    onAddEnvelope?: () => void;
 }
 
 const EventParametersForm: React.FC<EventParametersFormProps> = ({
@@ -45,7 +46,8 @@ const EventParametersForm: React.FC<EventParametersFormProps> = ({
     onClose,
     eventId,
     onSelectEvent,
-    onOpenEnvelopeModal
+    onOpenEnvelopeModal,
+    onAddEnvelope
 }) => {
     const { plan, schema, getEventIcon, updateParameter, deleteEvent, getParameterDisplayName, getParameterUnits, getEventDisplayType, addUpdatingEvent, getParameterDescription, updateEventDescription, updateEventTitle, canEventBeRecurring, updateEventRecurring, getParameterOptions, currentDay, getEnvelopeDisplayName } = usePlan();
     // State for local parameter editing (now supports main and updating events)
@@ -401,6 +403,13 @@ const EventParametersForm: React.FC<EventParametersFormProps> = ({
                         <Select
                             value={value as string}
                             onValueChange={(newValue) => {
+                                if (newValue === "add_envelope") {
+                                    // Don't update the parameter value, just trigger the add envelope function
+                                    if (typeof onAddEnvelope === 'function') {
+                                        onAddEnvelope();
+                                    }
+                                    return;
+                                }
                                 handleInputChange(event.id, param.id, newValue);
                                 handleInputBlur(param.id, newValue, event.id);
                             }}
@@ -414,6 +423,14 @@ const EventParametersForm: React.FC<EventParametersFormProps> = ({
                                         {displayName} <span style={{ color: '#888', fontSize: '0.8em' }}>({envelopeCategoryMap[envelopeKey]})</span>
                                     </SelectItem>
                                 ))}
+                                {typeof onAddEnvelope === 'function' && (
+                                    <SelectItem
+                                        value="add_envelope"
+                                        className="bg-gray-50 hover:bg-gray-100 text-gray-700 font-medium"
+                                    >
+                                        + Add Envelope
+                                    </SelectItem>
+                                )}
                             </SelectContent>
                         </Select>
                         {typeof onOpenEnvelopeModal === 'function' && (

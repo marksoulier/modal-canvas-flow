@@ -1476,4 +1476,11 @@ export function getEnvelopeCategory(plan: Plan | null, envelopeName: string): st
 export function getEnvelopeDisplayName(envelopeName: string): string {
     const otherMatch = envelopeName.match(/^Other \((.+)\)$/);
     return otherMatch ? otherMatch[1] : envelopeName;
-} 
+}
+
+// Helper to get the effective ID for an event (parent ID for updating events, own ID for main events)
+export function getEffectiveEventId(plan: Plan | null, eventId: number): number {
+    if (!plan) return eventId;
+    const { event, parentEvent } = findEventOrUpdatingEventById(plan, eventId);
+    return parentEvent?.id ?? eventId;
+}

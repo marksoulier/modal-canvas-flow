@@ -85,11 +85,22 @@ export const D = (
 
 export const gamma = (
     theta: Theta,
-    thetaChange: Record<string, number>,
+    thetaChange: Record<string, number | ((t: number) => number)>,
     tStar: number
 ): Theta => {
-    return (t: number) =>
-        t < tStar ? theta(t) : { ...theta(t), ...thetaChange };
+    return (t: number) => {
+        if (t < tStar) return theta(t);
+
+        const baseTheta = theta(t);
+        const result: Record<string, number> = { ...baseTheta };
+
+        // Handle both number and function values in thetaChange
+        for (const [key, value] of Object.entries(thetaChange)) {
+            result[key] = typeof value === 'function' ? value(t) : value;
+        }
+
+        return result;
+    };
 };
 
 export const inflationAdjust = (
@@ -98,6 +109,26 @@ export const inflationAdjust = (
     start_time: number
 ) => (t: number) =>
         base * Math.pow(1 + inflation_rate, (t - start_time) / 365);
+
+export const stepAdjust = (
+    current_amount: number,
+    step_amount: number,
+    frequency: number,
+    start_time: number,
+    end_time?: number
+) => (t: number) => {
+    if (t < start_time) return current_amount;
+
+    // If end_time is provided and we're past it, use the final step count
+    if (end_time !== undefined && t >= end_time) {
+        const total_steps = Math.floor((end_time - start_time) / frequency);
+        return current_amount + (step_amount * total_steps);
+    }
+
+    // During the stepping period
+    const steps = Math.floor((t - start_time) / frequency);
+    return current_amount + (step_amount * steps);
+};
 
 // Growth magnitude function with different compounding types
 export const f_growth = (theta_g: Record<string, any>, t: number): number => {
@@ -275,11 +306,36 @@ export const f_get_job = (theta: Record<string, any>, t: number): number => {
     return R({ t0: theta.time_start, dt: 365.25 / theta.p, tf: theta.time_end }, f_salary, P(theta), { type: "None", r: 0.0 })(t);
 };
 
-export const outflow = (event: any, envelopes: Record<string, any>) => {
+export const outflow = (event: any, envelopes: Record<string, any>, onUpdate: (updates: Array<{ eventId: number, paramType: string, value: number }>) => void) => {
     const params = event.parameters;
 
     // Get growth parameters for source envelope
     const [theta_growth_source] = get_growth_parameters(envelopes, params.from_key);
+
+    let theta = P({ b: params.amount });
+    for (const upd of event.updating_events || []) {
+        const upd_type = upd.type;
+        const upd_params = upd.parameters || {};
+        if (upd_type === "update_amount") {
+            // Get the current amount at start time
+            const current_amount = theta(upd_params.start_time).b;
+
+            // Apply step increases as a function that will be evaluated when theta is called
+            theta = gamma(theta, {
+                b: stepAdjust(
+                    current_amount,
+                    upd_params.amount,
+                    upd_params.frequency_days,
+                    upd_params.start_time,
+                    upd_params.end_time  // Pass end_time to stepAdjust
+                )
+            }, upd_params.start_time);
+        }
+    }
+
+    let total_outflow = 0.0;
+    let number_of_recurring_outflows = 0;
+    let final_recurring_outflow = 0; //the day of final recurring outflow
 
     //See if event is reoccuring or not
     const is_recurring = event.is_recurring;
@@ -288,11 +344,16 @@ export const outflow = (event: any, envelopes: Record<string, any>) => {
         const outflow_func = R(
             { t0: params.start_time, dt: params.frequency_days, tf: params.end_time },
             f_out,
-            P({ b: params.amount }),
+            theta,
             theta_growth_source
         );
         // Add the purchase function to the specified envelope
         envelopes[params.from_key].functions.push(outflow_func);
+
+        number_of_recurring_outflows = Math.floor((params.end_time - params.start_time) / params.frequency_days) + 1;
+        total_outflow = (number_of_recurring_outflows) * params.amount;
+        // Calculate the last frequency day interval from the start time before or equal to the end time
+        final_recurring_outflow = params.start_time + number_of_recurring_outflows * params.frequency_days;
     } else {
         // Create a one-time outflow function for the purchase
 
@@ -300,21 +361,58 @@ export const outflow = (event: any, envelopes: Record<string, any>) => {
         const purchase_func = T(
             { t_k: params.start_time },
             f_out,
-            P({ b: params.amount }),
+            theta,
             theta_growth_source
         );
 
         // Add the purchase function to the specified envelope
         const from_key = params.from_key;
         envelopes[from_key].functions.push(purchase_func);
+
+        number_of_recurring_outflows = 1;
+        final_recurring_outflow = params.start_time;
+        total_outflow = params.amount;
     }
+
+    // place in total number of recurring outflows, final recurring outflow, and total outflow
+    onUpdate([
+        { eventId: event.id, paramType: "number_of_recurring_outflows", value: number_of_recurring_outflows },
+        { eventId: event.id, paramType: "final_recurring_outflow", value: final_recurring_outflow },
+        { eventId: event.id, paramType: "total_outflow", value: total_outflow }
+    ]);
 };
 
-export const inflow = (event: any, envelopes: Record<string, any>) => {
+export const inflow = (event: any, envelopes: Record<string, any>, onUpdate: (updates: Array<{ eventId: number, paramType: string, value: number }>) => void) => {
     const params = event.parameters;
 
     // Get growth parameters for source envelope
     const [theta_growth_dest] = get_growth_parameters(envelopes, params.to_key);
+
+    // updating events update amount
+    let theta = P({ a: params.amount });
+    for (const upd of event.updating_events || []) {
+        const upd_type = upd.type;
+        const upd_params = upd.parameters || {};
+        if (upd_type === "update_amount") {
+            // Get the current amount at start time
+            const current_amount = theta(upd_params.start_time).a;
+
+            // Apply step increases as a function that will be evaluated when theta is called
+            theta = gamma(theta, {
+                a: stepAdjust(
+                    current_amount,
+                    upd_params.amount,
+                    upd_params.frequency_days,
+                    upd_params.start_time,
+                    upd_params.end_time  // Pass end_time to stepAdjust
+                )
+            }, upd_params.start_time);
+        }
+    }
+
+    let total_inflow = 0.0;
+    let number_of_recurring_inflows = 0;
+    let final_recurring_inflow = 0; //the day of final recurring inflow
 
     //See if event is reoccuring or not
     const is_recurring = event.is_recurring;
@@ -323,23 +421,39 @@ export const inflow = (event: any, envelopes: Record<string, any>) => {
         const inflow_func = R(
             { t0: params.start_time, dt: params.frequency_days, tf: params.end_time },
             f_in,
-            P({ a: params.amount }),
+            theta,
             theta_growth_dest
         );
         // Add the purchase function to the specified envelope
         envelopes[params.to_key].functions.push(inflow_func);
+
+        number_of_recurring_inflows = Math.floor((params.end_time - params.start_time) / params.frequency_days) + 1;
+        total_inflow = (number_of_recurring_inflows) * params.amount;
+        // Calculate the last frequency day interval from the start time before or equal to the end time
+        final_recurring_inflow = params.start_time + number_of_recurring_inflows * params.frequency_days;
     } else {
         // Create a one-time inflow function for the purchase
         const inflow_func = T(
             { t_k: params.start_time },
             f_in,
-            P({ a: params.amount }),
+            theta,
             theta_growth_dest
         );
 
         // Add the purchase function to the specified envelope
         envelopes[params.to_key].functions.push(inflow_func);
+
+        number_of_recurring_inflows = 1;
+        final_recurring_inflow = params.start_time;
+        total_inflow = params.amount;
     }
+
+    // place in total number of recurring inflows, final recurring inflow, and total inflow
+    onUpdate([
+        { eventId: event.id, paramType: "number_of_recurring_inflows", value: number_of_recurring_inflows },
+        { eventId: event.id, paramType: "final_recurring_inflow", value: final_recurring_inflow },
+        { eventId: event.id, paramType: "total_inflow", value: total_inflow }
+    ]);
 }
 
 export const manual_correction = (event: any, envelopes: Record<string, any>) => {
@@ -430,13 +544,51 @@ export const declare_accounts = (event: any, envelopes: Record<string, any>) => 
     }
 };
 
-export const transfer_money = (event: any, envelopes: Record<string, any>) => {
+export const transfer_money = (event: any, envelopes: Record<string, any>, onUpdate: (updates: Array<{ eventId: number, paramType: string, value: number }>) => void) => {
     const params = event.parameters;
 
     // Get growth parameters for both envelopes
     const [theta_growth_source, theta_growth_dest] = get_growth_parameters(
         envelopes, params.from_key, params.to_key
     );
+
+    let theta_inflow = P({ a: params.amount });
+    let theta_outflow = P({ b: params.amount });
+
+    for (const upd of event.updating_events || []) {
+        const upd_type = upd.type;
+        const upd_params = upd.parameters || {};
+        if (upd_type === "update_amount") {
+            // For inflow
+            // For inflow - apply step increases that will be evaluated when theta is called
+            const current_amount_in = theta_inflow(upd_params.start_time).a;
+            theta_inflow = gamma(theta_inflow, {
+                a: stepAdjust(
+                    current_amount_in,
+                    upd_params.amount,
+                    upd_params.frequency_days,
+                    upd_params.start_time,
+                    upd_params.end_time
+                )
+            }, upd_params.start_time);
+
+            // For outflow - apply step increases that will be evaluated when theta is called
+            const current_amount_out = theta_outflow(upd_params.start_time).b;
+            theta_outflow = gamma(theta_outflow, {
+                b: stepAdjust(
+                    current_amount_out,
+                    upd_params.amount,
+                    upd_params.frequency_days,
+                    upd_params.start_time,
+                    upd_params.end_time
+                )
+            }, upd_params.start_time);
+        }
+    }
+
+    let total_transfer = 0.0;
+    let number_of_transfers = 0;
+    let final_transfer = 0; //the day of final transfer
 
     //See if event is recurring or not
     const is_recurring = event.is_recurring;
@@ -445,7 +597,7 @@ export const transfer_money = (event: any, envelopes: Record<string, any>) => {
         const outflow_func = R(
             { t0: params.start_time, dt: params.frequency_days, tf: params.end_time },
             f_out,
-            P({ b: params.amount }),
+            theta_outflow,
             theta_growth_source
         );
         envelopes[params.from_key].functions.push(outflow_func);
@@ -454,16 +606,20 @@ export const transfer_money = (event: any, envelopes: Record<string, any>) => {
         const inflow_func = R(
             { t0: params.start_time, dt: params.frequency_days, tf: params.end_time },
             f_in,
-            P({ a: params.amount }),
+            theta_inflow,
             theta_growth_dest
         );
         envelopes[params.to_key].functions.push(inflow_func);
+
+        number_of_transfers = Math.floor((params.end_time - params.start_time) / params.frequency_days) + 1;
+        total_transfer = (number_of_transfers) * params.amount;
+        final_transfer = params.start_time + number_of_transfers * params.frequency_days;
     } else {
         // Create one-time outflow function for source envelope
         const outflow_func = T(
             { t_k: params.start_time },
             f_out,
-            P({ b: params.amount }),
+            theta_outflow,
             theta_growth_source
         );
         envelopes[params.from_key].functions.push(outflow_func);
@@ -472,11 +628,21 @@ export const transfer_money = (event: any, envelopes: Record<string, any>) => {
         const inflow_func = T(
             { t_k: params.start_time },
             f_in,
-            P({ a: params.amount }),
+            theta_inflow,
             theta_growth_dest
         );
         envelopes[params.to_key].functions.push(inflow_func);
+
+        number_of_transfers = 1;
+        total_transfer = params.amount;
+        final_transfer = params.start_time;
     }
+
+    onUpdate([
+        { eventId: event.id, paramType: "number_of_transfers", value: number_of_transfers },
+        { eventId: event.id, paramType: "final_transfer", value: final_transfer },
+        { eventId: event.id, paramType: "total_transfer", value: total_transfer }
+    ]);
 };
 
 export const income_with_changing_parameters = (event: any, envelopes: Record<string, any>) => {

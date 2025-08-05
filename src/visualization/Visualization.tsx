@@ -11,7 +11,7 @@ import { curveLinear, curveStepAfter } from '@visx/curve';
 import { LinearGradient } from '@visx/gradient';
 import { TooltipWithBounds, defaultStyles } from '@visx/tooltip';
 import { runSimulation } from '../hooks/simulationRunner';
-import { usePlan, getEnvelopeCategory, getEnvelopeDisplayName, dateStringToDaysSinceBirth, daysSinceBirthToDateString } from '../contexts/PlanContext';
+import { usePlan, getEnvelopeCategory, getEnvelopeDisplayName, dateStringToDaysSinceBirth, daysSinceBirthToDateString, getEffectiveEventId } from '../contexts/PlanContext';
 import {
   ContextMenu,
   ContextMenuTrigger,
@@ -526,7 +526,13 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
               if (event) {
                 const param = event.parameters.find(p => p.type === update.paramType);
                 if (param) {
-                  if (param.type === 'end_time' || param.type === 'start_time') {
+                  // Look up parameter units from schema to determine if conversion is needed
+                  const eventSchema = schema.events.find(e => e.id === event.id || e.type === event.type);
+                  let paramSchema;
+                  if (eventSchema) {
+                    paramSchema = eventSchema.parameters.find(p => p.type === param.type);
+                  }
+                  if (paramSchema && paramSchema.parameter_units === 'date') {
                     param.value = daysSinceBirthToDateString(update.value, plan.birth_date);
                   } else {
                     param.value = update.value;
@@ -1644,7 +1650,82 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
                       />
                     );
                   })}
+
                 </g>
+
+                {/* Comparison between locked and current net worth - rendered on top */}
+                {closestPoint && lockedNetWorthData.length > 0 && (() => {
+                  // Find the corresponding locked net worth point
+                  const lockedPoint = lockedNetWorthData.find(d => d.date === closestPoint.date);
+                  if (!lockedPoint) return null;
+
+                  const currentX = xScale(closestPoint.date) * zoom.transformMatrix.scaleX + zoom.transformMatrix.translateX;
+                  const currentY = visibleYScale(closestPoint.value) * zoom.transformMatrix.scaleY + zoom.transformMatrix.translateY;
+                  const lockedX = xScale(lockedPoint.date) * zoom.transformMatrix.scaleX + zoom.transformMatrix.translateX;
+                  const lockedY = visibleYScale(lockedPoint.value) * zoom.transformMatrix.scaleY + zoom.transformMatrix.translateY;
+
+                  const difference = closestPoint.value - lockedPoint.value;
+
+                  // Only show if difference is greater than 0.01 (1 cent)
+                  if (Math.abs(difference) <= 0.01) return null;
+
+                  const formattedDiff = new Intl.NumberFormat('en-US', {
+                    style: 'currency',
+                    currency: 'USD',
+                    minimumFractionDigits: 0,
+                    maximumFractionDigits: 0
+                  }).format(Math.abs(difference));
+
+                  return (
+                    <g style={{ pointerEvents: 'none' }}>
+                      {/* Circle on locked net worth line */}
+                      <circle
+                        cx={lockedX}
+                        cy={lockedY}
+                        r={basePointRadius}
+                        fill="#d1d5db"
+                        stroke="#fff"
+                        strokeWidth={baseLineWidth}
+                      />
+
+                      {/* Connecting line */}
+                      {/* <line
+                        x1={currentX}
+                        y1={currentY}
+                        x2={lockedX}
+                        y2={lockedY}
+                        stroke="#335966"
+                        strokeWidth={1}
+                        strokeDasharray="4,4"
+                      /> */}
+
+                      {/* Difference label */}
+                      {/* <g transform={`translate(${(currentX + lockedX) / 2}, ${(currentY + lockedY) / 2 - 10})`}>
+                        <rect
+                          x={-40}
+                          y={-12}
+                          width={80}
+                          height={20}
+                          rx={4}
+                          fill="white"
+                          stroke={difference >= 0 ? "#4CAF50" : "#F44336"}
+                          strokeWidth={1}
+                          opacity={0.95}
+                          filter="drop-shadow(0px 1px 2px rgba(0,0,0,0.1))"
+                        />
+                        <text
+                          textAnchor="middle"
+                          dominantBaseline="middle"
+                          fill={difference >= 0 ? "#4CAF50" : "#F44336"}
+                          fontSize={11}
+                          fontWeight="600"
+                        >
+                          {difference >= 0 ? '+' : '-'}{formattedDiff}
+                        </text>
+                      </g> */}
+                    </g>
+                  );
+                })()}
 
                 {/* Timeline Annotations (outside zoom transform) */}
                 {(() => {
@@ -1704,7 +1785,13 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
                       const y = isDraggingMain
                         ? cursorPos!.y - draggingAnnotation!.offsetY - DRAG_Y_OFFSET
                         : canvasY - DRAG_Y_OFFSET - yOffset;
-                      const isHighlighted = hoveredEventId === event.id;
+                      // For updating events, use the parent's ID for highlighting
+                      // Get the effective ID (parent's ID for updating events, own ID for main events)
+                      const effectiveEventId = getEffectiveEventId(plan!, event.id);
+                      // Also get effective ID for the hovered event
+                      const effectiveHoveredId = hoveredEventId ? getEffectiveEventId(plan!, hoveredEventId) : null;
+
+                      const isHighlighted = effectiveHoveredId === effectiveEventId;
                       return (
                         <foreignObject
                           key={`annotation-${displayId}`}
@@ -1882,6 +1969,8 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
                   categoryColors={categoryColors}
                   nonNetworthEnvelopes={DEBUG ? Object.keys(netWorthData[0].nonNetworthParts || {}) : undefined}
                   nonNetworthCurrentValues={DEBUG ? (closestPoint ? closestPoint.nonNetworthParts : netWorthData[netWorthData.length - 1].nonNetworthParts) : undefined}
+                  lockedNetWorthValue={closestPoint && lockedNetWorthData.length > 0 ?
+                    lockedNetWorthData.find(d => d.date === closestPoint.date)?.value : undefined}
                 />
               )}
 

@@ -74,7 +74,7 @@ export async function runSimulation(
             visibleRange: visibleRange // Add visible range to simulation settings
         };
 
-        const parsedEvents = parseEvents(plan);
+        const parsedEvents = parseEvents(plan); 
 
         const envelopes = initializeEnvelopes(plan, simulation_settings);
         //console.log('Initialized envelopes:', envelopes);
@@ -101,8 +101,12 @@ export async function runSimulation(
             }
 
             switch (event.type) {
-                case 'inflow': inflow(event, envelopes); break;
-                case 'outflow': outflow(event, envelopes); break;
+                case 'inflow': inflow(event, envelopes, (updates) => {
+                    planUpdates.push(...updates);
+                }); break;
+                case 'outflow': outflow(event, envelopes, (updates) => {
+                    planUpdates.push(...updates);
+                }); break;
                 case 'purchase': purchase(event, envelopes); break;
                 case 'gift': gift(event, envelopes); break;
                 case 'get_job': get_job(event, envelopes); break;
@@ -125,7 +129,9 @@ export async function runSimulation(
                 case 'high_yield_savings_account': high_yield_savings_account(event, envelopes); break;
                 case 'pay_taxes': pay_taxes(event, envelopes); break;
                 case 'buy_groceries': buy_groceries(event, envelopes); break;
-                case 'transfer_money': transfer_money(event, envelopes); break;
+                case 'transfer_money': transfer_money(event, envelopes, (updates) => {
+                    planUpdates.push(...updates);
+                }); break;
                 case 'income_with_changing_parameters': income_with_changing_parameters(event, envelopes); break;
                 case 'reoccuring_spending_inflation_adjusted': reoccuring_spending_inflation_adjusted(event, envelopes); break;
                 case 'pass_away': pass_away(event, envelopes); break;

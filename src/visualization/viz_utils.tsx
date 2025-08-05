@@ -228,7 +228,8 @@ export const Legend = ({
     getCategory,
     categoryColors,
     nonNetworthEnvelopes,
-    nonNetworthCurrentValues
+    nonNetworthCurrentValues,
+    lockedNetWorthValue
 }: {
     envelopes: string[];
     envelopeColors: Record<string, { area: string; line: string }>;
@@ -237,6 +238,7 @@ export const Legend = ({
     categoryColors: Record<string, { area: string; line: string }>;
     nonNetworthEnvelopes?: string[];
     nonNetworthCurrentValues?: { [key: string]: number };
+    lockedNetWorthValue?: number;
 }) => {
     // Group envelopes by category
     const categoryMap: Record<string, string[]> = {};
@@ -284,9 +286,21 @@ export const Legend = ({
                         Net Worth
                     </span>
                 </div>
-                <span className="text-xs text-gray-800" style={{ fontWeight: 700 }}>
-                    {formatNumber({ valueOf: () => netWorth })}
-                </span>
+                <div className="flex flex-col items-end">
+                    <span className="text-xs text-gray-800" style={{ fontWeight: 700 }}>
+                        {formatNumber({ valueOf: () => netWorth })}
+                    </span>
+                    {lockedNetWorthValue !== undefined && Math.abs(netWorth - lockedNetWorthValue) > 0.01 && (
+                        <span className="text-xs" style={{
+                            color: netWorth >= lockedNetWorthValue ? '#4CAF50' : '#F44336',
+                            fontWeight: 500,
+                            fontSize: '0.7rem'
+                        }}>
+                            {netWorth >= lockedNetWorthValue ? '+' : ''}
+                            {formatNumber({ valueOf: () => netWorth - lockedNetWorthValue })}
+                        </span>
+                    )}
+                </div>
             </div>
             <div className="space-y-3">
                 {Object.entries(categoryMap).map(([category, envs]) => {

@@ -551,6 +551,7 @@ export default function Index() {
           setEventParametersOpen(true);
         }}
         onOpenEnvelopeModal={handleOpenEnvelopeEditModal}
+        onAddEnvelope={handleAddEnvelope}
       />
       <EditEnvelopeModal
         isOpen={addEnvelopeModalOpen}

@@ -210,10 +210,34 @@
         "hours",
         "years",
         "number_per_year",
+        "quantity",
         "percentage",
         "enum"
     ],
     "events": [
+        {
+            "type": "life_event",
+            "display_type": "Life Event",
+            "display_event": true,
+            "is_recurring": false,
+            "can_be_reocurring": false,
+            "weight": 100,
+            "category": "System",
+            "description": "A life event placed onto the graph.",
+            "default_title": "Life Event",
+            "icon": "life-event",
+            "disclaimer": "This event is used to place a life event onto the graph. It does not simulate any financial events.",
+            "parameters": [
+                {
+                    "type": "start_time",
+                    "display_name": "Date",
+                    "parameter_units": "date",
+                    "description": "When the life event occurs",
+                    "default": 0,
+                    "editable": true
+                }
+            ]
+        },
         {
             "type": "inflow",
             "display_type": "Inflow",
@@ -265,6 +289,75 @@
                     "description": "Envelope where the money is deposited",
                     "default": "Other (Cash)",
                     "editable": true
+                },
+                {
+                    "type": "final_recurring_inflow",
+                    "display_name": "Final Recurring Inflow",
+                    "parameter_units": "date",
+                    "description": "When the final recurring inflow occurs",
+                    "default": 3650,
+                    "editable": false
+                },
+                {
+                    "type": "number_of_recurring_inflows",
+                    "display_name": "Number of Recurring Inflows",
+                    "parameter_units": "quantity",
+                    "description": "Number of times the recurring inflow occurs",
+                    "default": 12,
+                    "editable": false
+                },
+                {
+                    "type": "total_inflow",
+                    "display_name": "Total Inflow",
+                    "parameter_units": "usd",
+                    "description": "Total amount of money received",
+                    "default": 0,
+                    "editable": false
+                }
+            ],
+            "updating_events": [
+                {
+                    "type": "update_amount",
+                    "display_type": "Update Amount",
+                    "display_event": true,
+                    "is_recurring": false,
+                    "can_be_reocurring": true,
+                    "icon": "arrow-up",
+                    "description": "Update the amount of the recurring income.",
+                    "parameters": [
+                        {
+                            "type": "start_time",
+                            "display_name": "Start Date",
+                            "parameter_units": "date",
+                            "description": "When the recurring income begins",
+                            "default": 0,
+                            "editable": true
+                        },
+                        {
+                            "type": "end_time",
+                            "display_name": "End Date",
+                            "parameter_units": "date",
+                            "description": "When the recurring update ends (only used if recurring)",
+                            "default": 3650,
+                            "editable": true
+                        },
+                        {
+                            "type": "frequency_days",
+                            "display_name": "Frequency (Days)",
+                            "parameter_units": "days",
+                            "description": "Number of days between each update (only used if recurring)",
+                            "default": 365,
+                            "editable": true
+                        },
+                        {
+                            "type": "amount",
+                            "display_name": "Amount",
+                            "parameter_units": "usd",
+                            "description": "Amount received each interval.",
+                            "default": 30,
+                            "editable": true
+                        }
+                    ]
                 }
             ]
         },
@@ -319,6 +412,75 @@
                     "description": "Envelope from which the money is withdrawn",
                     "default": "Other (Cash)",
                     "editable": true
+                },
+                {
+                    "type": "final_recurring_outflow",
+                    "display_name": "Final Recurring Outflow",
+                    "parameter_units": "date",
+                    "description": "When the final recurring outflow occurs",
+                    "default": 3650,
+                    "editable": false
+                },
+                {
+                    "type": "number_of_recurring_outflows",
+                    "display_name": "Number of Recurring Outflows",
+                    "parameter_units": "quantity",
+                    "description": "Number of times the recurring outflow occurs",
+                    "default": 12,
+                    "editable": false
+                },
+                {
+                    "type": "total_outflow",
+                    "display_name": "Total Outflow",
+                    "parameter_units": "usd",
+                    "description": "Total amount of money spent",
+                    "default": 0,
+                    "editable": false
+                }
+            ],
+            "updating_events": [
+                {
+                    "type": "update_amount",
+                    "display_type": "Update Amount",
+                    "display_event": true,
+                    "is_recurring": false,
+                    "can_be_reocurring": true,
+                    "icon": "arrow-down",
+                    "description": "Update the amount of the recurring outflow.",
+                    "parameters": [
+                        {
+                            "type": "start_time",
+                            "display_name": "Start Date",
+                            "parameter_units": "date",
+                            "description": "When the recurring outflow begins",
+                            "default": 0,
+                            "editable": true
+                        },
+                        {
+                            "type": "end_time",
+                            "display_name": "End Date",
+                            "parameter_units": "date",
+                            "description": "When the recurring update ends (only used if recurring)",
+                            "default": 3650,
+                            "editable": true
+                        },
+                        {
+                            "type": "frequency_days",
+                            "display_name": "Frequency (Days)",
+                            "parameter_units": "days",
+                            "description": "Number of days between each update (only used if recurring)",
+                            "default": 365,
+                            "editable": true
+                        },
+                        {
+                            "type": "amount",
+                            "display_name": "Amount",
+                            "parameter_units": "usd",
+                            "description": "Amount spent each interval.",
+                            "default": 30,
+                            "editable": true
+                        }
+                    ]
                 }
             ]
         },
@@ -485,6 +647,75 @@
                     "description": "Destination envelope for the transfer",
                     "default": "Other (Investments)",
                     "editable": true
+                },
+                {
+                    "type": "final_transfer",
+                    "display_name": "Final Transfer",
+                    "parameter_units": "date",
+                    "description": "When the final transfer occurs",
+                    "default": 3650,
+                    "editable": false
+                },
+                {
+                    "type": "number_of_transfers",
+                    "display_name": "Number of Transfers",
+                    "parameter_units": "quantity",
+                    "description": "Number of times the transfer occurs",
+                    "default": 12,
+                    "editable": false
+                },
+                {
+                    "type": "total_transfer",
+                    "display_name": "Total Transfer",
+                    "parameter_units": "usd",
+                    "description": "Total amount of money transferred",
+                    "default": 0,
+                    "editable": false
+                }
+            ],
+            "updating_events": [
+                {
+                    "type": "update_amount",
+                    "display_type": "Update Amount",
+                    "display_event": true,
+                    "is_recurring": false,
+                    "can_be_reocurring": true,
+                    "icon": "arrow-right-arrow-left",
+                    "description": "Update the amount of the recurring outflow.",
+                    "parameters": [
+                        {
+                            "type": "start_time",
+                            "display_name": "Start Date",
+                            "parameter_units": "date",
+                            "description": "When the transaction amount changes",
+                            "default": 0,
+                            "editable": true
+                        },
+                        {
+                            "type": "end_time",
+                            "display_name": "End Date",
+                            "parameter_units": "date",
+                            "description": "When the recurring update ends (only used if recurring)",
+                            "default": 3650,
+                            "editable": true
+                        },
+                        {
+                            "type": "frequency_days",
+                            "display_name": "Frequency (Days)",
+                            "parameter_units": "days",
+                            "description": "Number of days between each update (only used if recurring)",
+                            "default": 365,
+                            "editable": true
+                        },
+                        {
+                            "type": "amount",
+                            "display_name": "Amount",
+                            "parameter_units": "usd",
+                            "description": "Amount transfered.",    
+                            "default": 30,
+                            "editable": true
+                        }
+                    ]
                 }
             ]
         },
@@ -2620,6 +2851,22 @@
                     "parameter_units": "date",
                     "description": "When the investment is made",
                     "default": 0,
+                    "editable": true
+                },
+                {
+                    "type": "end_time",
+                    "display_name": "End Date",
+                    "parameter_units": "date",
+                    "description": "When the investment ends",
+                    "default": 3650,
+                    "editable": true
+                },
+                {
+                    "type": "frequency_days",
+                    "display_name": "Investment Frequency",
+                    "parameter_units": "days",
+                    "description": "Number of days between each investment.",
+                    "default": 30,
                     "editable": true
                 },
                 {
