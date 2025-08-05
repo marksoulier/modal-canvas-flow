@@ -19,7 +19,7 @@ import {
   ContextMenuItem
 } from '../components/ui/context-menu';
 import { Button } from '../components/ui/button';
-import { Trash2 } from 'lucide-react';
+import { Trash2, Edit3 } from 'lucide-react';
 import {
   formatNumber,
   formatDate,
@@ -717,6 +717,28 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
     );
   }, [plan, schema, allEnvelopeKeys, categoryMap]);
 
+  // Canvas context menu state
+  const [canvasContextMenu, setCanvasContextMenu] = useState<{
+    visible: boolean;
+    x: number;
+    y: number;
+  } | null>(null);
+
+  // Track if mouse was dragged during left click
+  const [leftClickStartPos, setLeftClickStartPos] = useState<{ x: number; y: number } | null>(null);
+  const [hasDraggedFromLeftClick, setHasDraggedFromLeftClick] = useState(false);
+
+  // Auto-close context menu after 3 seconds
+  useEffect(() => {
+    if (canvasContextMenu) {
+      const timer = setTimeout(() => {
+        setCanvasContextMenu(null);
+      }, 3000);
+
+      return () => clearTimeout(timer);
+    }
+  }, [canvasContextMenu]);
+
   return (
     <div className="relative w-full h-full visualization-container">
       <Zoom
@@ -1229,7 +1251,7 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
                     handleZoomToWindow({ months: 1 });
                   }}
                 >
-                  1M
+                  1m
                 </button>
                 <button
                   style={{
@@ -1249,7 +1271,7 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
                     handleZoomToWindow({ months: 3 });
                   }}
                 >
-                  3M
+                  3m
                 </button>
                 <button
                   style={{
@@ -1311,6 +1333,26 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
                 >
                   10yr
                 </button>
+                <button
+                  style={{
+                    background: 'rgba(51, 89, 102, 0.06)',
+                    color: '#335966',
+                    border: '1px solid #e5e7eb',
+                    borderRadius: 6,
+                    padding: '4px 12px',
+                    fontSize: 13,
+                    fontWeight: 500,
+                    opacity: 0.85,
+                    transition: 'background 0.2s',
+                    cursor: 'pointer',
+                    boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
+                  }}
+                  onClick={() => {
+                    handleZoomToWindow({ years: 50 });
+                  }}
+                >
+                  50yr
+                </button>
               </div>
 
               <svg
@@ -1324,6 +1366,19 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
                 onMouseMove={(e) => {
                   const point = getSVGPoint(e);
                   setCursorPos(point);
+
+                  // Check if we're dragging from a left click
+                  if (leftClickStartPos && e.buttons === 1) {
+                    const distance = Math.sqrt(
+                      Math.pow(e.clientX - leftClickStartPos.x, 2) +
+                      Math.pow(e.clientY - leftClickStartPos.y, 2)
+                    );
+
+                    // If moved more than 5px, consider it dragging
+                    if (distance > 5) {
+                      setHasDraggedFromLeftClick(true);
+                    }
+                  }
 
                   if (draggingAnnotation) {
                     handleAnnotationDragMove(e);
@@ -1367,17 +1422,68 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
                   setHasDragged(false);
                 }}
                 onMouseDown={(e) => {
+                  // Open context menu on right click (button 2)
+                  if (e.button === 2) {
+                    e.preventDefault();
+                    const rect = svgRef.current?.getBoundingClientRect();
+                    if (rect) {
+                      setCanvasContextMenu({
+                        visible: true,
+                        x: e.clientX - rect.left,
+                        y: e.clientY - rect.top
+                      });
+                    }
+                    return; // Don't start dragging on right click
+                  }
+
+                  // Track left click start position
+                  if (e.button === 0) {
+                    setLeftClickStartPos({ x: e.clientX, y: e.clientY });
+                    setHasDraggedFromLeftClick(false);
+                  }
+
                   setIsDragging(true);
                   zoom.dragStart(e);
                   setLastMouse({ x: e.clientX, y: e.clientY });
-
+                }}
+                onClick={(e) => {
+                  // Close canvas context menu when clicking elsewhere
+                  if (canvasContextMenu) {
+                    setCanvasContextMenu(null);
+                  }
                 }}
                 onMouseUp={(e) => {
                   if (draggingAnnotation) {
                     handleAnnotationDragEnd(e);
                   }
+
+                  // Log closest point date on left click (only if not dragged)
+                  if (e.button === 0 && !hasDraggedFromLeftClick) {
+                    if (closestPoint) {
+                      console.log('Left click - Closest point date:', closestPoint.date);
+                      console.log('Left click - Closest point formatted date:', formatDate(closestPoint.date, birthDate, 'full', true, false));
+                    } else {
+                      console.log('Left click - No closest point available');
+                    }
+                  }
+
+                  // Reset left click tracking
+                  setLeftClickStartPos(null);
+                  setHasDraggedFromLeftClick(false);
+
                   setIsDragging(false);
                   zoom.dragEnd();
+                }}
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  const rect = svgRef.current?.getBoundingClientRect();
+                  if (rect) {
+                    setCanvasContextMenu({
+                      visible: true,
+                      x: e.clientX - rect.left,
+                      y: e.clientY - rect.top
+                    });
+                  }
                 }}
                 onWheel={(e) => {
                   const scaleFactor = e.deltaY > 0 ? 0.95 : 1.05;
@@ -1553,18 +1659,19 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
                     x2={width * 2}
                     y1={visibleYScale(0)}
                     y2={visibleYScale(0)}
-                    strokeWidth={1}
-                    stroke="#a0aec0" // subtle gray
-                    opacity={0.7}
+                    strokeWidth={2}
+                    stroke="#4a5568" // darker gray for better visibility
+                    opacity={0.8}
+                    strokeDasharray={`${8 / globalZoom},${4 / globalZoom}`}
                   />
 
-                  {/* Current day indicator line - more subtle and full height */}
+                  {/* Current day indicator line - more prominent and full height */}
                   <line
                     x1={xScale(currentDay)}
                     x2={xScale(currentDay)}
                     y1={0}
                     y2={height * 2}
-                    stroke="#a0aec0" // subtle gray
+                    stroke="#2d3748" // even darker gray for today's line
                     strokeWidth={1 / globalZoom}
                     opacity={0.9}
                   />
@@ -2023,7 +2130,7 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
                 </div>
               )}
 
-              {/* Bottom axis tooltip for current day indicator line (gray, more transparent) */}
+              {/* Bottom axis tooltip for current day indicator line (more prominent) */}
               {typeof currentDay === 'number' && (
                 <div
                   style={{
@@ -2032,14 +2139,14 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
                     bottom: 24, // just above the x axis
                     transform: 'translateX(-50%)',
                     background: 'rgba(255,255,255,0.85)',
-                    border: '1px solid #d1d5db',
+                    border: '1px solid #2d3748',
                     color: '#6b7280',
                     padding: '4px 10px',
                     borderRadius: '4px',
                     fontSize: '12px',
                     pointerEvents: 'none',
                     zIndex: 9,
-                    boxShadow: '0 2px 4px rgba(0,0,0,0.04)'
+                    boxShadow: '0 3px 6px rgba(0,0,0,0.1)'
                   }}
                 >
                   {formatDate(currentDay, birthDate, 'full', true, true)}
@@ -2113,6 +2220,59 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
                 >
                   <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 4 }}>{eventDescriptionTooltip.displayType}</div>
                   <div style={{ fontSize: 13 }}>{eventDescriptionTooltip.description}</div>
+                </div>
+              )}
+
+              {/* Canvas Context Menu */}
+              {canvasContextMenu && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    left: canvasContextMenu.x,
+                    top: canvasContextMenu.y,
+                    background: 'white',
+                    border: '1px solid #e5e7eb',
+                    borderRadius: '6px',
+                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+                    zIndex: 1000,
+                    minWidth: 160,
+                    padding: '4px',
+                    pointerEvents: 'none', // Don't interfere with mouse tracking
+                  }}
+                  onMouseLeave={() => setCanvasContextMenu(null)}
+                >
+
+                  <button
+                    onClick={() => {
+                      // TODO: Edit envelope functionality
+                      console.log('Edit Envelope clicked');
+                      setCanvasContextMenu(null);
+                    }}
+                    style={{
+                      width: '100%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      padding: '8px 12px',
+                      border: 'none',
+                      background: 'transparent',
+                      cursor: 'pointer',
+                      fontSize: '14px',
+                      color: '#374151',
+                      borderRadius: '4px',
+                      transition: 'background-color 0.2s',
+                      pointerEvents: 'auto', // Allow clicks on the button
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = '#f3f4f6';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = 'transparent';
+                    }}
+                  >
+                    <Edit3 size={16} />
+                    Edit Envelope
+                  </button>
                 </div>
               )}
             </>

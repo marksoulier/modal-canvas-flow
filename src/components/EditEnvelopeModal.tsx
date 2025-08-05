@@ -32,6 +32,12 @@ const EditEnvelopeModal: React.FC<EditEnvelopeModalProps> = ({ isOpen, onClose, 
 
   const { schema } = usePlan();
 
+  // Check if this is a non-editable envelope (Other envelope or non-regular account_type)
+  const isNonEditableEnvelope = envelope && (
+    envelope.account_type !== 'regular' ||
+    envelope.name.startsWith('Other (')
+  );
+
   React.useEffect(() => {
     setName(envelope?.name || '');
     setCategory(envelope?.category || '');
@@ -117,29 +123,41 @@ const EditEnvelopeModal: React.FC<EditEnvelopeModalProps> = ({ isOpen, onClose, 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="name">Name</Label>
-            <Input
-              id="name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Enter envelope name"
-              required
-            />
+            {isNonEditableEnvelope ? (
+              <div className="w-full p-2 bg-gray-50 border border-gray-200 rounded-md text-sm">
+                {envelope.name} <span className="ml-2 text-xs text-gray-500">(Read-only)</span>
+              </div>
+            ) : (
+              <Input
+                id="name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Enter envelope name"
+                required
+              />
+            )}
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="category">Category</Label>
-            <Select value={category} onValueChange={setCategory} required>
-              <SelectTrigger>
-                <SelectValue placeholder="Select category" />
-              </SelectTrigger>
-              <SelectContent>
-                {schema?.categories.map((cat: string) => (
-                  <SelectItem key={cat} value={cat}>
-                    {cat}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            {isNonEditableEnvelope ? (
+              <div className="w-full p-2 bg-gray-50 border border-gray-200 rounded-md text-sm">
+                {envelope.category} <span className="ml-2 text-xs text-gray-500">(Read-only)</span>
+              </div>
+            ) : (
+              <Select value={category} onValueChange={setCategory} required>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select category" />
+                </SelectTrigger>
+                <SelectContent>
+                  {schema?.categories.map((cat: string) => (
+                    <SelectItem key={cat} value={cat}>
+                      {cat}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
           </div>
 
           <div className="space-y-2">
