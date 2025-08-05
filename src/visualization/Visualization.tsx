@@ -148,6 +148,8 @@ interface VisualizationProps {
   onAnnotationClick?: (eventId: number) => void;
   onAnnotationDelete?: (eventId: number) => void;
   onNegativeAccountWarning?: (warnings: Array<{ envelopeName: string; category: string; minValue: number; date: number; warningType: 'negative' | 'positive' }>) => void;
+  onChartClick?: (dayOffset: number) => void;
+  onEditEnvelope?: (envelopeName: string) => void;
 }
 
 // Custom tick renderer for AxisBottom to style age in light gray
@@ -258,7 +260,7 @@ const detectAccountWarnings = (netWorthData: Datum[], plan: Plan | null): Array<
 };
 
 
-export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativeAccountWarning }: VisualizationProps) {
+export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativeAccountWarning, onChartClick, onEditEnvelope }: VisualizationProps) {
   // Ref to store the setZoomToDateRange function for context access
   const setZoomToDateRangeRef = useRef<((startDay: number, endDay: number) => void) | null>(null);
 
@@ -278,6 +280,7 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
   const [timeInterval, setTimeInterval] = useState<TimeInterval>('year');
   const [birthDate, setBirthDate] = useState<Date>(new Date(2000, 0, 1)); // Default to Jan 1, 2000
   const [hoveredEventId, setHoveredEventId] = useState<number | null>(null);
+  const [hoveredArea, setHoveredArea] = useState<{ envelope: string; category: string } | null>(null);
   const [lastMouse, setLastMouse] = useState<{ x: number, y: number } | null>(null);
   const [dragStartPos, setDragStartPos] = useState<{ x: number; y: number } | null>(null);
   // Track if the last simulation was triggered by an interval change
@@ -527,7 +530,7 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
                 const param = event.parameters.find(p => p.type === update.paramType);
                 if (param) {
                   // Look up parameter units from schema to determine if conversion is needed
-                  const eventSchema = schema.events.find(e => e.id === event.id || e.type === event.type);
+                  const eventSchema = schema.events.find(e => e.type === event.type);
                   let paramSchema;
                   if (eventSchema) {
                     paramSchema = eventSchema.parameters.find(p => p.type === param.type);
@@ -727,6 +730,7 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
   // Track if mouse was dragged during left click
   const [leftClickStartPos, setLeftClickStartPos] = useState<{ x: number; y: number } | null>(null);
   const [hasDraggedFromLeftClick, setHasDraggedFromLeftClick] = useState(false);
+  const [isClickingAnnotation, setIsClickingAnnotation] = useState(false);
 
   // Auto-close context menu after 3 seconds
   useEffect(() => {
@@ -1457,14 +1461,9 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
                     handleAnnotationDragEnd(e);
                   }
 
-                  // Log closest point date on left click (only if not dragged)
-                  if (e.button === 0 && !hasDraggedFromLeftClick) {
-                    if (closestPoint) {
-                      console.log('Left click - Closest point date:', closestPoint.date);
-                      console.log('Left click - Closest point formatted date:', formatDate(closestPoint.date, birthDate, 'full', true, false));
-                    } else {
-                      console.log('Left click - No closest point available');
-                    }
+                  // Only handle chart clicks if we're not clicking an annotation and haven't dragged
+                  if (e.button === 0 && !isClickingAnnotation && !hasDraggedFromLeftClick && closestPoint && onChartClick) {
+                    onChartClick(closestPoint.date);
                   }
 
                   // Reset left click tracking
@@ -1570,7 +1569,6 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
                     const category = getEnvelopeCategory(plan, partKey) || 'Uncategorized';
                     const color = categoryColors[category] || { area: '#ccc', line: '#888' };
                     const isDebt = category === 'Debt';
-
                     return (
                       <g key={`area-group-${partKey}`}>
                         <AreaClosed
@@ -1581,11 +1579,12 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
                           yScale={visibleYScale}
                           stroke="none"
                           fill={color.area}
-                          fillOpacity={0.8 * animationProgress}
+                          fillOpacity={hoveredArea?.envelope === partKey ? 1 : 0.8 * animationProgress}
                           curve={curveLinear}
                           style={{
                             clipPath: `polygon(0 0, ${animationProgress * 100}% 0, ${animationProgress * 100}% 100%, 0 100%)`
                           }}
+                          onMouseMove={() => setHoveredArea({ envelope: partKey, category: getEnvelopeCategory(plan, partKey) || 'Uncategorized' })}
                         />
                       </g>
                     );
@@ -1776,13 +1775,6 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
                   // Only show if difference is greater than 0.01 (1 cent)
                   if (Math.abs(difference) <= 0.01) return null;
 
-                  const formattedDiff = new Intl.NumberFormat('en-US', {
-                    style: 'currency',
-                    currency: 'USD',
-                    minimumFractionDigits: 0,
-                    maximumFractionDigits: 0
-                  }).format(Math.abs(difference));
-
                   return (
                     <g style={{ pointerEvents: 'none' }}>
                       {/* Circle on locked net worth line */}
@@ -1930,19 +1922,27 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
                           <ContextMenu>
                             <ContextMenuTrigger asChild>
                               <div>
-                                <TimelineAnnotation
-                                  icon={getEventIcon(event.type)}
-                                  label={event.description}
-                                  highlighted={isHighlighted}
-                                  isRecurring={event.is_recurring}
-                                  isEnding={isEndingEvent}
-                                  onClick={() => {
+                                <div
+                                  onMouseDown={(e) => {
+                                    setIsClickingAnnotation(true);
+                                  }}
+                                  onMouseUp={(e) => {
                                     if (!hasDragged) {
                                       onAnnotationClick?.(event.id);
                                     }
                                     setHasDragged(false);
+                                    // Reset isClickingAnnotation after a short delay
+                                    setTimeout(() => setIsClickingAnnotation(false), 100);
                                   }}
-                                />
+                                >
+                                  <TimelineAnnotation
+                                    icon={getEventIcon(event.type)}
+                                    label={event.description}
+                                    highlighted={isHighlighted}
+                                    isRecurring={event.is_recurring}
+                                    isEnding={isEndingEvent}
+                                  />
+                                </div>
                               </div>
                             </ContextMenuTrigger>
                             <ContextMenuContent>
@@ -2078,6 +2078,7 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
                   nonNetworthCurrentValues={DEBUG ? (closestPoint ? closestPoint.nonNetworthParts : netWorthData[netWorthData.length - 1].nonNetworthParts) : undefined}
                   lockedNetWorthValue={closestPoint && lockedNetWorthData.length > 0 ?
                     lockedNetWorthData.find(d => d.date === closestPoint.date)?.value : undefined}
+                  hoveredArea={hoveredArea}
                 />
               )}
 
@@ -2241,11 +2242,11 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
                   }}
                   onMouseLeave={() => setCanvasContextMenu(null)}
                 >
-
                   <button
                     onClick={() => {
-                      // TODO: Edit envelope functionality
-                      console.log('Edit Envelope clicked');
+                      if (hoveredArea?.envelope && onEditEnvelope) {
+                        onEditEnvelope(hoveredArea.envelope);
+                      }
                       setCanvasContextMenu(null);
                     }}
                     style={{

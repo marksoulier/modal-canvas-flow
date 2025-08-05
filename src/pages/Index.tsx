@@ -78,6 +78,7 @@ export default function Index() {
   // Add state for exit viewing mode dialog
   const [exitViewingModalOpen, setExitViewingModalOpen] = useState(false);
   const [isExiting, setIsExiting] = useState(false);
+  const [selectedDayOffset, setSelectedDayOffset] = useState<number | undefined>();
 
   // Function to handle exiting viewing mode
   const handleExitViewingMode = () => {
@@ -312,8 +313,16 @@ export default function Index() {
   };
 
   // Modify the event library open handler
-  const handleEventLibraryOpen = () => {
-    checkViewingMode(() => setEventLibraryOpen(true));
+  const handleEventLibraryOpen = (dayOffset?: number) => {
+    checkViewingMode(() => {
+      setSelectedDayOffset(dayOffset);
+      setEventLibraryOpen(true);
+    });
+  };
+
+  // Handler for visualization click
+  const handleVisualizationClick = (dayOffset: number) => {
+    handleEventLibraryOpen(dayOffset);
   };
 
   // Modify the menu open handler
@@ -344,6 +353,8 @@ export default function Index() {
         <Visualization
           onAnnotationClick={handleAnnotationClick}
           onNegativeAccountWarning={handleNegativeAccountWarning}
+          onChartClick={handleVisualizationClick}
+          onEditEnvelope={handleOpenEnvelopeEditModal}
         />
       </div>
 
@@ -509,11 +520,15 @@ export default function Index() {
       />
       <EventLibraryModal
         isOpen={eventLibraryOpen}
-        onClose={() => setEventLibraryOpen(false)}
+        onClose={() => {
+          setEventLibraryOpen(false);
+          setSelectedDayOffset(undefined);
+        }}
         onEventAdded={(eventId) => {
           setEditingEventId(eventId);
           setEventParametersOpen(true);
         }}
+        selectedDayOffset={selectedDayOffset}
       />
       <AuthModal
         isOpen={authModalOpen}

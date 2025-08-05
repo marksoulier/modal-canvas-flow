@@ -14,13 +14,14 @@ interface EventLibraryModalProps {
   isOpen: boolean;
   onClose: () => void;
   onEventAdded: (eventId: number) => void;
+  selectedDayOffset?: number; // Optional day offset from birth date
 }
 
-const EventLibraryModal: React.FC<EventLibraryModalProps> = ({ isOpen, onClose, onEventAdded }) => {
+const EventLibraryModal: React.FC<EventLibraryModalProps> = ({ isOpen, onClose, onEventAdded, selectedDayOffset }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [selectedEvent, setSelectedEvent] = useState<string | null>(null);
-  const { schema, addEvent, getEventDisplayType, getEventDisclaimer, getParameterDisplayName } = usePlan();
+  const { schema, addEvent, getEventDisplayType, getEventDisclaimer, getParameterDisplayName, daysSinceBirthToDateString, plan } = usePlan();
 
   const categories = schema ? ['All', ...new Set(schema.events.map(event => event.category))] : [];
 
@@ -41,8 +42,12 @@ const EventLibraryModal: React.FC<EventLibraryModalProps> = ({ isOpen, onClose, 
   }) : [];
 
   const handleAddEvent = () => {
-    if (selectedEvent) {
-      const eventId = addEvent(selectedEvent);
+    if (selectedEvent && plan) {
+      // If we have a selectedDayOffset, convert it to a date string and pass it as a parameter override for start_time
+      const parameterOverrides = selectedDayOffset !== undefined ? {
+        start_time: daysSinceBirthToDateString(selectedDayOffset, plan.birth_date)
+      } : undefined;
+      const eventId = addEvent(selectedEvent, parameterOverrides);
       onEventAdded(eventId);
       onClose();
     }

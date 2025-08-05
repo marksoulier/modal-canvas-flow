@@ -306,7 +306,7 @@ export const f_get_job = (theta: Record<string, any>, t: number): number => {
     return R({ t0: theta.time_start, dt: 365.25 / theta.p, tf: theta.time_end }, f_salary, P(theta), { type: "None", r: 0.0 })(t);
 };
 
-export const outflow = (event: any, envelopes: Record<string, any>, onUpdate: (updates: Array<{ eventId: number, paramType: string, value: number }>) => void) => {
+export const outflow = (event: any, envelopes: Record<string, any>, onUpdate: (updates: Array<{ eventId: number, paramType: string, value: number }>) => void, event_functions?: Array<{ title: string; enabled: boolean }>) => {
     const params = event.parameters;
 
     // Get growth parameters for source envelope
@@ -555,6 +555,17 @@ export const transfer_money = (event: any, envelopes: Record<string, any>, onUpd
     let theta_inflow = P({ a: params.amount });
     let theta_outflow = P({ b: params.amount });
 
+    // Check event functions to determine which parts to apply
+    const event_functions = event.event_functions || [];
+    const inflowFunction = event_functions.find((f: { title: string; enabled: boolean }) => f.title === "Inflow");
+    const outflowFunction = event_functions.find((f: { title: string; enabled: boolean }) => f.title === "Outflow");
+    const inflowEnabled = inflowFunction ? inflowFunction.enabled : true;
+    const outflowEnabled = outflowFunction ? outflowFunction.enabled : true;
+
+    console.log(`Transfer money event ${event.id}: Inflow enabled: ${inflowEnabled}, Outflow enabled: ${outflowEnabled}`);
+    console.log('Event functions:', event_functions);
+    console.log('Event object:', event);
+
     for (const upd of event.updating_events || []) {
         const upd_type = upd.type;
         const upd_params = upd.parameters || {};
@@ -593,45 +604,53 @@ export const transfer_money = (event: any, envelopes: Record<string, any>, onUpd
     //See if event is recurring or not
     const is_recurring = event.is_recurring;
     if (is_recurring) {
-        // Create recurring outflow function for source envelope
-        const outflow_func = R(
-            { t0: params.start_time, dt: params.frequency_days, tf: params.end_time },
-            f_out,
-            theta_outflow,
-            theta_growth_source
-        );
-        envelopes[params.from_key].functions.push(outflow_func);
+        // Create recurring outflow function for source envelope (only if enabled)
+        if (outflowEnabled) {
+            const outflow_func = R(
+                { t0: params.start_time, dt: params.frequency_days, tf: params.end_time },
+                f_out,
+                theta_outflow,
+                theta_growth_source
+            );
+            envelopes[params.from_key].functions.push(outflow_func);
+        }
 
-        // Create recurring inflow function for destination envelope
-        const inflow_func = R(
-            { t0: params.start_time, dt: params.frequency_days, tf: params.end_time },
-            f_in,
-            theta_inflow,
-            theta_growth_dest
-        );
-        envelopes[params.to_key].functions.push(inflow_func);
+        // Create recurring inflow function for destination envelope (only if enabled)
+        if (inflowEnabled) {
+            const inflow_func = R(
+                { t0: params.start_time, dt: params.frequency_days, tf: params.end_time },
+                f_in,
+                theta_inflow,
+                theta_growth_dest
+            );
+            envelopes[params.to_key].functions.push(inflow_func);
+        }
 
         number_of_transfers = Math.floor((params.end_time - params.start_time) / params.frequency_days) + 1;
         total_transfer = (number_of_transfers) * params.amount;
         final_transfer = params.start_time + number_of_transfers * params.frequency_days;
     } else {
-        // Create one-time outflow function for source envelope
-        const outflow_func = T(
-            { t_k: params.start_time },
-            f_out,
-            theta_outflow,
-            theta_growth_source
-        );
-        envelopes[params.from_key].functions.push(outflow_func);
+        // Create one-time outflow function for source envelope (only if enabled)
+        if (outflowEnabled) {
+            const outflow_func = T(
+                { t_k: params.start_time },
+                f_out,
+                theta_outflow,
+                theta_growth_source
+            );
+            envelopes[params.from_key].functions.push(outflow_func);
+        }
 
-        // Create one-time inflow function for destination envelope
-        const inflow_func = T(
-            { t_k: params.start_time },
-            f_in,
-            theta_inflow,
-            theta_growth_dest
-        );
-        envelopes[params.to_key].functions.push(inflow_func);
+        // Create one-time inflow function for destination envelope (only if enabled)
+        if (inflowEnabled) {
+            const inflow_func = T(
+                { t_k: params.start_time },
+                f_in,
+                theta_inflow,
+                theta_growth_dest
+            );
+            envelopes[params.to_key].functions.push(inflow_func);
+        }
 
         number_of_transfers = 1;
         total_transfer = params.amount;

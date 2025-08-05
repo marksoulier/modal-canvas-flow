@@ -49,7 +49,7 @@ const EventParametersForm: React.FC<EventParametersFormProps> = ({
     onOpenEnvelopeModal,
     onAddEnvelope
 }) => {
-    const { plan, schema, getEventIcon, updateParameter, deleteEvent, getParameterDisplayName, getParameterUnits, getEventDisplayType, addUpdatingEvent, getParameterDescription, updateEventDescription, updateEventTitle, canEventBeRecurring, updateEventRecurring, getParameterOptions, currentDay, getEnvelopeDisplayName } = usePlan();
+    const { plan, schema, getEventIcon, updateParameter, deleteEvent, getParameterDisplayName, getParameterUnits, getEventDisplayType, addUpdatingEvent, getParameterDescription, updateEventDescription, updateEventTitle, canEventBeRecurring, updateEventRecurring, getParameterOptions, currentDay, getEnvelopeDisplayName, getEventFunctionsParts, updateEventFunctionParts, getEventFunctionPartsState, getEventFunctionPartsIcon, getEventFunctionPartsDescription } = usePlan();
     // State for local parameter editing (now supports main and updating events)
     const [parameters, setParameters] = useState<Record<number, Record<number, { type: string; value: string | number }>>>({});
     const [loading, setLoading] = useState(false);
@@ -1078,6 +1078,61 @@ const EventParametersForm: React.FC<EventParametersFormProps> = ({
                         )}
                     </div>
 
+                    {/* Event Functions Section */}
+                    {currentEvent && (() => {
+                        const eventType = (currentEvent as any).type;
+                        const eventFunctions = getEventFunctionsParts(eventType);
+
+                        if (eventFunctions && eventFunctions.length > 0) {
+                            return (
+                                <div className="space-y-4">
+                                    <h3 className="text-sm font-medium text-gray-700 border-b border-gray-200 pb-2">
+                                        Event Functions
+                                    </h3>
+                                    <div className="space-y-3">
+                                        {eventFunctions.map((func) => {
+                                            const isEnabled = getEventFunctionPartsState(eventId, func.title);
+                                            const iconComponent = getEventFunctionPartsIcon(eventType, func.title);
+
+                                            return (
+                                                <div key={func.title} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="flex items-center gap-2">
+                                                            {iconComponent}
+                                                            <div>
+                                                                <div className="text-sm font-medium text-gray-900">
+                                                                    {func.title}
+                                                                </div>
+                                                                <div className="text-xs text-gray-500">
+                                                                    {getEventFunctionPartsDescription(eventType, func.title)}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                        <label className="flex items-center gap-2 text-sm cursor-pointer">
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={isEnabled}
+                                                                onChange={(e) => updateEventFunctionParts(eventId, func.title, e.target.checked)}
+                                                                className="form-checkbox h-4 w-4 text-blue-500 border-gray-300 rounded"
+                                                                style={{ accentColor: '#3b82f6' }}
+                                                            />
+                                                            <span className="text-sm text-gray-700">
+                                                                {isEnabled ? 'Enabled' : 'Disabled'}
+                                                            </span>
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            );
+                        }
+                        return null;
+                    })()}
+
                     {/* Description Input */}
                     <div className="space-y-2">
                         <Label htmlFor="event-description" className="text-sm font-medium text-gray-700">
@@ -1230,6 +1285,62 @@ const EventParametersForm: React.FC<EventParametersFormProps> = ({
                                                             {renderInput(param, ue)}
                                                         </div>
                                                     ))}
+
+                                                    {/* Event Functions Section for Updating Event */}
+                                                    {(() => {
+                                                        const eventType = ue.type;
+                                                        const eventFunctions = getEventFunctionsParts(eventType);
+
+                                                        if (eventFunctions && eventFunctions.length > 0) {
+                                                            return (
+                                                                <div className="space-y-3">
+                                                                    <h4 className="text-sm font-medium text-gray-700 border-b border-gray-200 pb-2">
+                                                                        Event Functions
+                                                                    </h4>
+                                                                    <div className="space-y-2">
+                                                                        {eventFunctions.map((func) => {
+                                                                            const isEnabled = getEventFunctionPartsState(ue.id, func.title);
+                                                                            const iconComponent = getEventFunctionPartsIcon(eventType, func.title);
+
+                                                                            return (
+                                                                                <div key={func.title} className="flex items-center justify-between p-2 bg-gray-50 rounded border border-gray-200">
+                                                                                    <div className="flex items-center gap-2">
+                                                                                        <div className="flex items-center gap-2">
+                                                                                            {iconComponent}
+                                                                                            <div>
+                                                                                                <div className="text-xs font-medium text-gray-900">
+                                                                                                    {func.title}
+                                                                                                </div>
+                                                                                                <div className="text-xs text-gray-500">
+                                                                                                    {getEventFunctionPartsDescription(eventType, func.title)}
+                                                                                                </div>
+                                                                                            </div>
+                                                                                        </div>
+                                                                                    </div>
+                                                                                    <div className="flex items-center gap-2">
+                                                                                        <label className="flex items-center gap-2 text-xs cursor-pointer">
+                                                                                            <input
+                                                                                                type="checkbox"
+                                                                                                checked={isEnabled}
+                                                                                                onChange={(e) => updateEventFunctionParts(ue.id, func.title, e.target.checked)}
+                                                                                                className="form-checkbox h-3 w-3 text-blue-500 border-gray-300 rounded"
+                                                                                                style={{ accentColor: '#3b82f6' }}
+                                                                                            />
+                                                                                            <span className="text-xs text-gray-700">
+                                                                                                {isEnabled ? 'Enabled' : 'Disabled'}
+                                                                                            </span>
+                                                                                        </label>
+                                                                                    </div>
+                                                                                </div>
+                                                                            );
+                                                                        })}
+                                                                    </div>
+                                                                </div>
+                                                            );
+                                                        }
+                                                        return null;
+                                                    })()}
+
                                                     {/* Updating Event Title and Description Edit Box */}
                                                     <div className="mt-4 space-y-3">
                                                         {/* Title Input */}

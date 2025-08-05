@@ -673,6 +673,20 @@
                     "editable": false
                 }
             ],
+            "event_functions_parts": [
+                {
+                    "title": "Inflow",
+                    "description": "Move money into the destination envelope",
+                    "icon": "arrow-up",
+                    "default_state": true
+                },
+                {
+                    "title": "Outflow",
+                    "description": "Take money from the source envelope",
+                    "icon": "arrow-down",
+                    "default_state": true
+                }
+            ],
             "updating_events": [
                 {
                     "type": "update_amount",
@@ -711,7 +725,7 @@
                             "type": "amount",
                             "display_name": "Amount",
                             "parameter_units": "usd",
-                            "description": "Amount transfered.",    
+                            "description": "Amount transfered.",
                             "default": 30,
                             "editable": true
                         }

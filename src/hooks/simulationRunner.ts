@@ -62,7 +62,6 @@ export async function runSimulation(
             console.error("❌ Validation issues found:");
             for (const issue of issues) console.error(issue);
             console.log('[runSimulation] Issues:', issues);
-            return [];
         }
 
         const simulation_settings = {
@@ -74,7 +73,7 @@ export async function runSimulation(
             visibleRange: visibleRange // Add visible range to simulation settings
         };
 
-        const parsedEvents = parseEvents(plan); 
+        const parsedEvents = parseEvents(plan);
 
         const envelopes = initializeEnvelopes(plan, simulation_settings);
         //console.log('Initialized envelopes:', envelopes);

@@ -159,6 +159,20 @@ export interface Parameter {
     value: number | string;
 }
 
+// New interface for event functions in schema
+export interface SchemaEventFunctionParts {
+    title: string;
+    description: string;
+    icon: string;
+    default_state: boolean;
+}
+
+// New interface for event functions in plan events
+export interface EventFunctionParts {
+    title: string;
+    enabled: boolean;
+}
+
 export interface UpdatingEvent {
     id: number;
     type: string;
@@ -166,6 +180,7 @@ export interface UpdatingEvent {
     description: string;
     is_recurring: boolean;
     parameters: Parameter[];
+    event_functions?: EventFunctionParts[]; // New field for event functions
 }
 
 export interface Event {
@@ -176,6 +191,7 @@ export interface Event {
     is_recurring: boolean;
     parameters: Parameter[];
     updating_events?: UpdatingEvent[];
+    event_functions?: EventFunctionParts[]; // New field for event functions
 }
 
 export interface Envelope {
@@ -219,6 +235,7 @@ export interface SchemaUpdatingEvent {
     display_event?: boolean;
     is_recurring?: boolean; // defualt to what reoccuring nature should start as when added to the plan.
     can_be_reocurring?: boolean; // Schema parameter seeing if this event can be reoccuring or not
+    event_functions_parts?: SchemaEventFunctionParts[]; // New field for event functions
 }
 
 export interface SchemaEvent {
@@ -235,6 +252,7 @@ export interface SchemaEvent {
     display_event?: boolean;
     is_recurring?: boolean;
     can_be_reocurring?: boolean; // Added this property
+    event_functions_parts?: SchemaEventFunctionParts[]; // New field for event functions
 }
 
 export interface Schema {
@@ -293,6 +311,16 @@ interface PlanContextType {
     registerTriggerSimulation: (fn: () => void) => void; // <-- add this new method
     updatePlanDirectly: (planData: Plan) => void; // <-- add this new method for direct plan updates without viewing window reset
     isExampleViewing: boolean; // Add this new property
+    daysSinceBirthToDateString: (days: number, birthDate: string) => string; // Add this for date conversion
+    undo: () => void; // <-- add this
+    redo: () => void; // <-- add this
+    addToStack: (planData: Plan) => void; // <-- add this
+    // Event functions methods
+    getEventFunctionsParts: (eventType: string) => SchemaEventFunctionParts[];
+    getEventFunctionPartsIcon: (eventType: string, functionTitle: string) => React.ReactNode;
+    getEventFunctionPartsDescription: (eventType: string, functionTitle: string) => string;
+    updateEventFunctionParts: (eventId: number, functionTitle: string, enabled: boolean) => void;
+    getEventFunctionPartsState: (eventId: number, functionTitle: string) => boolean;
 }
 
 // Schema and default data are now imported directly
@@ -343,6 +371,11 @@ export function PlanProvider({ children }: PlanProviderProps) {
     const [shouldTriggerSimulation, setShouldTriggerSimulation] = useState(false);
     const [isExampleViewing, setIsExampleViewing] = useState(false); // Add this new state
 
+    // Add undo history management
+    const [history, setHistory] = useState<Plan[]>([]);
+    const [historyIndex, setHistoryIndex] = useState(-1);
+    const MAX_HISTORY_SIZE = 50; // Limit history to prevent memory issues
+
     // Ref to store the setZoomToDateRange function from Visualization
     const setZoomToDateRangeRef = useRef<((startDay: number, endDay: number) => void) | null>(null);
 
@@ -353,6 +386,60 @@ export function PlanProvider({ children }: PlanProviderProps) {
     const triggerSimulationRef = useRef<(() => void) | null>(null);
 
     const { upsertAnonymousPlan, fetchDefaultPlans } = useAuth();
+
+    // Add to history stack function
+    const addToStack = useCallback((planData: Plan) => {
+        setHistory(prevHistory => {
+            // Remove any history after current index (if we're not at the end)
+            const newHistory = prevHistory.slice(0, historyIndex + 1);
+
+            // Add the new plan to history
+            const updatedHistory = [...newHistory, planData];
+
+            // Limit history size
+            if (updatedHistory.length > MAX_HISTORY_SIZE) {
+                return updatedHistory.slice(-MAX_HISTORY_SIZE);
+            }
+
+            return updatedHistory;
+        });
+
+        // Update history index to point to the new entry
+        setHistoryIndex(prevIndex => {
+            const newIndex = Math.min(prevIndex + 1, MAX_HISTORY_SIZE - 1);
+            return newIndex;
+        });
+    }, [historyIndex]);
+
+    // Undo function
+    const undo = useCallback(() => {
+        if (historyIndex > 0) {
+            const newIndex = historyIndex - 1;
+            const previousPlan = history[newIndex];
+
+            if (previousPlan) {
+                setPlan(previousPlan);
+                setHistoryIndex(newIndex);
+                setShouldTriggerSimulation(true);
+                console.log('Undo: Restored plan from history');
+            }
+        }
+    }, [history, historyIndex]);
+
+    // Redo function (bonus feature)
+    const redo = useCallback(() => {
+        if (historyIndex < history.length - 1) {
+            const newIndex = historyIndex + 1;
+            const nextPlan = history[newIndex];
+
+            if (nextPlan) {
+                setPlan(nextPlan);
+                setHistoryIndex(newIndex);
+                setShouldTriggerSimulation(true);
+                console.log('Redo: Restored plan from history');
+            }
+        }
+    }, [history, historyIndex]);
 
     // Helper function to set visualization date range
     const setVisualizationDateRange = useCallback((planData: Plan) => {
@@ -396,6 +483,8 @@ export function PlanProvider({ children }: PlanProviderProps) {
         setIsVisualizationReady(false);
         setShouldTriggerSimulation(true);
         setPlan(planData);
+        // Add to history stack when loading a new plan
+        addToStack(planData);
         if (lockedPlanData) {
             setPlanLocked(lockedPlanData);
         } else {
@@ -404,7 +493,7 @@ export function PlanProvider({ children }: PlanProviderProps) {
         console.log("planData.view_start_date: ", planData.view_start_date);
         console.log("planData.view_end_date: ", planData.view_end_date);
         setVisualizationDateRange(planData);
-    }, [setVisualizationDateRange]);
+    }, [setVisualizationDateRange, addToStack]);
 
     // Load schema on mount
     useEffect(() => {
@@ -690,12 +779,17 @@ export function PlanProvider({ children }: PlanProviderProps) {
                 return event;
             });
 
-            return { ...prevPlan, events: updatedEvents };
+            const updatedPlan = { ...prevPlan, events: updatedEvents };
+
+            // Add to history stack after updating
+            addToStack(updatedPlan);
+
+            return updatedPlan;
         });
 
         // Set flag to trigger simulation after parameter update
         setShouldTriggerSimulation(true);
-    }, [plan]);
+    }, [plan, addToStack]);
 
     const deleteEvent = useCallback((eventId: number) => {
         if (!plan) {
@@ -711,7 +805,12 @@ export function PlanProvider({ children }: PlanProviderProps) {
                 // Remove the main event
                 const updatedEvents = [...prevPlan.events];
                 updatedEvents.splice(mainEventIndex, 1);
-                return { ...prevPlan, events: updatedEvents };
+                const updatedPlan = { ...prevPlan, events: updatedEvents };
+
+                // Add to history stack after deleting
+                addToStack(updatedPlan);
+
+                return updatedPlan;
             }
 
             // If not a main event, check updating_events
@@ -725,12 +824,17 @@ export function PlanProvider({ children }: PlanProviderProps) {
                 return event;
             });
 
-            return { ...prevPlan, events: updatedEvents };
+            const updatedPlan = { ...prevPlan, events: updatedEvents };
+
+            // Add to history stack after deleting
+            addToStack(updatedPlan);
+
+            return updatedPlan;
         });
 
         // Set flag to trigger simulation after state update
         setShouldTriggerSimulation(true);
-    }, [plan]);
+    }, [plan, addToStack]);
 
     const addEvent = useCallback((
         eventType: string,
@@ -796,6 +900,12 @@ export function PlanProvider({ children }: PlanProviderProps) {
             };
         });
 
+        // Create event functions from schema if they exist
+        const eventFunctions = eventSchema.event_functions_parts?.map(func => ({
+            title: func.title,
+            enabled: func.default_state
+        })) || [];
+
         // Create the new event
         const newEvent: Event = {
             id: newId,
@@ -804,23 +914,29 @@ export function PlanProvider({ children }: PlanProviderProps) {
             description: eventSchema.description,
             is_recurring: eventSchema.is_recurring || false,
             parameters: parameters,
-            updating_events: []
+            updating_events: [],
+            event_functions: eventFunctions
         };
 
         setPlan(prevPlan => {
             if (!prevPlan) return null;
-            return {
+            const updatedPlan = {
                 ...prevPlan,
                 events: [...prevPlan.events, newEvent],
                 envelopes: newEnvelopes
             };
+
+            // Add to history stack after adding event
+            addToStack(updatedPlan);
+
+            return updatedPlan;
         });
 
         // Set flag to trigger simulation after state update
         setShouldTriggerSimulation(true);
 
         return newId;
-    }, [plan, schema]);
+    }, [plan, schema, addToStack]);
 
     const addUpdatingEvent = useCallback((mainEventId: number, updatingEventType: string) => {
         if (!plan || !schema) {
@@ -872,6 +988,12 @@ export function PlanProvider({ children }: PlanProviderProps) {
             }
         });
 
+        // Create event functions from schema if they exist
+        const updatingEventFunctions = updatingEventSchema.event_functions_parts?.map(func => ({
+            title: func.title,
+            enabled: func.default_state
+        })) || [];
+
         // Create the new updating event
         const newUpdatingEvent: UpdatingEvent = {
             id: newId,
@@ -879,12 +1001,13 @@ export function PlanProvider({ children }: PlanProviderProps) {
             title: updatingEventSchema.default_title || '', // Use default title from schema or blank string
             description: updatingEventSchema.description,
             is_recurring: updatingEventSchema.is_recurring || false,
-            parameters: parameters
+            parameters: parameters,
+            event_functions: updatingEventFunctions
         };
 
         setPlan(prevPlan => {
             if (!prevPlan) return null;
-            return {
+            const updatedPlan = {
                 ...prevPlan,
                 events: prevPlan.events.map(event => {
                     if (event.id === mainEventId) {
@@ -896,10 +1019,15 @@ export function PlanProvider({ children }: PlanProviderProps) {
                     return event;
                 })
             };
+
+            // Add to history stack after adding updating event
+            addToStack(updatedPlan);
+
+            return updatedPlan;
         });
 
         return newId;
-    }, [plan, schema]);
+    }, [plan, schema, addToStack]);
 
     const getEventIcon = useCallback((eventType: string) => {
         if (!schema) return null;
@@ -1022,9 +1150,14 @@ export function PlanProvider({ children }: PlanProviderProps) {
                 }
                 return event;
             });
-            return { ...prevPlan, events: updatedEvents };
+            const updatedPlan = { ...prevPlan, events: updatedEvents };
+
+            // Add to history stack after updating description
+            addToStack(updatedPlan);
+
+            return updatedPlan;
         });
-    }, [plan]);
+    }, [plan, addToStack]);
 
     const updateEventTitle = useCallback((eventId: number, newTitle: string) => {
         if (!plan) {
@@ -1049,9 +1182,14 @@ export function PlanProvider({ children }: PlanProviderProps) {
                 }
                 return event;
             });
-            return { ...prevPlan, events: updatedEvents };
+            const updatedPlan = { ...prevPlan, events: updatedEvents };
+
+            // Add to history stack after updating title
+            addToStack(updatedPlan);
+
+            return updatedPlan;
         });
-    }, [plan]);
+    }, [plan, addToStack]);
 
     const updatePlanTitle = useCallback((newTitle: string) => {
         if (!plan) {
@@ -1059,9 +1197,14 @@ export function PlanProvider({ children }: PlanProviderProps) {
         }
         setPlan(prevPlan => {
             if (!prevPlan) return null;
-            return { ...prevPlan, title: newTitle };
+            const updatedPlan = { ...prevPlan, title: newTitle };
+
+            // Add to history stack after updating plan title
+            addToStack(updatedPlan);
+
+            return updatedPlan;
         });
-    }, [plan]);
+    }, [plan, addToStack]);
 
     const updateBirthDate = useCallback((birthDateString: string) => {
         if (!plan) {
@@ -1080,10 +1223,15 @@ export function PlanProvider({ children }: PlanProviderProps) {
         }
         setPlan(prevPlan => {
             if (!prevPlan) return null;
-            return { ...prevPlan, adjust_for_inflation: value };
+            const updatedPlan = { ...prevPlan, adjust_for_inflation: value };
+
+            // Add to history stack after updating inflation setting
+            addToStack(updatedPlan);
+
+            return updatedPlan;
         });
         setShouldTriggerSimulation(true);
-    }, [plan]);
+    }, [plan, addToStack]);
 
     // Calculate currentDay from plan.birth_date and today
     let currentDay = 0;
@@ -1204,12 +1352,17 @@ export function PlanProvider({ children }: PlanProviderProps) {
                 return event;
             });
 
-            return { ...prevPlan, events: updatedEvents };
+            const updatedPlan = { ...prevPlan, events: updatedEvents };
+
+            // Add to history stack after updating recurring status
+            addToStack(updatedPlan);
+
+            return updatedPlan;
         });
 
         // Set flag to trigger simulation after recurring status update
         setShouldTriggerSimulation(true);
-    }, [plan]);
+    }, [plan, addToStack]);
 
     // Check if plan has events of a specific type
     const hasEventType = useCallback((eventType: string): boolean => {
@@ -1225,12 +1378,17 @@ export function PlanProvider({ children }: PlanProviderProps) {
 
         setPlan(prevPlan => {
             if (!prevPlan) return null;
-            return {
+            const updatedPlan = {
                 ...prevPlan,
                 events: prevPlan.events.filter(event => event.type !== eventType)
             };
+
+            // Add to history stack after deleting events by type
+            addToStack(updatedPlan);
+
+            return updatedPlan;
         });
-    }, [plan]);
+    }, [plan, addToStack]);
 
     const getEnvelopeDisplayName = useCallback((envelopeName: string): string => {
         const otherMatch = envelopeName.match(/^Other \((.+)\)$/);
@@ -1344,6 +1502,126 @@ export function PlanProvider({ children }: PlanProviderProps) {
         });
     }, [schema, plan]);
 
+    // Event functions methods
+    const getEventFunctionsParts = useCallback((eventType: string): SchemaEventFunctionParts[] => {
+        if (!schema) return [];
+        const eventSchema = schema.events.find(e => e.type === eventType);
+        return eventSchema?.event_functions_parts || [];
+    }, [schema]);
+
+    const getEventFunctionPartsIcon = useCallback((eventType: string, functionTitle: string): React.ReactNode => {
+        if (!schema) return null;
+        const eventSchema = schema.events.find(e => e.type === eventType);
+        const eventFunction = eventSchema?.event_functions_parts?.find(f => f.title === functionTitle);
+        if (!eventFunction) return null;
+
+        const lucideIconName = iconMap[eventFunction.icon] || 'Circle';
+        const IconComponent = (LucideIcons as any)[lucideIconName] || LucideIcons.Circle;
+        return <IconComponent size={20} />;
+    }, [schema]);
+
+    const getEventFunctionPartsDescription = useCallback((eventType: string, functionTitle: string): string => {
+        if (!schema) return '';
+        const eventSchema = schema.events.find(e => e.type === eventType);
+        const eventFunction = eventSchema?.event_functions_parts?.find(f => f.title === functionTitle);
+        return eventFunction?.description || '';
+    }, [schema]);
+
+    const updateEventFunctionParts = useCallback((eventId: number, functionTitle: string, enabled: boolean) => {
+        if (!plan) {
+            throw new Error('No plan data available');
+        }
+
+        setPlan(prevPlan => {
+            if (!prevPlan) return null;
+
+            const updatedEvents = prevPlan.events.map(event => {
+                // Check if this is the main event we're looking for
+                if (event.id === eventId) {
+                    const updatedEventFunctions = event.event_functions?.map(func =>
+                        func.title === functionTitle ? { ...func, enabled } : func
+                    ) || [];
+
+                    // If no event functions exist yet, create them from schema
+                    if (updatedEventFunctions.length === 0 && schema) {
+                        const eventSchema = schema.events.find(e => e.type === event.type);
+                        if (eventSchema?.event_functions_parts) {
+                            updatedEventFunctions.push(...eventSchema.event_functions_parts.map(func => ({
+                                title: func.title,
+                                enabled: func.title === functionTitle ? enabled : func.default_state
+                            })));
+                        }
+                    }
+
+                    return { ...event, event_functions: updatedEventFunctions };
+                }
+
+                // Check updating_events if they exist
+                if (event.updating_events) {
+                    const updatedUpdatingEvents = event.updating_events.map(updatingEvent => {
+                        if (updatingEvent.id === eventId) {
+                            const updatedEventFunctions = updatingEvent.event_functions?.map(func =>
+                                func.title === functionTitle ? { ...func, enabled } : func
+                            ) || [];
+
+                            // If no event functions exist yet, create them from schema
+                            if (updatedEventFunctions.length === 0 && schema) {
+                                const mainEventSchema = schema.events.find(e => e.type === event.type);
+                                const updatingEventSchema = mainEventSchema?.updating_events?.find(ue => ue.type === updatingEvent.type);
+                                if (updatingEventSchema?.event_functions_parts) {
+                                    updatedEventFunctions.push(...updatingEventSchema.event_functions_parts.map(func => ({
+                                        title: func.title,
+                                        enabled: func.title === functionTitle ? enabled : func.default_state
+                                    })));
+                                }
+                            }
+
+                            return { ...updatingEvent, event_functions: updatedEventFunctions };
+                        }
+                        return updatingEvent;
+                    });
+                    return { ...event, updating_events: updatedUpdatingEvents };
+                }
+
+                return event;
+            });
+
+            const updatedPlan = { ...prevPlan, events: updatedEvents };
+
+            // Add to history stack after updating event function
+            addToStack(updatedPlan);
+
+            return updatedPlan;
+        });
+
+        // Set flag to trigger simulation after event function update
+        setShouldTriggerSimulation(true);
+    }, [plan, schema, addToStack]);
+
+    const getEventFunctionPartsState = useCallback((eventId: number, functionTitle: string): boolean => {
+        if (!plan) return false;
+
+        const { event } = findEventOrUpdatingEventById(plan, eventId);
+        if (!event) return false;
+
+        // Check if the event has event functions
+        if (event.event_functions) {
+            const eventFunction = event.event_functions.find(f => f.title === functionTitle);
+            if (eventFunction) {
+                return eventFunction.enabled;
+            }
+        }
+
+        // If no event functions found, check schema for default state
+        if (schema) {
+            const eventSchema = schema.events.find(e => e.type === event.type);
+            const eventFunction = eventSchema?.event_functions_parts?.find(f => f.title === functionTitle);
+            return eventFunction?.default_state || false;
+        }
+
+        return false;
+    }, [plan, schema]);
+
     const value = {
         plan,
         plan_locked, // <-- add to context value
@@ -1415,6 +1693,16 @@ export function PlanProvider({ children }: PlanProviderProps) {
             setPlan(planData);
         },
         isExampleViewing, // Add this to the context value
+        daysSinceBirthToDateString, // Add this for date conversion
+        undo, // <-- add to context value
+        redo, // <-- add to context value
+        addToStack, // <-- add to context value
+        // Event functions methods
+        getEventFunctionsParts,
+        getEventFunctionPartsIcon,
+        getEventFunctionPartsDescription,
+        updateEventFunctionParts,
+        getEventFunctionPartsState,
     };
 
     // Don't render children until we've attempted to load the default plan and schema

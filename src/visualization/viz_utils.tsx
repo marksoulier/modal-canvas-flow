@@ -229,7 +229,8 @@ export const Legend = ({
     categoryColors,
     nonNetworthEnvelopes,
     nonNetworthCurrentValues,
-    lockedNetWorthValue
+    lockedNetWorthValue,
+    hoveredArea
 }: {
     envelopes: string[];
     envelopeColors: Record<string, { area: string; line: string }>;
@@ -239,6 +240,7 @@ export const Legend = ({
     nonNetworthEnvelopes?: string[];
     nonNetworthCurrentValues?: { [key: string]: number };
     lockedNetWorthValue?: number;
+    hoveredArea?: { envelope: string; category: string } | null;
 }) => {
     // Group envelopes by category
     const categoryMap: Record<string, string[]> = {};
@@ -310,12 +312,27 @@ export const Legend = ({
                     // - more than one envelope in category, or
                     // - the only envelope does NOT start with 'Other'
                     const showEnvelopes = envs.length > 1 || (envs.length === 1 && !/^other/i.test(envs[0]));
+                    const isCategoryHovered = hoveredArea?.category === category;
                     return (
-                        <div key={category} style={{ marginBottom: 12 }}>
+                        <div key={category} style={{
+                            marginBottom: 12,
+                            backgroundColor: isCategoryHovered ? 'rgba(51, 89, 102, 0.05)' : 'transparent',
+                            borderRadius: isCategoryHovered ? '6px' : '0px',
+                            padding: isCategoryHovered ? '8px' : '0px',
+                            border: isCategoryHovered ? '1px solid rgba(51, 89, 102, 0.2)' : 'none'
+                        }}>
                             <div className="flex items-center justify-between space-x-4" style={{ fontWeight: 600, color: '#222', fontSize: '1rem' }}>
                                 <div className="flex items-center space-x-2">
-                                    <div className="w-4 h-4 rounded" style={{ backgroundColor: catColor.area, border: `2px solid ${catColor.line}` }} />
-                                    <span className="text-sm" style={{ fontWeight: 500 }}>{category}</span>
+                                    <div className="w-4 h-4 rounded" style={{
+                                        backgroundColor: catColor.area,
+                                        border: `2px solid ${catColor.line}`,
+                                        transform: isCategoryHovered ? 'scale(1.1)' : 'scale(1)',
+                                        transition: 'transform 0.2s ease'
+                                    }} />
+                                    <span className="text-sm" style={{
+                                        fontWeight: isCategoryHovered ? 600 : 500,
+                                        color: isCategoryHovered ? '#335966' : '#222'
+                                    }}>{category}</span>
                                 </div>
                                 <span className="text-xs text-gray-500" style={{ fontWeight: 500 }}>{formatNumber({ valueOf: () => categorySum })}</span>
                             </div>
@@ -325,13 +342,30 @@ export const Legend = ({
                                         .filter(envelope => Number((currentValues[envelope] || 0).toFixed(2)) !== 0) // Filter out values that round to 0.00
                                         .map((envelope) => {
                                             const envColor = envelopeColors[envelope] || catColor;
+                                            const isHovered = hoveredArea?.envelope === envelope;
                                             return (
-                                                <div key={envelope} className="flex items-center justify-between space-x-4">
+                                                <div key={envelope} className="flex items-center justify-between space-x-4" style={{
+                                                    backgroundColor: isHovered ? 'rgba(51, 89, 102, 0.1)' : 'transparent',
+                                                    borderRadius: isHovered ? '4px' : '0px',
+                                                    padding: isHovered ? '4px' : '0px',
+                                                    border: isHovered ? '1px solid rgba(51, 89, 102, 0.3)' : 'none'
+                                                }}>
                                                     <div className="flex items-center space-x-2">
-                                                        <div className="w-3 h-3 rounded" style={{ backgroundColor: envColor.area, border: `2px solid ${envColor.line}` }} />
-                                                        <span className="text-xs" style={{ fontWeight: 500, color: '#444' }}>{envelope}</span>
+                                                        <div className="w-3 h-3 rounded" style={{
+                                                            backgroundColor: envColor.area,
+                                                            border: `2px solid ${envColor.line}`,
+                                                            transform: isHovered ? 'scale(1.2)' : 'scale(1)',
+                                                            transition: 'transform 0.2s ease'
+                                                        }} />
+                                                        <span className="text-xs" style={{
+                                                            fontWeight: isHovered ? 600 : 500,
+                                                            color: isHovered ? '#335966' : '#444'
+                                                        }}>{envelope}</span>
                                                     </div>
-                                                    <span className="text-xs text-gray-400">
+                                                    <span className="text-xs" style={{
+                                                        color: isHovered ? '#335966' : '#gray-400',
+                                                        fontWeight: isHovered ? 600 : 400
+                                                    }}>
                                                         {formatNumber({ valueOf: () => currentValues[envelope] || 0 })}
                                                     </span>
                                                 </div>
@@ -348,16 +382,30 @@ export const Legend = ({
                     const catColor = categoryColors[category] || { area: '#ff6b6b', line: '#ff4757' };
                     const categorySum = envs.reduce((sum, env) => sum + ((nonNetworthCurrentValues && nonNetworthCurrentValues[env]) || 0), 0);
                     const showEnvelopes = envs.length > 1 || (envs.length === 1 && !/^other/i.test(envs[0]));
+                    const isCategoryHovered = hoveredArea?.category === category;
                     return (
-                        <div key={`non-networth-${category}`} style={{ marginBottom: 12, opacity: 0.8 }}>
+                        <div key={`non-networth-${category}`} style={{
+                            marginBottom: 12,
+                            opacity: 0.8,
+                            backgroundColor: isCategoryHovered ? 'rgba(51, 89, 102, 0.05)' : 'transparent',
+                            borderRadius: isCategoryHovered ? '6px' : '0px',
+                            padding: isCategoryHovered ? '8px' : '0px',
+                            border: isCategoryHovered ? '1px solid rgba(51, 89, 102, 0.2)' : 'none'
+                        }}>
                             <div className="flex items-center justify-between space-x-4" style={{ fontWeight: 600, color: '#222', fontSize: '1rem' }}>
                                 <div className="flex items-center space-x-2">
                                     <div className="w-4 h-4 rounded" style={{
                                         backgroundColor: 'transparent',
                                         border: `2px dashed ${catColor.line}`,
-                                        borderRadius: '2px'
+                                        borderRadius: '2px',
+                                        transform: isCategoryHovered ? 'scale(1.1)' : 'scale(1)',
+                                        transition: 'transform 0.2s ease'
                                     }} />
-                                    <span className="text-sm" style={{ fontWeight: 500, fontStyle: 'italic' }}>{category} (Debug)</span>
+                                    <span className="text-sm" style={{
+                                        fontWeight: isCategoryHovered ? 600 : 500,
+                                        color: isCategoryHovered ? '#335966' : '#222',
+                                        fontStyle: 'italic'
+                                    }}>{category} (Debug)</span>
                                 </div>
                                 <span className="text-xs text-gray-500" style={{ fontWeight: 500 }}>{formatNumber({ valueOf: () => categorySum })}</span>
                             </div>
@@ -367,17 +415,32 @@ export const Legend = ({
                                         .filter(envelope => Number((nonNetworthCurrentValues[envelope] || 0).toFixed(2)) !== 0) // Filter out values that round to 0.00
                                         .map((envelope) => {
                                             const envColor = envelopeColors[envelope] || catColor;
+                                            const isHovered = hoveredArea?.envelope === envelope;
                                             return (
-                                                <div key={envelope} className="flex items-center justify-between space-x-4">
+                                                <div key={envelope} className="flex items-center justify-between space-x-4" style={{
+                                                    backgroundColor: isHovered ? 'rgba(51, 89, 102, 0.1)' : 'transparent',
+                                                    borderRadius: isHovered ? '4px' : '0px',
+                                                    padding: isHovered ? '4px' : '0px',
+                                                    border: isHovered ? '1px solid rgba(51, 89, 102, 0.3)' : 'none'
+                                                }}>
                                                     <div className="flex items-center space-x-2">
                                                         <div className="w-3 h-3 rounded" style={{
                                                             backgroundColor: 'transparent',
                                                             border: `2px dashed ${envColor.line}`,
-                                                            borderRadius: '2px'
+                                                            borderRadius: '2px',
+                                                            transform: isHovered ? 'scale(1.2)' : 'scale(1)',
+                                                            transition: 'transform 0.2s ease'
                                                         }} />
-                                                        <span className="text-xs" style={{ fontWeight: 500, color: '#444', fontStyle: 'italic' }}>{envelope}</span>
+                                                        <span className="text-xs" style={{
+                                                            fontWeight: isHovered ? 600 : 500,
+                                                            color: isHovered ? '#335966' : '#444',
+                                                            fontStyle: 'italic'
+                                                        }}>{envelope}</span>
                                                     </div>
-                                                    <span className="text-xs text-gray-400">
+                                                    <span className="text-xs" style={{
+                                                        color: isHovered ? '#335966' : '#gray-400',
+                                                        fontWeight: isHovered ? 600 : 400
+                                                    }}>
                                                         {formatNumber({ valueOf: () => nonNetworthCurrentValues[envelope] || 0 })}
                                                     </span>
                                                 </div>
