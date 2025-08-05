@@ -1585,30 +1585,23 @@ const EventParametersForm: React.FC<EventParametersFormProps> = ({
                                 </div>
                             )}
 
-                            {/* Quick Actions */}
+                            {/* Event Functions Toggle */}
                             <div className="bg-card rounded-lg border border-border p-4">
-                                <h4 className="text-sm font-semibold text-foreground mb-3">Quick Actions</h4>
-                                <div className="space-y-2">
-                                    <Button 
-                                        variant="outline" 
-                                        size="sm" 
-                                        className="w-full justify-start text-xs"
-                                        onClick={onClose}
-                                    >
-                                        Save Changes
-                                    </Button>
-                                    <Button 
-                                        variant="ghost" 
-                                        size="sm" 
-                                        className="w-full justify-start text-xs text-muted-foreground"
-                                        onClick={() => {
-                                            deleteEvent(eventId);
-                                            onClose();
-                                        }}
-                                    >
-                                        <Trash2 className="w-3 h-3 mr-2" />
-                                        Delete Event
-                                    </Button>
+                                <h4 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+                                    <FileText className="w-4 h-4 text-primary" />
+                                    Event Functions
+                                </h4>
+                                <div className="space-y-3">
+                                    {/* Toggle switches for event functions would go here */}
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-sm text-foreground">Enable Functions</span>
+                                        <Button variant="outline" size="sm" className="text-xs">
+                                            Toggle
+                                        </Button>
+                                    </div>
+                                    <p className="text-xs text-muted-foreground">
+                                        Event functions integration would be implemented here...
+                                    </p>
                                 </div>
                             </div>
                         </div>
