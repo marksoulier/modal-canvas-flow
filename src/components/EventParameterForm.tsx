@@ -1524,17 +1524,39 @@ const EventParametersForm: React.FC<EventParametersFormProps> = ({
                     {/* Right Panel - Display Information */}
                     <div className="w-80 border-l border-border pl-6 overflow-y-auto">
                         <div className="space-y-6 py-4">
-                            {/* Event Summary */}
+                            {/* Event Overview */}
                             <div className="bg-muted/30 rounded-lg p-4">
                                 <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
                                     <span className="text-lg">{eventIcon}</span>
                                     Event Overview
                                 </h3>
-                                <div className="space-y-2">
-                                    <p className="text-sm font-medium text-foreground">{title || eventName}</p>
-                                    {description && (
-                                        <p className="text-xs text-muted-foreground">{description}</p>
-                                    )}
+                                <div className="space-y-3">
+                                    <div>
+                                        <p className="text-sm font-medium text-foreground">{title || eventName}</p>
+                                        {description && (
+                                            <p className="text-xs text-muted-foreground mt-1">{description}</p>
+                                        )}
+                                    </div>
+                                    
+                                    {/* Event Type & Category */}
+                                    <div className="space-y-2">
+                                        <div>
+                                            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Event Type</span>
+                                            <p className="text-sm text-foreground">{eventDisplayType}</p>
+                                        </div>
+                                        {eventDef?.category && (
+                                            <div>
+                                                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Category</span>
+                                                <p className="text-sm text-foreground">{eventDef.category}</p>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* Recurring Status */}
+                                    <div>
+                                        <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Recurring</span>
+                                        <p className="text-sm text-foreground">{isRepeating ? 'Yes' : 'No'}</p>
+                                    </div>
                                 </div>
                             </div>
 
