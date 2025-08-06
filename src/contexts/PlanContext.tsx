@@ -236,6 +236,7 @@ export interface SchemaUpdatingEvent {
     is_recurring?: boolean; // defualt to what reoccuring nature should start as when added to the plan.
     can_be_reocurring?: boolean; // Schema parameter seeing if this event can be reoccuring or not
     event_functions_parts?: SchemaEventFunctionParts[]; // New field for event functions
+    onboarding_stage?: string; // New field for onboarding stage
 }
 
 export interface SchemaEvent {
@@ -253,6 +254,7 @@ export interface SchemaEvent {
     is_recurring?: boolean;
     can_be_reocurring?: boolean; // Added this property
     event_functions_parts?: SchemaEventFunctionParts[]; // New field for event functions
+    onboarding_stage?: string; // New field for onboarding stage
 }
 
 export interface Schema {
@@ -321,6 +323,8 @@ interface PlanContextType {
     getEventFunctionPartsDescription: (eventType: string, functionTitle: string) => string;
     updateEventFunctionParts: (eventId: number, functionTitle: string, enabled: boolean) => void;
     getEventFunctionPartsState: (eventId: number, functionTitle: string) => boolean;
+    // Onboarding stage methods
+    getEventOnboardingStage: (eventType: string) => string | undefined;
 }
 
 // Schema and default data are now imported directly
@@ -375,6 +379,9 @@ export function PlanProvider({ children }: PlanProviderProps) {
     const [history, setHistory] = useState<Plan[]>([]);
     const [historyIndex, setHistoryIndex] = useState(-1);
     const MAX_HISTORY_SIZE = 50; // Limit history to prevent memory issues
+
+    // Get auth context for onboarding state management
+    const { updateOnboardingState } = useAuth();
 
     // Ref to store the setZoomToDateRange function from Visualization
     const setZoomToDateRangeRef = useRef<((startDay: number, endDay: number) => void) | null>(null);
@@ -673,6 +680,14 @@ export function PlanProvider({ children }: PlanProviderProps) {
             console.warn('Failed to save locked plan to localStorage:', e);
         }
     }, [plan_locked]);
+
+    // Check for onboarding completion and set highest onboarding state
+    useEffect(() => {
+        const hasCompletedOnboarding = Boolean(localStorage.getItem('onboarding-completed'));
+        if (hasCompletedOnboarding) {
+            updateOnboardingState('full');
+        }
+    }, [updateOnboardingState]);
 
     // --- Perform a save when visualization becomes ready (to handle delayed saves) ---
     useEffect(() => {
@@ -1622,6 +1637,27 @@ export function PlanProvider({ children }: PlanProviderProps) {
         return false;
     }, [plan, schema]);
 
+    // Get onboarding stage for an event type
+    const getEventOnboardingStage = useCallback((eventType: string): string | undefined => {
+        if (!schema) return undefined;
+
+        // Try main events first
+        const eventSchema = schema.events.find(e => e.type === eventType);
+        if (eventSchema?.onboarding_stage) {
+            return eventSchema.onboarding_stage;
+        }
+
+        // If not found, try updating events
+        for (const evt of schema.events) {
+            const updating = evt.updating_events?.find(ue => ue.type === eventType);
+            if (updating?.onboarding_stage) {
+                return updating.onboarding_stage;
+            }
+        }
+
+        return undefined;
+    }, [schema]);
+
     const value = {
         plan,
         plan_locked, // <-- add to context value
@@ -1703,6 +1739,8 @@ export function PlanProvider({ children }: PlanProviderProps) {
         getEventFunctionPartsDescription,
         updateEventFunctionParts,
         getEventFunctionPartsState,
+        // Onboarding stage methods
+        getEventOnboardingStage,
     };
 
     // Don't render children until we've attempted to load the default plan and schema

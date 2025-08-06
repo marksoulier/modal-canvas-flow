@@ -3,6 +3,7 @@ import { Search, Calendar, Plus } from 'lucide-react';
 import { iconMap } from '../contexts/PlanContext';
 import * as LucideIcons from 'lucide-react';
 import { usePlan } from '../contexts/PlanContext';
+import { useAuth } from '../contexts/AuthContext';
 import {
   Dialog,
   DialogContent,
@@ -21,7 +22,8 @@ const EventLibraryModal: React.FC<EventLibraryModalProps> = ({ isOpen, onClose, 
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [selectedEvent, setSelectedEvent] = useState<string | null>(null);
-  const { schema, addEvent, getEventDisplayType, getEventDisclaimer, getParameterDisplayName, daysSinceBirthToDateString, plan } = usePlan();
+  const { schema, addEvent, getEventDisplayType, getEventDisclaimer, getParameterDisplayName, daysSinceBirthToDateString, plan, getEventOnboardingStage } = usePlan();
+  const { onboarding_state, getOnboardingStateNumber } = useAuth();
 
   const categories = schema ? ['All', ...new Set(schema.events.map(event => event.category))] : [];
 
@@ -33,6 +35,17 @@ const EventLibraryModal: React.FC<EventLibraryModalProps> = ({ isOpen, onClose, 
 
   const filteredEvents = schema ? schema.events.filter(event => {
     if (event.display_event !== true) return false;
+
+    // Check onboarding stage - only show events that are available at current onboarding stage
+    const eventOnboardingStage = getEventOnboardingStage(event.type);
+    if (eventOnboardingStage) {
+      const eventStageNumber = getOnboardingStateNumber(eventOnboardingStage as any);
+      const currentStageNumber = getOnboardingStateNumber(onboarding_state);
+      if (eventStageNumber > currentStageNumber) {
+        return false; // Event is not available at current onboarding stage
+      }
+    }
+
     const displayName = getEventDisplayType(event.type).toLowerCase();
     const matchesSearch = displayName.includes(searchTerm.toLowerCase()) ||
       event.type.toLowerCase().includes(searchTerm.toLowerCase()) ||

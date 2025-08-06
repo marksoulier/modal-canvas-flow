@@ -5,6 +5,32 @@ import { toast } from 'sonner';
 import type { Plan as PlanContextPlan } from './PlanContext';
 import type { TablesInsert } from '../integrations/supabase/types';
 
+// Onboarding state mapping
+const ONBOARDING_STATES = [
+    'user_info',
+    'basics',
+    'envelopes',
+    'updating_events',
+    'declare_accounts',
+    'assets',
+    'tax_system',
+    'full'
+] as const;
+
+export type OnboardingState = typeof ONBOARDING_STATES[number];
+
+// Utility functions for onboarding state conversion
+const getOnboardingStateNumber = (state: OnboardingState): number => {
+    return ONBOARDING_STATES.indexOf(state);
+};
+
+const getOnboardingStateFromNumber = (number: number): OnboardingState | null => {
+    if (number >= 0 && number < ONBOARDING_STATES.length) {
+        return ONBOARDING_STATES[number];
+    }
+    return null;
+};
+
 interface Plan {
     id: string;
     plan_name: string | null;
@@ -38,13 +64,14 @@ interface AuthContextType {
     userData: UserData | null;
     isLoading: boolean;
     isPremium: boolean;
+    onboarding_state: OnboardingState;
     signIn: (email: string, password: string) => Promise<any>;
     signUp: (email: string, password: string, profileData?: Partial<UserProfile>) => Promise<any>;
     signOut: () => Promise<void>;
     togglePremium: () => Promise<void>;
     refreshUserData: () => Promise<void>;
     savePlanToCloud: (plan: PlanContextPlan, planImage?: string) => Promise<{ success: boolean; requiresConfirmation?: boolean; existingPlanName?: string }>;
-    confirmOverwritePlan: (plan: PlanContextPlan, planName: string, planImage?: string) => Promise<boolean>;
+    confirmOverwritePlan: () => void;
     deletePlan: (planId: string) => Promise<boolean>;
     loadPlanById: (planId: string) => Promise<Plan | null>;
     upsertAnonymousOnboarding: (onboardingData: any) => Promise<boolean>;
@@ -52,6 +79,10 @@ interface AuthContextType {
     upsertAnonymousPlan: (planName: string, planData: any, planImage?: string) => Promise<boolean>;
     logAnonymousButtonClick: (buttonId: string) => Promise<boolean>;
     fetchDefaultPlans: () => Promise<{ plan_name: string | null; plan_data: any; plan_image: string | null }[]>;
+    getOnboardingStateNumber: (state: OnboardingState) => number;
+    getOnboardingStateFromNumber: (number: number) => OnboardingState | null;
+    updateOnboardingState: (newState: OnboardingState) => void;
+    advanceOnboardingStage: () => Promise<OnboardingState>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -79,6 +110,52 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [user, setUser] = useState<User | null>(null);
     const [userData, setUserData] = useState<UserData | null>(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [onboarding_state, setOnboardingState] = useState<OnboardingState>('user_info');
+
+
+    const advanceOnboardingStage = async () => {
+        const nextStage = getOnboardingStateNumber(onboarding_state) + 1;
+        const newState = getOnboardingStateFromNumber(nextStage);
+        await updateOnboardingState(newState as OnboardingState);
+        return newState;
+    };
+    // Update onboarding state function
+    const updateOnboardingState = async (newState: OnboardingState) => {
+        console.log('🔄 ONBOARDING STATE CHANGE:', {
+            from: onboarding_state,
+            to: newState,
+            timestamp: new Date().toISOString()
+        });
+        
+        setOnboardingState(newState);
+        
+        // Persist to database for anonymous users
+        try {
+            const anonId = getOrCreateAnonId();
+            console.log('💾 SAVING ONBOARDING STATE TO DB:', {
+                anonId,
+                onboarding_state: newState,
+                timestamp: new Date().toISOString()
+            });
+            
+            const { error } = await supabase
+                .from('anonymous_users')
+                .upsert({
+                    id: anonId,
+                    onboarding_data: { onboarding_state: newState },
+                }, {
+                    onConflict: 'id'
+                });
+            
+                        if (error) {
+                console.error('❌ Error persisting onboarding state:', error);
+            } else {
+                console.log('✅ ONBOARDING STATE SAVED SUCCESSFULLY:', newState);
+            }
+        } catch (error) {
+            console.error('❌ Error updating onboarding state:', error);
+        }
+    };
 
     // Fetch user data from database
     const fetchUserData = async (userId: string) => {
@@ -140,6 +217,45 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             console.error('Error fetching user data:', error);
         }
     };
+
+    // Load onboarding state on initialization
+    useEffect(() => {
+        const loadOnboardingState = async () => {
+            console.log('🚀 INITIALIZING ONBOARDING STATE FROM DB...');
+            try {
+                // This will create anon_key if it doesn't exist
+                const anonId = getOrCreateAnonId();
+                console.log('🆔 ANON ID:', anonId);
+                
+                const anonData = await fetchAnonymousOnboarding();
+                console.log('📥 FETCHED ANONYMOUS DATA:', anonData);
+                
+                if (anonData?.onboarding_data && typeof anonData.onboarding_data === 'object') {
+                    const onboardingData = anonData.onboarding_data as any;
+                    if (onboardingData.onboarding_state) {
+                        console.log('✅ ONBOARDING STATE LOADED FROM DB:', {
+                            loaded_state: onboardingData.onboarding_state,
+                            timestamp: new Date().toISOString()
+                        });
+                        setOnboardingState(onboardingData.onboarding_state);
+                    } else {
+                        console.log('⚠️ NO ONBOARDING STATE FOUND IN DB, INITIALIZING TO user_info');
+                        await updateOnboardingState('user_info');
+                    }
+                } else {
+                    console.log('🆕 NEW USER - NO ONBOARDING DATA FOUND, INITIALIZING TO user_info');
+                    await updateOnboardingState('user_info');
+                }
+            } catch (error) {
+                console.error('❌ Error loading onboarding state:', error);
+                // Fallback to default state on error
+                console.log('🔄 FALLBACK: Setting onboarding state to user_info');
+                setOnboardingState('user_info');
+            }
+        };
+        
+        loadOnboardingState();
+    }, []);
 
     // Initialize auth state
     useEffect(() => {
@@ -481,6 +597,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     // Upsert onboarding data for anonymous user
     const upsertAnonymousOnboarding = async (onboardingData: any) => {
+        console.log('💾 SAVING ONBOARDING DATA TO DB:', {
+            data: onboardingData,
+            timestamp: new Date().toISOString()
+        });
         const anonId = getOrCreateAnonId();
         //console.log("anonId", anonId);
 
@@ -549,10 +669,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 extra_data: extraData, // Store all extra data
             });
         if (error) {
-            console.error('Error upserting anonymous onboarding:', error);
+            console.error('❌ Error upserting anonymous onboarding:', error);
             toast.error('Failed to save onboarding progress.');
             return false;
         }
+        console.log('✅ ONBOARDING DATA SAVED SUCCESSFULLY TO DB');
         return true;
     };
 
@@ -647,6 +768,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         userData,
         isLoading,
         isPremium,
+        onboarding_state,
         signIn,
         signUp,
         signOut,
@@ -661,6 +783,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         upsertAnonymousPlan,
         logAnonymousButtonClick,
         fetchDefaultPlans,
+        getOnboardingStateNumber,
+        getOnboardingStateFromNumber,
+        updateOnboardingState,
+        advanceOnboardingStage,
     };
 
     return (

@@ -218,6 +218,7 @@
         {
             "type": "life_event",
             "display_type": "Life Event",
+            "onboarding_stage": "full",
             "display_event": true,
             "is_recurring": false,
             "can_be_reocurring": false,
@@ -241,6 +242,7 @@
         {
             "type": "inflow",
             "display_type": "Inflow",
+            "onboarding_stage": "basics",
             "display_event": true,
             "is_recurring": false,
             "can_be_reocurring": true,
@@ -319,6 +321,7 @@
                 {
                     "type": "update_amount",
                     "display_type": "Update Amount",
+                    "onboarding_stage": "full",
                     "display_event": true,
                     "is_recurring": false,
                     "can_be_reocurring": true,
@@ -364,6 +367,7 @@
         {
             "type": "outflow",
             "display_type": "Outflow",
+            "onboarding_stage": "basics",
             "display_event": true,
             "is_recurring": false,
             "can_be_reocurring": true,
@@ -442,6 +446,7 @@
                 {
                     "type": "update_amount",
                     "display_type": "Update Amount",
+                    "onboarding_stage": "full",
                     "display_event": true,
                     "is_recurring": false,
                     "can_be_reocurring": true,
@@ -487,6 +492,7 @@
         {
             "type": "declare_accounts",
             "display_type": "Declare Accounts",
+            "onboarding_stage": "full",
             "display_event": true,
             "is_recurring": false,
             "can_be_reocurring": false,
@@ -590,6 +596,7 @@
         {
             "type": "transfer_money",
             "display_type": "Money Transfer",
+            "onboarding_stage": "full",
             "display_event": true,
             "is_recurring": false,
             "can_be_reocurring": true,
@@ -691,6 +698,7 @@
                 {
                     "type": "update_amount",
                     "display_type": "Update Amount",
+                    "onboarding_stage": "full",
                     "display_event": true,
                     "is_recurring": false,
                     "can_be_reocurring": true,
@@ -736,6 +744,7 @@
         {
             "type": "income_with_changing_parameters",
             "display_type": "Income",
+            "onboarding_stage": "full",
             "display_event": true,
             "is_recurring": true,
             "can_be_reocurring": true,
@@ -790,6 +799,7 @@
                 {
                     "type": "update_amount",
                     "display_type": "Update Amount",
+                    "onboarding_stage": "full",
                     "display_event": true,
                     "is_recurring": false,
                     "can_be_reocurring": false,
@@ -835,6 +845,7 @@
         {
             "type": "manual_correction",
             "display_type": "Manual Adjustment",
+            "onboarding_stage": "full",
             "display_event": true,
             "is_recurring": false,
             "can_be_reocurring": false,
@@ -951,6 +962,7 @@
         {
             "type": "loan",
             "display_type": "Loan",
+            "onboarding_stage": "full",
             "display_event": true,
             "is_recurring": false,
             "can_be_reocurring": true,
@@ -1022,6 +1034,7 @@
         {
             "type": "purchase",
             "display_type": "Purchase",
+            "onboarding_stage": "full",
             "display_event": true,
             "is_recurring": false,
             "can_be_reocurring": true,
@@ -1077,6 +1090,7 @@
         {
             "type": "gift",
             "display_type": "Gift",
+            "onboarding_stage": "full",
             "display_event": true,
             "is_recurring": false,
             "can_be_reocurring": true,
@@ -1132,6 +1146,7 @@
         {
             "type": "monthly_budgeting",
             "display_type": "Monthly Budgeting",
+            "onboarding_stage": "full",
             "display_event": true,
             "is_recurring": true,
             "category": "Living Expenses",
@@ -1257,6 +1272,7 @@
         {
             "type": "get_job",
             "display_type": "Salary Employment",
+            "onboarding_stage": "full",
             "display_event": true,
             "is_recurring": true,
             "can_be_reocurring": false,
@@ -1400,6 +1416,7 @@
                 {
                     "type": "get_a_raise",
                     "display_type": "Raise",
+                    "onboarding_stage": "full",
                     "display_event": true,
                     "is_recurring": false,
                     "can_be_reocurring": true,
@@ -1444,6 +1461,7 @@
                 {
                     "type": "get_a_bonus",
                     "display_type": "Bonus",
+                    "onboarding_stage": "full",
                     "display_event": true,
                     "icon": "dollar-sign",
                     "description": "Receive a one-time cash bonus.",
@@ -1470,6 +1488,7 @@
                 {
                     "type": "change_401k_contribution",
                     "display_type": "Adjust 401k Contribution",
+                    "onboarding_stage": "full",
                     "display_event": false,
                     "icon": "sliders-horizontal",
                     "description": "Adjust the percentage of income contributed to 401k.",
@@ -1498,6 +1517,7 @@
         {
             "type": "get_wage_job",
             "display_type": "Wage Employment",
+            "onboarding_stage": "full",
             "display_event": true,
             "is_recurring": true,
             "can_be_reocurring": false,
@@ -1616,6 +1636,7 @@
                 {
                     "type": "get_a_raise",
                     "display_type": "Raise",
+                    "onboarding_stage": "full",
                     "display_event": true,
                     "icon": "arrow-up",
                     "description": "Receive an increase in hourly wage.",
@@ -1641,6 +1662,7 @@
                 {
                     "type": "change_hours",
                     "display_type": "Change Hours",
+                    "onboarding_stage": "full",
                     "display_event": true,
                     "icon": "clock",
                     "description": "Change the number of hours worked per week.",
@@ -1666,6 +1688,7 @@
                 {
                     "type": "change_401k_contribution",
                     "display_type": "Adjust 401k Contribution",
+                    "onboarding_stage": "full",
                     "display_event": false,
                     "icon": "sliders-horizontal",
                     "description": "Adjust the percentage of wages contributed to 401k.",
@@ -1691,6 +1714,7 @@
                 {
                     "type": "change_employer_match",
                     "display_type": "Update Employer Match",
+                    "onboarding_stage": "full",
                     "display_event": false,
                     "icon": "handshake",
                     "description": "Update the employer's 401k match rate.",
@@ -1762,6 +1786,7 @@
                 {
                     "type": "business_income",
                     "display_type": "Business Income",
+                    "onboarding_stage": "full",
                     "display_event": true,
                     "icon": "bar-chart",
                     "description": "Start receiving business revenue.",
@@ -1803,6 +1828,7 @@
                 {
                     "type": "business_loss",
                     "display_type": "Business Loss",
+                    "onboarding_stage": "full",
                     "display_event": true,
                     "icon": "x-octagon",
                     "description": "Incur a business loss from operations.",
@@ -1838,6 +1864,7 @@
         {
             "type": "retirement",
             "display_type": "Retirement",
+            "onboarding_stage": "full",
             "display_event": true,
             "is_recurring": true,
             "can_be_reocurring": false,
@@ -1948,6 +1975,7 @@
         {
             "type": "buy_house",
             "display_type": "Home Purchase",
+            "onboarding_stage": "full",
             "display_event": true,
             "is_recurring": false,
             "can_be_reocurring": false,
@@ -2192,6 +2220,7 @@
         {
             "type": "buy_car",
             "display_type": "Car Purchase",
+            "onboarding_stage": "full",
             "display_event": true,
             "is_recurring": false,
             "can_be_reocurring": false,
@@ -2350,6 +2379,7 @@
         {
             "type": "have_kid",
             "display_type": "Child Birth",
+            "onboarding_stage": "full",
             "display_event": true,
             "is_recurring": false,
             "can_be_reocurring": true,
@@ -2492,6 +2522,7 @@
         {
             "type": "marriage",
             "display_type": "Marriage",
+            "onboarding_stage": "full",
             "display_event": true,
             "is_recurring": false,
             "can_be_reocurring": false,
@@ -2530,6 +2561,7 @@
         {
             "type": "divorce",
             "display_type": "Divorce",
+            "onboarding_stage": "full",
             "display_event": true,
             "is_recurring": false,
             "can_be_reocurring": false,
@@ -2576,6 +2608,7 @@
         {
             "type": "pass_away",
             "display_type": "Death",
+            "onboarding_stage": "full",
             "display_event": true,
             "is_recurring": false,
             "can_be_reocurring": false,
@@ -2598,6 +2631,7 @@
         {
             "type": "buy_health_insurance",
             "display_type": "Health Insurance",
+            "onboarding_stage": "full",
             "display_event": false,
             "is_recurring": false,
             "can_be_reocurring": false,
@@ -2652,6 +2686,7 @@
                 {
                     "type": "medical_expense",
                     "display_type": "Medical Expense",
+                    "onboarding_stage": "full",
                     "display_event": false,
                     "is_recurring": false,
                     "can_be_reocurring": true,
@@ -2759,6 +2794,7 @@
                 {
                     "type": "increase_coverage",
                     "display_type": "Increase Coverage",
+                    "onboarding_stage": "full",
                     "display_event": true,
                     "is_recurring": false,
                     "can_be_reocurring": false,
@@ -2796,6 +2832,7 @@
         {
             "type": "receive_government_aid",
             "display_type": "Government Aid",
+            "onboarding_stage": "full",
             "display_event": true,
             "is_recurring": false,
             "can_be_reocurring": true,
@@ -2850,6 +2887,7 @@
         {
             "type": "invest_money",
             "display_type": "Investment",
+            "onboarding_stage": "full",
             "display_event": true,
             "is_recurring": false,
             "can_be_reocurring": true,
@@ -2912,6 +2950,7 @@
                 {
                     "type": "Reoccuring Dividend Payout",
                     "display_type": "Dividend Payout",
+                    "onboarding_stage": "full",
                     "display_event": true,
                     "is_recurring": true,
                     "can_be_reocurring": true,
@@ -2955,6 +2994,7 @@
                 {
                     "type": "Reoccuring Contribution",
                     "display_type": "Reoccuring Contribution",
+                    "onboarding_stage": "full",
                     "display_event": true,
                     "is_recurring": true,
                     "can_be_reocurring": true,
@@ -3092,6 +3132,7 @@
                 {
                     "type": "receive_tax_refund",
                     "display_type": "Tax Refund",
+                    "onboarding_stage": "full",
                     "display_event": true,
                     "is_recurring": false,
                     "can_be_reocurring": false,
@@ -3176,6 +3217,7 @@
         {
             "type": "roth_ira_contribution",
             "display_type": "Roth IRA Contribution",
+            "onboarding_stage": "full",
             "display_event": true,
             "is_recurring": true,
             "can_be_reocurring": true,
@@ -3246,6 +3288,7 @@
         {
             "type": "tax_payment_estimated",
             "display_type": "Tax Payment (Estimated)",
+            "onboarding_stage": "full",
             "display_event": true,
             "is_recurring": false,
             "can_be_reocurring": true,
@@ -3371,6 +3414,7 @@
         {
             "type": "federal_subsidized_loan",
             "display_type": "Student Loan (Federal Subsidized)",
+            "onboarding_stage": "full",
             "display_event": true,
             "is_recurring": false,
             "can_be_reocurring": false,
@@ -3449,6 +3493,7 @@
         {
             "type": "federal_unsubsidized_loan",
             "display_type": "Student Loan (Federal Unsubsidized)",
+            "onboarding_stage": "full",
             "display_event": true,
             "is_recurring": false,
             "can_be_reocurring": false,
@@ -3519,6 +3564,7 @@
         {
             "type": "private_student_loan",
             "display_type": "Student Loan (Private)",
+            "onboarding_stage": "full",
             "display_event": true,
             "is_recurring": false,
             "can_be_reocurring": false,
@@ -3589,6 +3635,7 @@
         {
             "type": "usa_tax_system",
             "display_type": "USA Tax System",
+            "onboarding_stage": "full",
             "display_event": true,
             "is_recurring": false,
             "can_be_reocurring": false,

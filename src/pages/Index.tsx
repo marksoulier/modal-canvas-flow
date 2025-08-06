@@ -25,6 +25,7 @@ import { useAuth } from '../contexts/AuthContext';
 import ErrorToast from '../components/ErrorToast';
 import PlanPreferencesModal from '../components/PlanPreferencesModal';
 import OnboardingFlow from '../components/OnboardingFlow';
+import OnboardingProgress from '../components/OnboardingProgress';
 import { extractSchema, validateProblem } from '../hooks/schemaChecker';
 import { formatNumber } from '../visualization/viz_utils';
 import PremiumConfirmationModal from '../components/PremiumConfirmationModal';
@@ -32,7 +33,7 @@ import ExitViewingModeDialog from '../components/ExitViewingModeDialog';
 
 export default function Index() {
   // Auth context
-  const { user, signOut: authSignOut, logAnonymousButtonClick } = useAuth();
+  const { user, signOut: authSignOut, logAnonymousButtonClick, onboarding_state } = useAuth();
 
   // Plan context
   const {
@@ -48,9 +49,6 @@ export default function Index() {
     isExampleViewing
   } = usePlan();
 
-  // Get onboarding state from localStorage first
-  const hasCompletedOnboarding = Boolean(localStorage.getItem('onboarding-completed'));
-
   // Modal states
   const [helpModalOpen, setHelpModalOpen] = useState(false);
   const [saveModalOpen, setSaveModalOpen] = useState(false);
@@ -65,7 +63,7 @@ export default function Index() {
   const [errorMessage, setErrorMessage] = useState('');
   const [addEnvelopeModalOpen, setAddEnvelopeModalOpen] = useState(false);
   const [envelopeManagerModalOpen, setEnvelopeManagerModalOpen] = useState(false);
-  const [onboardingOpen, setOnboardingOpen] = useState(!hasCompletedOnboarding && !isExampleViewing);
+  const [onboardingOpen, setOnboardingOpen] = useState(false);
   const [editingEventId, setEditingEventId] = useState<number | null>(null);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [tempTitle, setTempTitle] = useState('');
@@ -509,7 +507,11 @@ export default function Index() {
       </div>
 
       {/* Modals */}
-      <HelpModal isOpen={helpModalOpen} onClose={() => setHelpModalOpen(false)} />
+      <HelpModal 
+        isOpen={helpModalOpen} 
+        onClose={() => setHelpModalOpen(false)} 
+        onRestartOnboarding={() => checkViewingMode(() => setOnboardingOpen(true))}
+      />
       <SaveModal
         isOpen={saveModalOpen}
         onClose={() => setSaveModalOpen(false)}
@@ -609,11 +611,10 @@ export default function Index() {
       <OnboardingFlow
         isOpen={onboardingOpen}
         onComplete={() => {
-          localStorage.setItem('onboarding-completed', 'true');
+
           setOnboardingOpen(false);
         }}
         onAuthRequired={() => {
-          localStorage.setItem('onboarding-completed', 'true');
           setOnboardingOpen(false);
           setAuthModalMode('signUp'); // <-- set to sign up
           setAuthModalOpen(true);
@@ -638,6 +639,17 @@ export default function Index() {
         onConfirm={handleExitViewingMode}
         isLoading={isExiting}
       />
+
+      {/* Onboarding Progress Component - shows after modal completion */}
+      {onboarding_state !== 'full' && (
+        <OnboardingProgress 
+          onAuthRequired={() => {
+            localStorage.setItem('onboarding-completed', 'true');
+            setAuthModalMode('signUp');
+            setAuthModalOpen(true);
+          }}
+        />
+      )}
     </div>
   );
 };
