@@ -9,8 +9,9 @@ import {
     get_wage_job, transfer_money, income_with_changing_parameters,
     declare_accounts, purchase,
     monthly_budgeting, roth_ira_contribution, tax_payment_estimated,
-    reoccuring_spending_inflation_adjusted, loan_amortization,
-    federal_subsidized_loan, federal_unsubsidized_loan, private_student_loan
+    reoccuring_spending_inflation_adjusted, loan_amortization, loan,
+    federal_subsidized_loan, federal_unsubsidized_loan, private_student_loan,
+    usa_tax_system
 } from './baseFunctions';
 import { evaluateResults } from './resultsEvaluation';
 import type { Plan, Schema } from '../contexts/PlanContext';
@@ -23,18 +24,22 @@ interface Datum {
     };
 }
 
-export function initializeEnvelopes(plan: Plan): Record<string, { functions: ((t: number) => number)[], growth_type: string, growth_rate: number, days_of_usefulness?: number, inflation_rate?: number }> {
-    const envelopes: Record<string, { functions: ((t: number) => number)[], growth_type: string, growth_rate: number, days_of_usefulness?: number, inflation_rate?: number }> = {};
+export function initializeEnvelopes(plan: Plan, simulation_settings: any): Record<string, any> {
+    const envelopes: Record<string, any> = {};
 
-    console.log("plan.envelopes", plan.envelopes);
+    //console.log("plan.envelopes", plan.envelopes);
     for (const env of plan.envelopes) {
         const name = env.name;
         const growth_type = env.growth || "None";
         const rate = env.rate || 0.0;
         const days_of_usefulness = env.days_of_usefulness;
         const inflation_rate = plan.inflation_rate;
-        envelopes[name] = { functions: [], growth_type, growth_rate: rate, days_of_usefulness: days_of_usefulness, inflation_rate: inflation_rate };
+        const account_type = env.account_type;
+        envelopes[name] = { functions: [], growth_type, growth_rate: rate, days_of_usefulness, inflation_rate, account_type };
     }
+
+    // Add simulation settings to envelopes
+    envelopes.simulation_settings = simulation_settings;
 
     return envelopes;
 }
@@ -45,7 +50,10 @@ export async function runSimulation(
     startDate: number = 0,
     endDate: number = 30 * 365,
     interval: number = 365,
-    currentDay?: number
+    currentDay?: number,
+    birthDate?: Date,
+    onPlanUpdate?: (updates: Array<{ eventId: number, paramType: string, value: number }>) => void,
+    visibleRange?: { startDate: number, endDate: number }
 ): Promise<Datum[]> {
     try {
         const schemaMap = extractSchema(schema);
@@ -54,16 +62,27 @@ export async function runSimulation(
             console.error("❌ Validation issues found:");
             for (const issue of issues) console.error(issue);
             console.log('[runSimulation] Issues:', issues);
-            return [];
         }
 
+        const simulation_settings = {
+            inflation_rate: plan.inflation_rate,
+            birthDate: birthDate,
+            interval: interval,
+            start_time: startDate,
+            end_time: endDate,
+            visibleRange: visibleRange // Add visible range to simulation settings
+        };
+
         const parsedEvents = parseEvents(plan);
-        const envelopes = initializeEnvelopes(plan);
+
+        const envelopes = initializeEnvelopes(plan, simulation_settings);
         //console.log('Initialized envelopes:', envelopes);
         // Collect manual_correction events to process at the end
         const manualCorrectionEvents: any[] = [];
         // Collect declare_accounts events to process at the end
         const declareAccountsEvents: any[] = [];
+        // Collect plan updates from events
+        const planUpdates: Array<{ eventId: number, paramType: string, value: number }> = [];
 
         for (const event of parsedEvents) {
             //console.log("Event: ", event)
@@ -81,16 +100,24 @@ export async function runSimulation(
             }
 
             switch (event.type) {
-                case 'inflow': inflow(event, envelopes); break;
-                case 'outflow': outflow(event, envelopes); break;
+                case 'inflow': inflow(event, envelopes, (updates) => {
+                    planUpdates.push(...updates);
+                }); break;
+                case 'outflow': outflow(event, envelopes, (updates) => {
+                    planUpdates.push(...updates);
+                }); break;
                 case 'purchase': purchase(event, envelopes); break;
                 case 'gift': gift(event, envelopes); break;
                 case 'get_job': get_job(event, envelopes); break;
                 case 'get_wage_job': get_wage_job(event, envelopes); break;
                 case 'start_business': start_business(event, envelopes); break;
                 case 'retirement': retirement(event, envelopes); break;
-                case 'buy_house': buy_house(event, envelopes); break;
-                case 'buy_car': buy_car(event, envelopes); break;
+                case 'buy_house': buy_house(event, envelopes, (updates) => {
+                    planUpdates.push(...updates);
+                }); break;
+                case 'buy_car': buy_car(event, envelopes, (updates) => {
+                    planUpdates.push(...updates);
+                }); break;
                 case 'have_kid': have_kid(event, envelopes); break;
                 case 'marriage': marriage(event, envelopes); break;
                 case 'divorce': divorce(event, envelopes); break;
@@ -101,7 +128,9 @@ export async function runSimulation(
                 case 'high_yield_savings_account': high_yield_savings_account(event, envelopes); break;
                 case 'pay_taxes': pay_taxes(event, envelopes); break;
                 case 'buy_groceries': buy_groceries(event, envelopes); break;
-                case 'transfer_money': transfer_money(event, envelopes); break;
+                case 'transfer_money': transfer_money(event, envelopes, (updates) => {
+                    planUpdates.push(...updates);
+                }); break;
                 case 'income_with_changing_parameters': income_with_changing_parameters(event, envelopes); break;
                 case 'reoccuring_spending_inflation_adjusted': reoccuring_spending_inflation_adjusted(event, envelopes); break;
                 case 'pass_away': pass_away(event, envelopes); break;
@@ -109,13 +138,21 @@ export async function runSimulation(
                 case 'roth_ira_contribution': roth_ira_contribution(event, envelopes); break;
                 case 'tax_payment_estimated': tax_payment_estimated(event, envelopes); break;
                 case 'loan_amortization': loan_amortization(event, envelopes); break;
-                case 'federal_subsidized_loan': federal_subsidized_loan(event, envelopes); break;
-                case 'federal_unsubsidized_loan': federal_unsubsidized_loan(event, envelopes); break;
-                case 'private_student_loan': private_student_loan(event, envelopes); break;
+                case 'loan': loan(event, envelopes); break;
+                case 'federal_subsidized_loan': federal_subsidized_loan(event, envelopes, (updates) => {
+                    planUpdates.push(...updates);
+                }); break;
+                case 'federal_unsubsidized_loan': federal_unsubsidized_loan(event, envelopes, (updates) => {
+                    planUpdates.push(...updates);
+                }); break;
+                case 'private_student_loan': private_student_loan(event, envelopes, (updates) => {
+                    planUpdates.push(...updates);
+                }); break;
                 default:
                     console.warn(`⚠️ Unhandled event type: ${event.type}`);
             }
         }
+
 
         // Process all manual_correction events at the end
         //console.log(`Processing ${manualCorrectionEvents.length} manual correction events at the end`);
@@ -131,44 +168,70 @@ export async function runSimulation(
             declare_accounts(event, envelopes);
         }
 
+        // Process usa_tax_system events at the end
+        for (const event of parsedEvents) {
+            //console.log("Event: ", event);
+            if (event.type === 'usa_tax_system') {
+                usa_tax_system(event, envelopes);
+            }
+        }
+
+        // Apply plan updates if callback is provided
+        if (onPlanUpdate && planUpdates.length > 0) {
+            onPlanUpdate(planUpdates);
+        }
+
         //console.log(envelopes)
 
-        // Determine if we should adjust for inflation
-        let results;
-        if (plan.adjust_for_inflation) {
-            // Use inflation rate from plan
-            const inflationRate = plan.inflation_rate;
-            results = evaluateResults(envelopes, startDate, endDate, interval, currentDay, inflationRate);
-        } else {
-            results = evaluateResults(envelopes, startDate, endDate, interval);
-        }
-        const timePoints = Array.from({ length: Math.ceil(endDate / interval) }, (_, i) => i * interval);
+        // Remove simulation_settings from envelopes for evaluation
+        const allEvalEnvelopes = Object.fromEntries(
+            Object.entries(envelopes)
+                .filter(([key, env]) => key !== 'simulation_settings')
+        );
 
-        // Get all envelope keys from the results
-        const envelopeKeys = Object.keys(results);
+        //console.log("allEvalEnvelopes", allEvalEnvelopes);
+
+        let allResults;
+        if (plan.adjust_for_inflation) {
+            const inflationRate = plan.inflation_rate;
+            allResults = evaluateResults(allEvalEnvelopes, startDate, endDate, interval, currentDay, inflationRate, simulation_settings.visibleRange);
+        } else {
+            allResults = evaluateResults(allEvalEnvelopes, startDate, endDate, interval, currentDay, undefined, simulation_settings.visibleRange);
+        }
+
+        // Now split the results into networth and non-networth for visualization
+        const envelopeKeys = Object.keys(allResults.results);
+        const networthKeys = envelopeKeys.filter(key => envelopes[key]?.account_type !== 'non-networth-account');
+        const nonNetworthKeys = envelopeKeys.filter(key => envelopes[key]?.account_type === 'non-networth-account');
 
         // Filter out envelopes that have zero values in all intervals
-        const nonZeroEnvelopeKeys = envelopeKeys.filter(key => {
-            const allValues = results[key];
-            return allValues.some(value => value !== 0);
-        });
+        const nonZeroNetworthKeys = networthKeys.filter(key => allResults.results[key].some(value => value !== 0));
+        const nonZeroNonNetworthKeys = nonNetworthKeys.filter(key => allResults.results[key].some(value => value !== 0));
 
         // Create a single array of Datum objects where each Datum contains all non-zero envelope values as parts
-        return timePoints.map((date, i) => {
+        return allResults.results[envelopeKeys[0]].map((_, i) => {
             const parts: { [key: string]: number } = {};
+            const nonNetworthParts: { [key: string]: number } = {};
             let totalValue = 0;
 
             // Populate parts with values from each non-zero envelope
-            nonZeroEnvelopeKeys.forEach(key => {
-                const value = results[key][i];
+            nonZeroNetworthKeys.forEach(key => {
+                const value = allResults.results[key][i];
                 parts[key] = value;
                 totalValue += value;
             });
 
+            // Populate non-networth parts (these don't contribute to total value)
+            nonZeroNonNetworthKeys.forEach(key => {
+                const value = allResults.results[key][i];
+                nonNetworthParts[key] = value;
+            });
+
             return {
-                date,
+                date: allResults.timePoints[i],
                 value: totalValue,
-                parts
+                parts,
+                nonNetworthParts
             };
         });
     } catch (error) {

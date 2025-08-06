@@ -1,6 +1,10 @@
-import React from 'react';
-import { TooltipWithBounds, defaultStyles } from '@visx/tooltip';
+import { type ReactNode } from 'react';
 import chroma from 'chroma-js';
+import {
+    dateStringToDaysSinceBirth,
+    getAgeFromDays,
+    daysSinceBirthToDateString
+} from '../contexts/PlanContext';
 
 // Format number as currency with suffixes
 export const formatNumber = (value: { valueOf(): number }): string => {
@@ -17,35 +21,21 @@ export const formatNumber = (value: { valueOf(): number }): string => {
     if (absNum >= 1000) {
         return `${sign}$${Number(absNum.toFixed(0)).toLocaleString()}`;
     }
-    return `${sign}$${absNum.toFixed(0)}`;
+    return `${sign}$${absNum.toFixed(2)}`;
 };
 
-// Helper to calculate age in years from days since birth
-export const getAgeFromDays = (daysSinceBirth: number): number => {
-    return Math.floor(daysSinceBirth / 365.25);
-};
 
-// Helper to calculate days since birth from age in years
-export const getDaysFromAge = (age: number): number => {
-    return Math.round(age * 365.25);
-};
-
-// Convert days since birth to actual date
-export const daysToDate = (daysSinceBirth: number, birthDate: Date): Date => {
-    // Create a new date object to avoid mutating the original
-    const result = new Date(birthDate.getTime());
-    result.setDate(result.getDate() + daysSinceBirth);
-    return result;
-};
 
 // Get interval in days based on selected time interval
-export type TimeInterval = 'day' | 'week' | 'month' | 'quarter' | 'half_year' | 'year';
-export type ExtendedTimeInterval = TimeInterval | 'full';
+export type TimeInterval = 'day' | 'half_week' | 'week' | 'month' | 'quarter' | 'half_year' | 'year';
+export type ExtendedTimeInterval = TimeInterval | 'full' | 'month_year';
 
 export const getIntervalInDays = (interval: TimeInterval): number => {
     switch (interval) {
         case 'day':
             return 1;
+        case 'half_week':
+            return 3.5;
         case 'week':
             return 7;
         case 'month':
@@ -57,7 +47,7 @@ export const getIntervalInDays = (interval: TimeInterval): number => {
         case 'year':
             return 365;
         default:
-            return 365;
+            return 1;
     }
 };
 
@@ -69,7 +59,8 @@ export const formatDate = (
     showAge: boolean = false,
     showAgeAsJSX: boolean = false
 ): string | JSX.Element => {
-    const date = daysToDate(daysSinceBirth, birthDate);
+    const isoDateStr = daysSinceBirthToDateString(daysSinceBirth, birthDate.toISOString().split('T')[0]);
+    const date = new Date(isoDateStr + 'T00:00:00');
     let dateStr = '';
     switch (interval) {
         case 'year':
@@ -96,17 +87,36 @@ export const formatDate = (
                 year: 'numeric'
             });
             break;
+        case 'month_year':
+            dateStr = date.toLocaleString('default', {
+                month: 'short',
+                year: 'numeric'
+            });
+            break;
         default:
             dateStr = date.toLocaleDateString();
     }
     if (showAge) {
-        const age = getAgeFromDays(daysSinceBirth);
+        const age = getAgeFromDays(daysSinceBirth, birthDate.toISOString().split('T')[0]);
         if (showAgeAsJSX) {
             return <><span>{dateStr} </span><span style={{ color: '#b0b0b0', fontWeight: 400 }}>({age})</span></>;
         }
         return `${dateStr} (${age})`;
     }
     return dateStr;
+};
+
+// Format date string directly (for date string parameters)
+export const formatDateString = (
+    dateString: string,
+    birthDate: Date,
+    interval: ExtendedTimeInterval,
+    showAge: boolean = false,
+    showAgeAsJSX: boolean = false
+): string | JSX.Element => {
+    // Convert date string to days since birth
+    const daysSinceBirth = dateStringToDaysSinceBirth(dateString, birthDate.toISOString().split('T')[0]);
+    return formatDate(daysSinceBirth, birthDate, interval, showAge, showAgeAsJSX);
 };
 
 // Generate subtle colors for categories
@@ -211,13 +221,29 @@ export function getEnvelopeAndCategoryColors(
 }
 
 // Legend component
-export const Legend = ({ envelopes, envelopeColors, currentValues, getCategory, categoryColors }: {
+export const Legend = ({
+    envelopes,
+    envelopeColors,
+    currentValues,
+    getCategory,
+    categoryColors,
+    nonNetworthEnvelopes,
+    nonNetworthCurrentValues,
+    lockedNetWorthValue,
+    hoveredArea
+}: {
     envelopes: string[];
     envelopeColors: Record<string, { area: string; line: string }>;
     currentValues: { [key: string]: number };
     getCategory: (envelope: string) => string | undefined;
     categoryColors: Record<string, { area: string; line: string }>;
-}) => {
+    nonNetworthEnvelopes?: string[];
+    nonNetworthCurrentValues?: { [key: string]: number };
+    lockedNetWorthValue?: number;
+    hoveredArea?: { envelope: string; category: string } | null;
+    }) => {
+
+    
     // Group envelopes by category
     const categoryMap: Record<string, string[]> = {};
     envelopes.forEach((envelope) => {
@@ -227,12 +253,59 @@ export const Legend = ({ envelopes, envelopeColors, currentValues, getCategory, 
         categoryMap[category].push(envelope);
     });
 
+    // Group non-networth envelopes by category
+    const nonNetworthCategoryMap: Record<string, string[]> = {};
+    if (nonNetworthEnvelopes && nonNetworthCurrentValues) {
+        nonNetworthEnvelopes.forEach((envelope) => {
+            const category = getCategory(envelope) || 'Non-Networth';
+            if (!nonNetworthCategoryMap[category]) nonNetworthCategoryMap[category] = [];
+            nonNetworthCategoryMap[category].push(envelope);
+        });
+    }
+
     if (!envelopes || envelopes.length === 0) {
         return null;
     }
+    // Calculate net worth as the sum of all envelope values
+    const netWorth = envelopes.reduce((sum, env) => sum + (currentValues[env] || 0), 0);
+
+    // Choose a color for the net worth box (you can pick a unique color or reuse a category color)
+    const netWorthColor = { area: '#335966', line: '#03c6fc' }; // Example: blue/teal
+
     return (
         <div className="absolute right-4 bottom-12 bg-white p-4 rounded-lg shadow-lg" style={{ pointerEvents: 'none' }}>
-            <h3 className="text-sm font-semibold mb-2">Envelopes</h3>
+            <div
+                className="flex items-center justify-between space-x-4"
+                style={{ fontWeight: 600, color: '#222', fontSize: '1rem', marginBottom: 12 }}
+            >
+                <div className="flex items-center space-x-2">
+                    {/* <div
+                        className="w-4 h-4 rounded"
+                        style={{
+                            backgroundColor: netWorthColor.area,
+                            border: `2px solid ${netWorthColor.line}`,
+                        }}
+                    /> */}
+                    <span className="text-sm" style={{ fontWeight: 500 }}>
+                        Net Worth
+                    </span>
+                </div>
+                <div className="flex flex-col items-end">
+                    <span className="text-xs text-gray-800" style={{ fontWeight: 700 }}>
+                        {formatNumber({ valueOf: () => netWorth })}
+                    </span>
+                    {lockedNetWorthValue !== undefined && Math.abs(netWorth - lockedNetWorthValue) > 0.01 && (
+                        <span className="text-xs" style={{
+                            color: netWorth >= lockedNetWorthValue ? '#4CAF50' : '#F44336',
+                            fontWeight: 500,
+                            fontSize: '0.7rem'
+                        }}>
+                            {netWorth >= lockedNetWorthValue ? '+' : ''}
+                            {formatNumber({ valueOf: () => netWorth - lockedNetWorthValue })}
+                        </span>
+                    )}
+                </div>
+            </div>
             <div className="space-y-3">
                 {Object.entries(categoryMap).map(([category, envs]) => {
                     const catColor = categoryColors[category] || { area: '#ccc', line: '#888' };
@@ -241,31 +314,140 @@ export const Legend = ({ envelopes, envelopeColors, currentValues, getCategory, 
                     // - more than one envelope in category, or
                     // - the only envelope does NOT start with 'Other'
                     const showEnvelopes = envs.length > 1 || (envs.length === 1 && !/^other/i.test(envs[0]));
+                    const isCategoryHovered = hoveredArea?.category === "category";
                     return (
-                        <div key={category} style={{ marginBottom: 12 }}>
+                        <div key={category} style={{
+                            marginBottom: 12,
+                            backgroundColor: isCategoryHovered ? 'rgba(51, 89, 102, 0.05)' : 'transparent',
+                            borderRadius: isCategoryHovered ? '6px' : '0px',
+                            padding: isCategoryHovered ? '8px' : '0px',
+                            border: isCategoryHovered ? '1px solid rgba(51, 89, 102, 0.2)' : 'none'
+                        }}>
                             <div className="flex items-center justify-between space-x-4" style={{ fontWeight: 600, color: '#222', fontSize: '1rem' }}>
                                 <div className="flex items-center space-x-2">
-                                    <div className="w-4 h-4 rounded" style={{ backgroundColor: catColor.area, border: `2px solid ${catColor.line}` }} />
-                                    <span className="text-sm" style={{ fontWeight: 500 }}>{category}</span>
+                                    <div className="w-4 h-4 rounded" style={{
+                                        backgroundColor: catColor.area,
+                                        border: `2px solid ${catColor.line}`,
+                                        transform: isCategoryHovered ? 'scale(1.1)' : 'scale(1)',
+                                        transition: 'transform 0.2s ease'
+                                    }} />
+                                    <span className="text-sm" style={{
+                                        fontWeight: isCategoryHovered ? 600 : 500,
+                                        color: isCategoryHovered ? '#335966' : '#222'
+                                    }}>{category}</span>
                                 </div>
                                 <span className="text-xs text-gray-500" style={{ fontWeight: 500 }}>{formatNumber({ valueOf: () => categorySum })}</span>
                             </div>
                             {showEnvelopes && (
                                 <div style={{ marginLeft: 20, marginTop: 2 }} className="space-y-1">
-                                    {envs.map((envelope) => {
-                                        const envColor = envelopeColors[envelope] || catColor;
-                                        return (
-                                            <div key={envelope} className="flex items-center justify-between space-x-4">
-                                                <div className="flex items-center space-x-2">
-                                                    <div className="w-3 h-3 rounded" style={{ backgroundColor: envColor.area, border: `2px solid ${envColor.line}` }} />
-                                                    <span className="text-xs" style={{ fontWeight: 500, color: '#444' }}>{envelope}</span>
+                                    {envs
+                                        .filter(envelope => Number((currentValues[envelope] || 0).toFixed(2)) !== 0) // Filter out values that round to 0.00
+                                        .map((envelope) => {
+                                            const envColor = envelopeColors[envelope] || catColor;
+                                            const isHovered = hoveredArea?.envelope === "envelope";
+                                            return (
+                                                <div key={envelope} className="flex items-center justify-between space-x-4" style={{
+                                                    backgroundColor: isHovered ? 'rgba(51, 89, 102, 0.1)' : 'transparent',
+                                                    borderRadius: isHovered ? '4px' : '0px',
+                                                    padding: isHovered ? '4px' : '0px',
+                                                    border: isHovered ? '1px solid rgba(51, 89, 102, 0.3)' : 'none'
+                                                }}>
+                                                    <div className="flex items-center space-x-2">
+                                                        <div className="w-3 h-3 rounded" style={{
+                                                            backgroundColor: envColor.area,
+                                                            border: `2px solid ${envColor.line}`,
+                                                            transform: isHovered ? 'scale(1.2)' : 'scale(1)',
+                                                            transition: 'transform 0.2s ease'
+                                                        }} />
+                                                        <span className="text-xs" style={{
+                                                            fontWeight: isHovered ? 600 : 500,
+                                                            color: isHovered ? '#335966' : '#444'
+                                                        }}>{envelope}</span>
+                                                    </div>
+                                                    <span className="text-xs" style={{
+                                                        color: isHovered ? '#335966' : '#gray-400',
+                                                        fontWeight: isHovered ? 600 : 400
+                                                    }}>
+                                                        {formatNumber({ valueOf: () => currentValues[envelope] || 0 })}
+                                                    </span>
                                                 </div>
-                                                <span className="text-xs text-gray-400">
-                                                    {formatNumber({ valueOf: () => currentValues[envelope] || 0 })}
-                                                </span>
-                                            </div>
-                                        );
-                                    })}
+                                            );
+                                        })}
+                                </div>
+                            )}
+                        </div>
+                    );
+                })}
+
+                {/* Render non-networth categories */}
+                {Object.entries(nonNetworthCategoryMap).map(([category, envs]) => {
+                    const catColor = categoryColors[category] || { area: '#ff6b6b', line: '#ff4757' };
+                    const categorySum = envs.reduce((sum, env) => sum + ((nonNetworthCurrentValues && nonNetworthCurrentValues[env]) || 0), 0);
+                    const showEnvelopes = envs.length > 1 || (envs.length === 1 && !/^other/i.test(envs[0]));
+                    const isCategoryHovered = hoveredArea?.category === "category";
+                    return (
+                        <div key={`non-networth-${category}`} style={{
+                            marginBottom: 12,
+                            opacity: 0.8,
+                            backgroundColor: isCategoryHovered ? 'rgba(51, 89, 102, 0.05)' : 'transparent',
+                            borderRadius: isCategoryHovered ? '6px' : '0px',
+                            padding: isCategoryHovered ? '8px' : '0px',
+                            border: isCategoryHovered ? '1px solid rgba(51, 89, 102, 0.2)' : 'none'
+                        }}>
+                            <div className="flex items-center justify-between space-x-4" style={{ fontWeight: 600, color: '#222', fontSize: '1rem' }}>
+                                <div className="flex items-center space-x-2">
+                                    <div className="w-4 h-4 rounded" style={{
+                                        backgroundColor: 'transparent',
+                                        border: `2px dashed ${catColor.line}`,
+                                        borderRadius: '2px',
+                                        transform: isCategoryHovered ? 'scale(1.1)' : 'scale(1)',
+                                        transition: 'transform 0.2s ease'
+                                    }} />
+                                    <span className="text-sm" style={{
+                                        fontWeight: isCategoryHovered ? 600 : 500,
+                                        color: isCategoryHovered ? '#335966' : '#222',
+                                        fontStyle: 'italic'
+                                    }}>{category} (Debug)</span>
+                                </div>
+                                <span className="text-xs text-gray-500" style={{ fontWeight: 500 }}>{formatNumber({ valueOf: () => categorySum })}</span>
+                            </div>
+                            {showEnvelopes && nonNetworthCurrentValues && (
+                                <div style={{ marginLeft: 20, marginTop: 2 }} className="space-y-1">
+                                    {envs
+                                        .filter(envelope => Number((nonNetworthCurrentValues[envelope] || 0).toFixed(2)) !== 0) // Filter out values that round to 0.00
+                                        .map((envelope) => {
+                                            const envColor = envelopeColors[envelope] || catColor;
+                                            const isHovered = hoveredArea?.envelope === "envelope";
+                                            return (
+                                                <div key={envelope} className="flex items-center justify-between space-x-4" style={{
+                                                    backgroundColor: isHovered ? 'rgba(51, 89, 102, 0.1)' : 'transparent',
+                                                    borderRadius: isHovered ? '4px' : '0px',
+                                                    padding: isHovered ? '4px' : '0px',
+                                                    border: isHovered ? '1px solid rgba(51, 89, 102, 0.3)' : 'none'
+                                                }}>
+                                                    <div className="flex items-center space-x-2">
+                                                        <div className="w-3 h-3 rounded" style={{
+                                                            backgroundColor: 'transparent',
+                                                            border: `2px dashed ${envColor.line}`,
+                                                            borderRadius: '2px',
+                                                            transform: isHovered ? 'scale(1.2)' : 'scale(1)',
+                                                            transition: 'transform 0.2s ease'
+                                                        }} />
+                                                        <span className="text-xs" style={{
+                                                            fontWeight: isHovered ? 600 : 500,
+                                                            color: isHovered ? '#335966' : '#444',
+                                                            fontStyle: 'italic'
+                                                        }}>{envelope}</span>
+                                                    </div>
+                                                    <span className="text-xs" style={{
+                                                        color: isHovered ? '#335966' : '#gray-400',
+                                                        fontWeight: isHovered ? 600 : 400
+                                                    }}>
+                                                        {formatNumber({ valueOf: () => nonNetworthCurrentValues[envelope] || 0 })}
+                                                    </span>
+                                                </div>
+                                            );
+                                        })}
                                 </div>
                             )}
                         </div>
@@ -281,6 +463,9 @@ export interface Datum {
     date: number;
     value: number;
     parts: {
+        [key: string]: number;
+    };
+    nonNetworthParts?: {
         [key: string]: number;
     };
 }
@@ -325,4 +510,63 @@ export const getNetWorthAndLockedOnDay = (
         lockedNetWorth: lockedPoint.value,
         difference: netWorthPoint.value - lockedPoint.value,
     };
+};
+
+// Helper function to normalize -0 to 0 and small values near zero
+export const normalizeZero = (value: number): number => {
+    const threshold = 1e-2; // Very small threshold for floating point precision
+    return Math.abs(value) < threshold ? 0 : value;
+};
+
+// Helper function to detect if a transition is from/to zero (manhattan style needed)
+export const isZeroTransition = (prevValue: number, currentValue: number): boolean => {
+    const prev = normalizeZero(prevValue);
+    const curr = normalizeZero(currentValue);
+    // True if going from 0 to value OR from value to 0
+    return false; //set false for now.
+    //return (prev === 0 && curr !== 0) || (prev !== 0 && curr === 0);
+};
+
+// Helper function to split data into segments based on 0-to-value transitions
+export const splitDataForMixedCurves = (data: any[], getValueFn: (d: any) => number) => {
+    if (data.length < 2) return { stepSegments: [], linearSegments: [data] };
+
+    const stepSegments: any[][] = [];
+    const linearSegments: any[][] = [];
+    let currentSegment: any[] = [data[0]];
+    let isCurrentSegmentStep = false;
+
+    for (let i = 1; i < data.length; i++) {
+        const prevValue = getValueFn(data[i - 1]);
+        const currentValue = getValueFn(data[i]);
+        const isStepTransition = isZeroTransition(prevValue, currentValue);
+
+        if (isStepTransition && !isCurrentSegmentStep) {
+            // Start a new step segment
+            if (currentSegment.length > 1) {
+                linearSegments.push(currentSegment);
+            }
+            currentSegment = [data[i - 1], data[i]];
+            isCurrentSegmentStep = true;
+        } else if (!isStepTransition && isCurrentSegmentStep) {
+            // End step segment, start linear segment
+            stepSegments.push(currentSegment);
+            currentSegment = [data[i - 1], data[i]];
+            isCurrentSegmentStep = false;
+        } else {
+            // Continue current segment
+            currentSegment.push(data[i]);
+        }
+    }
+
+    // Add the final segment
+    if (currentSegment.length > 1) {
+        if (isCurrentSegmentStep) {
+            stepSegments.push(currentSegment);
+        } else {
+            linearSegments.push(currentSegment);
+        }
+    }
+
+    return { stepSegments, linearSegments };
 };

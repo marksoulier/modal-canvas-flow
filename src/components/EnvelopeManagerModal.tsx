@@ -8,7 +8,7 @@ import { Pencil, Trash2 } from 'lucide-react';
 interface EnvelopeManagerModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onEditEnvelope: (envelope: { name: string; category: string; growth: string; rate: number }) => void;
+  onEditEnvelope: (envelope: { name: string; category: string; growth: string; rate: number; account_type: string }) => void;
   onAddEnvelope?: () => void;
 }
 
@@ -23,6 +23,11 @@ const EnvelopeManagerModal: React.FC<EnvelopeManagerModalProps> = ({ isOpen, onC
       envelopes: updatedEnvelopes
     };
     loadPlan(updatedPlan);
+  };
+
+  // Check if an envelope is non-editable (Other envelope or non-regular account_type)
+  const isNonEditableEnvelope = (envelope: any) => {
+    return envelope.account_type !== 'regular' || envelope.name.startsWith('Other (');
   };
 
   return (
@@ -40,6 +45,9 @@ const EnvelopeManagerModal: React.FC<EnvelopeManagerModalProps> = ({ isOpen, onC
             if (otherMatch) {
               displayName = otherMatch[1];
             }
+
+            const isNonEditable = isNonEditableEnvelope(envelope);
+
             return (
               <div key={index} className="border rounded-lg p-4 space-y-3">
                 <div className="flex justify-between items-start">
@@ -50,12 +58,22 @@ const EnvelopeManagerModal: React.FC<EnvelopeManagerModalProps> = ({ isOpen, onC
                     {envelope.growth !== 'None' && typeof envelope.rate === 'number' && (
                       <p className="text-sm text-gray-600">Rate: {(envelope.rate * 100).toFixed(2)}%</p>
                     )}
+                    {isNonEditable && (
+                      <p className="text-xs text-gray-500 mt-1">(Default Envelope)</p>
+                    )}
                   </div>
                   <div className="flex gap-2">
                     <Button onClick={() => onEditEnvelope({ ...envelope, rate: envelope.rate ?? 0 })} size="sm" variant="outline">
                       <Pencil size={16} />
                     </Button>
-                    <Button onClick={() => deleteEnvelope(index)} size="sm" variant="destructive">
+                    <Button
+                      onClick={() => deleteEnvelope(index)}
+                      size="sm"
+                      variant="destructive"
+                      disabled={isNonEditable}
+                      className={isNonEditable ? "opacity-50 cursor-not-allowed" : ""}
+                      title={isNonEditable ? "System envelopes cannot be deleted" : "Delete envelope"}
+                    >
                       <Trash2 size={16} />
                     </Button>
                   </div>

@@ -3,7 +3,7 @@ export function extractSchema(schema: any) {
 
     for (const event of schema.events) {
         const eventType = event.type;
-        const params = new Set(event.parameters.map((p: any) => p.type));
+        const params = event.parameters; // Store full parameter objects
 
         eventSchemas[eventType] = {
             params,
@@ -13,7 +13,7 @@ export function extractSchema(schema: any) {
         if (event.updating_events) {
             for (const update of event.updating_events) {
                 const updateType = update.type;
-                const updateParams = new Set(update.parameters.map((p: any) => p.type));
+                const updateParams = update.parameters; // Store full parameter objects
                 eventSchemas[eventType].updating_events[updateType] = updateParams;
             }
         }
@@ -25,21 +25,28 @@ export function extractSchema(schema: any) {
 export function validateParameters(
     eventType: string,
     eventId: string,
-    expectedParams: Set<string>,
+    expectedParams: any[], // Changed from Set<string> to any[]
     providedParams: any[],
     isUpdating = false,
     parentEventId?: string
 ): string[] {
     const errors: string[] = [];
+
+    // Filter out non-editable parameters from expected params
+    const expectedTypes = new Set(expectedParams.map(p => p.type));
     const providedTypes = new Set(providedParams.map(p => p.type));
 
-    const missing = [...expectedParams].filter(p => !providedTypes.has(p));
+    const missing = [...expectedTypes].filter(p => !providedTypes.has(p));
     if (missing.length > 0) {
         const desc = isUpdating ? `${eventType} under ${parentEventId}` : eventType;
         errors.push(`❌ Missing in ${desc}: ${missing}`);
     }
 
-    const extra = [...providedTypes].filter(p => !expectedParams.has(p));
+    // For unexpected parameters, only flag them as errors if they are editable
+    // Non-editable unexpected parameters are allowed (they might be calculated/system-generated)
+    const editableProvidedParams = providedParams.filter(p => p.editable !== false);
+    const editableProvidedTypes = new Set(editableProvidedParams.map(p => p.type));
+    const extra = [...editableProvidedTypes].filter(p => !expectedTypes.has(p));
     if (extra.length > 0) {
         const desc = isUpdating ? `updating event ${eventType}, parent event ${parentEventId}` : `event ${eventId} (${eventType})`;
         errors.push(`❌ Unexpected parameters in ${desc}: ${extra}`);
@@ -162,11 +169,13 @@ export function parseEvents(problem: any) {
         description: event.description || "",
         is_recurring: event.is_recurring || false,
         parameters: Object.fromEntries(event.parameters.map((p: any) => [p.type, p.value])),
+        event_functions: event.event_functions || [],
         updating_events: (event.updating_events || []).map((upd: any) => ({
             id: upd.id,
             type: upd.type,
             description: upd.description || "",
-            parameters: Object.fromEntries(upd.parameters.map((p: any) => [p.type, p.value]))
+            parameters: Object.fromEntries(upd.parameters.map((p: any) => [p.type, p.value])),
+            event_functions: upd.event_functions || []
         }))
     }));
 }
