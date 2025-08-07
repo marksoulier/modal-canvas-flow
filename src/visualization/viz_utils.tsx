@@ -75,10 +75,28 @@ export const formatDate = (
             }
             break;
         case 'week':
+            // Use format like "Aug 2024" for week intervals
+            dateStr = `${date.toLocaleString('default', { month: 'short' })} ${date.getFullYear()}`;
+            break;
+        case 'half_week':
+            // Use same format as day for half_week intervals
+            dateStr = `${date.getDate()} ${date.toLocaleString('default', { month: 'short' })}`;
+            break;
         case 'day':
+            // Use format like "3 Aug" for day intervals
+            dateStr = `${date.getDate()} ${date.toLocaleString('default', { month: 'short' })}`;
+            break;
+        case 'quarter':
             dateStr = date.toLocaleString('default', {
-                day: 'numeric',
-                month: 'short'
+                month: 'short',
+                year: 'numeric'
+            });
+            break;
+        case 'half_year':
+            // Use same format as quarter for half_year intervals
+            dateStr = date.toLocaleString('default', {
+                month: 'short',
+                year: 'numeric'
             });
             break;
         case 'full':
@@ -97,7 +115,9 @@ export const formatDate = (
         default:
             dateStr = date.toLocaleDateString();
     }
-    if (showAge) {
+
+    // Only show age for intervals other than week, half_week, and day
+    if (showAge && interval !== 'week' && interval !== 'half_week' && interval !== 'day') {
         const age = getAgeFromDays(daysSinceBirth, birthDate.toISOString().split('T')[0]);
         if (showAgeAsJSX) {
             return <><span>{dateStr} </span><span style={{ color: '#b0b0b0', fontWeight: 400 }}>({age})</span></>;

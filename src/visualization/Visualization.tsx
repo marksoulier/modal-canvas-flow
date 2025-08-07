@@ -297,6 +297,13 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
     endDateFormatted: string;
     totalDays: number;
   } | null>(null);
+
+  // Track the last simulation window to detect significant changes
+  const [lastSimulationWindow, setLastSimulationWindow] = useState<{
+    startDate: number;
+    endDate: number;
+    totalDays: number;
+  } | null>(null);
   const [eventDescriptionTooltip, setEventDescriptionTooltip] = useState<{
     left: number;
     top: number;
@@ -612,6 +619,15 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
       const negativeWarnings = detectAccountWarnings(simulationResult, plan);
       if (negativeWarnings.length > 0 && onNegativeAccountWarning) {
         onNegativeAccountWarning(negativeWarnings);
+      }
+
+      // Track the simulation window that was used
+      if (rangeToUse) {
+        setLastSimulationWindow({
+          startDate: rangeToUse.startDate,
+          endDate: rangeToUse.endDate,
+          totalDays: rangeToUse.endDate - rangeToUse.startDate
+        });
       }
     } catch (err) {
       console.error('Simulation failed:', err);

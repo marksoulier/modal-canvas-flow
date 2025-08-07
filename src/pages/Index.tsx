@@ -33,7 +33,7 @@ import ExitViewingModeDialog from '../components/ExitViewingModeDialog';
 
 export default function Index() {
   // Auth context
-  const { user, signOut: authSignOut, logAnonymousButtonClick, onboarding_state, isOnboardingAtOrAbove } = useAuth();
+  const { user, signOut: authSignOut, logAnonymousButtonClick, onboarding_state, isOnboardingAtOrAbove, isLoading } = useAuth();
 
   // Plan context
   const {
@@ -138,10 +138,16 @@ export default function Index() {
 
   // Auto-open onboarding modal when at user_info stage
   useEffect(() => {
-    if (onboarding_state === 'user_info' && !onboardingOpen) {
-      setOnboardingOpen(true);
+    // Only proceed if we're not loading and the onboarding state is user_info
+    if (!isLoading && onboarding_state === 'user_info' && !onboardingOpen) {
+      // Wait for 1 second after the state is loaded before opening the modal
+      const timer = setTimeout(() => {
+        setOnboardingOpen(true);
+      }, 1000);
+      // Cleanup timer on unmount
+      return () => clearTimeout(timer);
     }
-  }, []);
+  }, [isLoading, onboarding_state]);
 
   const handleAnnotationClick = (eventId: number) => {
     setEditingEventId(eventId);
@@ -485,13 +491,6 @@ export default function Index() {
               >
                 <HelpCircle className="mr-2 h-4 w-4" />
                 Help
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => checkViewingMode(() => setOnboardingOpen(true))}
-                className="cursor-pointer"
-              >
-                <HelpCircle className="mr-2 h-4 w-4" />
-                Onboarding
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={() => checkViewingMode(handleAccount)}

@@ -453,13 +453,13 @@ export const onboardingVideoSegments: VideoSegment[] = [
     },
     {
         stageKey: 'declare_accounts',
-        videoIds: ['updating-events', 'declare-accounts', 'transfer'],
+        videoIds: ['declare-accounts', 'transfer', 'updating-events'],
         title: 'Adding Life Events',
         description: 'Learn how to add and manage financial events in your timeline'
     },
     {
         stageKey: 'assets',
-        videoIds: ['function-parts', 'house', 'car', 'loan'],
+        videoIds: ['loan', 'car', 'house', 'function-parts'],
         title: 'Advanced Features',
         description: 'Explore powerful features for complex financial scenarios'
     },
