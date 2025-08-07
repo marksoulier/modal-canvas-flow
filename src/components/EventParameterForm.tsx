@@ -25,6 +25,7 @@ import {
     TooltipTrigger,
 } from './ui/tooltip';
 import { usePlan, findEventOrUpdatingEventById, getEventDefinition, dateStringToDaysSinceBirth } from '../contexts/PlanContext';
+import { useAuth } from '../contexts/AuthContext';
 import type { Plan, Event, Parameter, Schema, SchemaEvent, UpdatingEvent } from '../contexts/PlanContext';
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from './ui/accordion';
 import DatePicker from './DatePicker';
@@ -50,7 +51,8 @@ const EventParametersForm: React.FC<EventParametersFormProps> = ({
     onOpenEnvelopeModal,
     onAddEnvelope
 }) => {
-    const { plan, schema, getEventIcon, updateParameter, deleteEvent, getParameterDisplayName, getParameterUnits, getEventDisplayType, addUpdatingEvent, getParameterDescription, updateEventDescription, updateEventTitle, canEventBeRecurring, updateEventRecurring, getParameterOptions, currentDay, getEnvelopeDisplayName, getEventFunctionsParts, updateEventFunctionParts, getEventFunctionPartsState, getEventFunctionPartsIcon, getEventFunctionPartsDescription, getEventDisclaimer } = usePlan();
+    const { plan, schema, getEventIcon, updateParameter, deleteEvent, getParameterDisplayName, getParameterUnits, getEventDisplayType, addUpdatingEvent, getParameterDescription, updateEventDescription, updateEventTitle, canEventBeRecurring, updateEventRecurring, getParameterOptions, currentDay, getEnvelopeDisplayName, getEventFunctionsParts, updateEventFunctionParts, getEventFunctionPartsState, getEventFunctionPartsIcon, getEventFunctionPartsDescription, getEventDisclaimer, getEventOnboardingStage } = usePlan();
+    const { onboarding_state, isOnboardingAtOrAbove, getOnboardingStateNumber } = useAuth();
 
     // State for local parameter editing (now supports main and updating events)
     const [parameters, setParameters] = useState<Record<number, Record<number, { type: string; value: string | number }>>>({});
@@ -371,7 +373,7 @@ const EventParametersForm: React.FC<EventParametersFormProps> = ({
 
     // Handler to add updating event
     const handleAddUpdatingEvent = () => {
-        if (mainEvent && newUpdatingEventType) {
+        if (mainEvent && newUpdatingEventType && isUpdatingEventAvailable(newUpdatingEventType)) {
             addUpdatingEvent(mainEvent.id, newUpdatingEventType);
             setNewUpdatingEventType("");
         }
@@ -380,6 +382,38 @@ const EventParametersForm: React.FC<EventParametersFormProps> = ({
     // Helper to get updating event schema
     const getUpdatingEventSchema = (mainEventType: string, updatingEventType: string) => {
         return schema?.events.find(e => e.type === mainEventType)?.updating_events?.find(ue => ue.type === updatingEventType);
+    };
+
+    // Helper to check if updating events should be shown based on onboarding stage
+    const shouldShowUpdatingEvents = () => {
+        if (!mainEvent || !mainEventSchema?.updating_events) return false;
+
+        // Check if any updating events are available at current onboarding stage
+        return mainEventSchema.updating_events.some(ue => {
+            if (!ue.onboarding_stage) return true; // If no onboarding stage specified, always show
+            return isOnboardingAtOrAbove(ue.onboarding_stage as any);
+        });
+    };
+
+    // Helper to get available updating events based on onboarding stage
+    const getAvailableUpdatingEvents = () => {
+        if (!mainEvent || !mainEventSchema?.updating_events) return [];
+
+        return mainEventSchema.updating_events.filter(ue => {
+            if (!ue.onboarding_stage) return true; // If no onboarding stage specified, always show
+            return isOnboardingAtOrAbove(ue.onboarding_stage as any);
+        });
+    };
+
+    // Helper to check if a specific updating event is available at current onboarding stage
+    const isUpdatingEventAvailable = (updatingEventType: string) => {
+        if (!mainEventSchema?.updating_events) return false;
+
+        const updatingEvent = mainEventSchema.updating_events.find(ue => ue.type === updatingEventType);
+        if (!updatingEvent) return false;
+
+        if (!updatingEvent.onboarding_stage) return true; // If no onboarding stage specified, always show
+        return isOnboardingAtOrAbove(updatingEvent.onboarding_stage as any);
     };
 
     return (
@@ -595,11 +629,12 @@ const EventParametersForm: React.FC<EventParametersFormProps> = ({
                             })()}
 
                             {/* --- Updating Events Section --- */}
-                            {mainEvent && (
+                            {/* Only show updating events section if there are updating events available at current onboarding stage */}
+                            {mainEvent && shouldShowUpdatingEvents() && (
                                 <div className="bg-card rounded-lg border border-border p-6">
                                     <div className="flex items-center justify-between mb-4">
                                         <h3 className="text-lg font-semibold text-foreground">Updating Events</h3>
-                                        {updatingEventTypes.length > 0 && (
+                                        {getAvailableUpdatingEvents().length > 0 && (
                                             <div className="flex gap-2 items-center">
                                                 <Select
                                                     value={newUpdatingEventType}
@@ -609,7 +644,7 @@ const EventParametersForm: React.FC<EventParametersFormProps> = ({
                                                         <SelectValue placeholder="Add updating event" />
                                                     </SelectTrigger>
                                                     <SelectContent>
-                                                        {mainEventSchema?.updating_events
+                                                        {getAvailableUpdatingEvents()
                                                             ?.filter(ue => ue.display_event !== false)
                                                             .map(ue => (
                                                                 <SelectItem key={ue.type} value={ue.type}>{ue.display_type}</SelectItem>
@@ -829,7 +864,11 @@ const EventParametersForm: React.FC<EventParametersFormProps> = ({
                                             })}
                                         </Accordion>
                                     ) : (
-                                        <p className="text-xs text-muted-foreground mt-2">No updating events.</p>
+                                        <p className="text-xs text-muted-foreground mt-2">
+                                            {mainEventSchema?.updating_events && mainEventSchema.updating_events.length > 0
+                                                ? "No updating events available at your current onboarding stage."
+                                                : "No updating events."}
+                                        </p>
                                     )}
                                 </div>
                             )}

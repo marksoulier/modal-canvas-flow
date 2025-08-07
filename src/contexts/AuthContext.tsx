@@ -9,7 +9,6 @@ import type { TablesInsert } from '../integrations/supabase/types';
 const ONBOARDING_STATES = [
     'user_info',
     'basics',
-    'envelopes',
     'updating_events',
     'declare_accounts',
     'assets',
@@ -83,6 +82,7 @@ interface AuthContextType {
     getOnboardingStateFromNumber: (number: number) => OnboardingState | null;
     updateOnboardingState: (newState: OnboardingState) => void;
     advanceOnboardingStage: () => Promise<OnboardingState>;
+    isOnboardingAtOrAbove: (requiredState: OnboardingState) => boolean;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -112,6 +112,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [isLoading, setIsLoading] = useState(true);
     const [onboarding_state, setOnboardingState] = useState<OnboardingState>('user_info');
 
+    // Helper function to check if current onboarding state is at or above required level
+    const isOnboardingAtOrAbove = (requiredState: OnboardingState) => {
+        const currentLevel = getOnboardingStateNumber(onboarding_state);
+        const requiredLevel = getOnboardingStateNumber(requiredState);
+        return currentLevel >= requiredLevel;
+    };
 
     const advanceOnboardingStage = async () => {
         const nextStage = getOnboardingStateNumber(onboarding_state) + 1;
@@ -713,7 +719,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             );
         if (error) {
             console.error('Error upserting anonymous plan:', error);
-            toast.error('Failed to save anonymous plan.');
+            //toast.error('Failed to save anonymous plan.');
             return false;
         }
         return true;
@@ -787,6 +793,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         getOnboardingStateFromNumber,
         updateOnboardingState,
         advanceOnboardingStage,
+        isOnboardingAtOrAbove,
     };
 
     return (

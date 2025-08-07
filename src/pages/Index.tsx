@@ -33,7 +33,7 @@ import ExitViewingModeDialog from '../components/ExitViewingModeDialog';
 
 export default function Index() {
   // Auth context
-  const { user, signOut: authSignOut, logAnonymousButtonClick, onboarding_state } = useAuth();
+  const { user, signOut: authSignOut, logAnonymousButtonClick, onboarding_state, isOnboardingAtOrAbove } = useAuth();
 
   // Plan context
   const {
@@ -135,6 +135,13 @@ export default function Index() {
       setPremiumConfirmationOpen(true);
     }
   }, []); // Empty dependency array means this runs once on mount
+
+  // Auto-open onboarding modal when at user_info stage
+  useEffect(() => {
+    if (onboarding_state === 'user_info' && !onboardingOpen) {
+      setOnboardingOpen(true);
+    }
+  }, []);
 
   const handleAnnotationClick = (eventId: number) => {
     setEditingEventId(eventId);
@@ -359,7 +366,9 @@ export default function Index() {
       {/* Overlay elements with higher z-index */}
       <div className="relative z-10">
         {/* Date Range Picker - Top Right */}
-        <DateRangePicker />
+        {isOnboardingAtOrAbove('updating_events') && (
+          <DateRangePicker />
+        )}
 
         {/* Hamburger Menu and Title - Top Left */}
         <div className="absolute top-6 left-3 flex items-center gap-3">
@@ -394,22 +403,24 @@ export default function Index() {
                     placeholder="Enter plan title..."
                   />
                   {/* Copy and Switch buttons next to input */}
-                  <div className="flex items-center gap-1">
-                    <button
-                      onClick={copyPlanToLock}
-                      title="Copy current plan to locked plan"
-                      className="p-1 rounded hover:bg-gray-100 transition-colors"
-                    >
-                      <Copy size={18} className="text-gray-400 hover:text-gray-700" />
-                    </button>
-                    <button
-                      onClick={lockPlan}
-                      title="Switch with locked plan"
-                      className="p-1 rounded hover:bg-gray-100 transition-colors"
-                    >
-                      <RefreshCw size={18} className="text-gray-400 hover:text-gray-700" />
-                    </button>
-                  </div>
+                  {isOnboardingAtOrAbove('assets') && (
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={copyPlanToLock}
+                        title="Copy current plan to locked plan"
+                        className="p-1 rounded hover:bg-gray-100 transition-colors"
+                      >
+                        <Copy size={18} className="text-gray-400 hover:text-gray-700" />
+                      </button>
+                      <button
+                        onClick={lockPlan}
+                        title="Switch with locked plan"
+                        className="p-1 rounded hover:bg-gray-100 transition-colors"
+                      >
+                        <RefreshCw size={18} className="text-gray-400 hover:text-gray-700" />
+                      </button>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="flex items-center gap-2">
@@ -423,22 +434,24 @@ export default function Index() {
                     <Edit3 size={16} className="opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
                   </button>
                   {/* Copy and Switch buttons next to title */}
-                  <div className="flex items-center gap-1">
-                    <button
-                      onClick={copyPlanToLock}
-                      title="Copy current plan to locked plan"
-                      className="p-1 rounded hover:bg-gray-100 transition-colors"
-                    >
-                      <Copy size={18} className="text-gray-400 hover:text-gray-700" />
-                    </button>
-                    <button
-                      onClick={lockPlan}
-                      title="Switch with locked plan"
-                      className="p-1 rounded hover:bg-gray-100 transition-colors"
-                    >
-                      <RefreshCw size={18} className="text-gray-400 hover:text-gray-700" />
-                    </button>
-                  </div>
+                  {isOnboardingAtOrAbove('assets') && (
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={copyPlanToLock}
+                        title="Copy current plan to locked plan"
+                        className="p-1 rounded hover:bg-gray-100 transition-colors"
+                      >
+                        <Copy size={18} className="text-gray-400 hover:text-gray-700" />
+                      </button>
+                      <button
+                        onClick={lockPlan}
+                        title="Switch with locked plan"
+                        className="p-1 rounded hover:bg-gray-100 transition-colors"
+                      >
+                        <RefreshCw size={18} className="text-gray-400 hover:text-gray-700" />
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -507,9 +520,9 @@ export default function Index() {
       </div>
 
       {/* Modals */}
-      <HelpModal 
-        isOpen={helpModalOpen} 
-        onClose={() => setHelpModalOpen(false)} 
+      <HelpModal
+        isOpen={helpModalOpen}
+        onClose={() => setHelpModalOpen(false)}
         onRestartOnboarding={() => checkViewingMode(() => setOnboardingOpen(true))}
       />
       <SaveModal
@@ -642,12 +655,13 @@ export default function Index() {
 
       {/* Onboarding Progress Component - shows after modal completion */}
       {onboarding_state !== 'full' && (
-        <OnboardingProgress 
+        <OnboardingProgress
           onAuthRequired={() => {
             localStorage.setItem('onboarding-completed', 'true');
             setAuthModalMode('signUp');
             setAuthModalOpen(true);
           }}
+          onExitViewingMode={() => setExitViewingModalOpen(true)}
         />
       )}
     </div>

@@ -85,7 +85,7 @@ const UserAccountModal: React.FC<UserAccountModalProps> = ({ isOpen, onClose, on
       console.log('🔄 Refreshing user data...');
       refreshUserData();
     }
-  }, [isOpen, refreshUserData]);
+  }, [isOpen]);
 
   if (isLoading) {
     return (

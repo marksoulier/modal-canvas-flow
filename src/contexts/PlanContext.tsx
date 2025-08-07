@@ -311,6 +311,8 @@ interface PlanContextType {
     convertDateParametersToDays: (events: any[]) => any[]; // <-- add this new method
     triggerSimulation: () => void; // <-- add this new method
     registerTriggerSimulation: (fn: () => void) => void; // <-- add this new method
+    handleZoomToWindow: (options: { years?: number; months?: number; days?: number }) => void; // <-- add this new method
+    registerHandleZoomToWindow: (fn: (options: { years?: number; months?: number; days?: number }) => void) => void; // <-- add this new method
     updatePlanDirectly: (planData: Plan) => void; // <-- add this new method for direct plan updates without viewing window reset
     isExampleViewing: boolean; // Add this new property
     daysSinceBirthToDateString: (days: number, birthDate: string) => string; // Add this for date conversion
@@ -391,6 +393,9 @@ export function PlanProvider({ children }: PlanProviderProps) {
 
     // Ref to store the triggerSimulation function from Visualization
     const triggerSimulationRef = useRef<(() => void) | null>(null);
+
+    // Ref to store the handleZoomToWindow function from Visualization
+    const handleZoomToWindowRef = useRef<((options: { years?: number; months?: number; days?: number }) => void) | null>(null);
 
     const { upsertAnonymousPlan, fetchDefaultPlans } = useAuth();
 
@@ -1723,6 +1728,17 @@ export function PlanProvider({ children }: PlanProviderProps) {
         },
         registerTriggerSimulation: (fn: () => void) => {
             triggerSimulationRef.current = fn;
+        },
+        handleZoomToWindow: (options: { years?: number; months?: number; days?: number }) => {
+            // Use the ref if available, otherwise log a warning
+            if (handleZoomToWindowRef.current) {
+                handleZoomToWindowRef.current(options);
+            } else {
+                console.warn('handleZoomToWindow called but Visualization component not ready yet');
+            }
+        },
+        registerHandleZoomToWindow: (fn: (options: { years?: number; months?: number; days?: number }) => void) => {
+            handleZoomToWindowRef.current = fn;
         },
         updatePlanDirectly: (planData: Plan) => {
             // Direct plan update without triggering viewing window reset

@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-// import { Textarea } from '@/components/ui/textarea';
-import { Checkbox } from '@/components/ui/checkbox';
-// import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Card, CardContent } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
+import { Button } from './ui/button';
+import { Input } from './ui/input';
+import { Label } from './ui/label';
+// import { Textarea } from './ui/textarea';
+import { Checkbox } from './ui/checkbox';
+// import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
+import { Card, CardContent } from './ui/card';
 import { DollarSign, Target, Home, Plane, Users, Coffee, TrendingUp, PiggyBank, Building, CreditCard, Wallet, Shield, Leaf, Mountain, Sparkles } from 'lucide-react';
 import { usePlan } from '../contexts/PlanContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -109,7 +109,6 @@ const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ isOpen, onComplete, onA
     } else {
       // When completing the modal, transition from 'user_info' to 'basics' to start progressive access
       console.log('🎯 MODAL COMPLETED - Transitioning from user_info to basics');
-      await updateOnboardingState('basics' as any);
       if (logAnonymousButtonClick) {
         await logAnonymousButtonClick('modal_completed');
       }
@@ -161,10 +160,10 @@ const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ isOpen, onComplete, onA
               </p>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-3xl mx-auto">
-                <div className="bg-gradient-to-br from-background to-muted/30 p-6 rounded-xl border border-border/50 hover:border-primary/20 transition-all duration-300">
+                <div className="bg-gradient-to-br from-background to-muted/30 p-6 rounded-xl border border-border/50 hover:border-[#03c6fc]/20 transition-all duration-300">
                   <div className="flex items-start gap-4">
-                    <div className="p-2 bg-primary/10 rounded-lg">
-                      <Target className="w-6 h-6 text-primary" />
+                    <div className="p-2 bg-[#03c6fc]/10 rounded-lg">
+                      <Target className="w-6 h-6 text-[#03c6fc]" />
                     </div>
                     <div className="text-left">
                       <h4 className="font-medium text-foreground mb-2">Scenario Planning</h4>
@@ -173,10 +172,10 @@ const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ isOpen, onComplete, onA
                   </div>
                 </div>
 
-                <div className="bg-gradient-to-br from-background to-muted/30 p-6 rounded-xl border border-border/50 hover:border-primary/20 transition-all duration-300">
+                <div className="bg-gradient-to-br from-background to-muted/30 p-6 rounded-xl border border-border/50 hover:border-[#03c6fc]/20 transition-all duration-300">
                   <div className="flex items-start gap-4">
-                    <div className="p-2 bg-primary/10 rounded-lg">
-                      <Sparkles className="w-6 h-6 text-primary" />
+                    <div className="p-2 bg-[#03c6fc]/10 rounded-lg">
+                      <Sparkles className="w-6 h-6 text-[#03c6fc]" />
                     </div>
                     <div className="text-left">
                       <h4 className="font-medium text-foreground mb-2">Retirement Planning</h4>
@@ -185,10 +184,10 @@ const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ isOpen, onComplete, onA
                   </div>
                 </div>
 
-                <div className="bg-gradient-to-br from-background to-muted/30 p-6 rounded-xl border border-border/50 hover:border-primary/20 transition-all duration-300">
+                <div className="bg-gradient-to-br from-background to-muted/30 p-6 rounded-xl border border-border/50 hover:border-[#03c6fc]/20 transition-all duration-300">
                   <div className="flex items-start gap-4">
-                    <div className="p-2 bg-primary/10 rounded-lg">
-                      <Shield className="w-6 h-6 text-primary" />
+                    <div className="p-2 bg-[#03c6fc]/10 rounded-lg">
+                      <Shield className="w-6 h-6 text-[#03c6fc]" />
                     </div>
                     <div className="text-left">
                       <h4 className="font-medium text-foreground mb-2">Peace of Mind</h4>
@@ -197,10 +196,10 @@ const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ isOpen, onComplete, onA
                   </div>
                 </div>
 
-                <div className="bg-gradient-to-br from-background to-muted/30 p-6 rounded-xl border border-border/50 hover:border-primary/20 transition-all duration-300">
+                <div className="bg-gradient-to-br from-background to-muted/30 p-6 rounded-xl border border-border/50 hover:border-[#03c6fc]/20 transition-all duration-300">
                   <div className="flex items-start gap-4">
-                    <div className="p-2 bg-primary/10 rounded-lg">
-                      <Building className="w-6 h-6 text-primary" />
+                    <div className="p-2 bg-[#03c6fc]/10 rounded-lg">
+                      <Building className="w-6 h-6 text-[#03c6fc]" />
                     </div>
                     <div className="text-left">
                       <h4 className="font-medium text-foreground mb-2">Market Simulation</h4>
@@ -229,11 +228,11 @@ const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ isOpen, onComplete, onA
               { id: 'budgeting', label: 'Budgeting Tool', icon: Wallet },
               { id: 'peace', label: 'Peace of mind', icon: Shield }
             ].map(({ id, label, icon: Icon }) => (
-              <Card key={id} className={`cursor-pointer transition-all ${data.goals.includes(id) ? 'ring-2 ring-primary bg-primary/5' : 'hover:bg-muted/50'}`} onClick={() => handleGoalToggle(id)}>
+              <Card key={id} className={`cursor-pointer transition-all ${data.goals.includes(id) ? 'ring-2 ring-[#03c6fc] bg-[#03c6fc]/5' : 'hover:bg-muted/50'}`} onClick={() => handleGoalToggle(id)}>
                 <CardContent className="flex items-center p-4">
-                  <Icon className="w-5 h-5 mr-3 text-primary" />
+                  <Icon className="w-5 h-5 mr-3 text-[#03c6fc]" />
                   <span className="flex-1">{label}</span>
-                  <Checkbox checked={data.goals.includes(id)} readOnly />
+                  <Checkbox checked={data.goals.includes(id)} />
                 </CardContent>
               </Card>
             ))}
@@ -256,11 +255,11 @@ const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ isOpen, onComplete, onA
               { id: 'vacation', label: 'Dream Vacation', icon: Plane },
               { id: 'aspirations', label: 'Other Financial Aspirations', icon: Target }
             ].map(({ id, label, icon: Icon }) => (
-              <Card key={id} className={`cursor-pointer transition-all ${data.financialGoals.includes(id) ? 'ring-2 ring-primary bg-primary/5' : 'hover:bg-muted/50'}`} onClick={() => handleFinancialGoalToggle(id)}>
+              <Card key={id} className={`cursor-pointer transition-all ${data.financialGoals.includes(id) ? 'ring-2 ring-[#03c6fc] bg-[#03c6fc]/5' : 'hover:bg-muted/50'}`} onClick={() => handleFinancialGoalToggle(id)}>
                 <CardContent className="flex items-center p-4">
-                  <Icon className="w-5 h-5 mr-3 text-primary" />
+                  <Icon className="w-5 h-5 mr-3 text-[#03c6fc]" />
                   <span className="flex-1">{label}</span>
-                  <Checkbox checked={data.financialGoals.includes(id)} readOnly />
+                  <Checkbox checked={data.financialGoals.includes(id)} />
                 </CardContent>
               </Card>
             ))}
@@ -374,7 +373,7 @@ const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ isOpen, onComplete, onA
               {Array.from({ length: totalSteps }).map((_, index) => (
                 <div
                   key={index}
-                  className={`w-3 h-3 rounded-full transition-all duration-300 ${index <= currentStep ? 'bg-primary shadow-lg' : 'bg-muted'
+                  className={`w-3 h-3 rounded-full transition-all duration-300 ${index <= currentStep ? 'bg-[#03c6fc] shadow-lg' : 'bg-muted'
                     }`}
                 />
               ))}

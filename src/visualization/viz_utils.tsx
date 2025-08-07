@@ -5,6 +5,7 @@ import {
     getAgeFromDays,
     daysSinceBirthToDateString
 } from '../contexts/PlanContext';
+import { type OnboardingState } from '../contexts/AuthContext';
 
 // Format number as currency with suffixes
 export const formatNumber = (value: { valueOf(): number }): string => {
@@ -230,7 +231,8 @@ export const Legend = ({
     nonNetworthEnvelopes,
     nonNetworthCurrentValues,
     lockedNetWorthValue,
-    hoveredArea
+    hoveredArea,
+    isOnboardingAtOrAbove
 }: {
     envelopes: string[];
     envelopeColors: Record<string, { area: string; line: string }>;
@@ -241,9 +243,8 @@ export const Legend = ({
     nonNetworthCurrentValues?: { [key: string]: number };
     lockedNetWorthValue?: number;
     hoveredArea?: { envelope: string; category: string } | null;
-    }) => {
-
-    
+    isOnboardingAtOrAbove: (requiredState: OnboardingState) => boolean;
+}) => {
     // Group envelopes by category
     const categoryMap: Record<string, string[]> = {};
     envelopes.forEach((envelope) => {
@@ -291,10 +292,16 @@ export const Legend = ({
                     </span>
                 </div>
                 <div className="flex flex-col items-end">
-                    <span className="text-xs text-gray-800" style={{ fontWeight: 700 }}>
+                    <span
+                        className="text-xs"
+                        style={{
+                            fontWeight: 700,
+                            color: netWorth < 0 ? '#F44336' : '#222'
+                        }}
+                    >
                         {formatNumber({ valueOf: () => netWorth })}
                     </span>
-                    {lockedNetWorthValue !== undefined && Math.abs(netWorth - lockedNetWorthValue) > 0.01 && (
+                    {lockedNetWorthValue !== undefined && Math.abs(netWorth - lockedNetWorthValue) > 0.01 && isOnboardingAtOrAbove('assets') && (
                         <span className="text-xs" style={{
                             color: netWorth >= lockedNetWorthValue ? '#4CAF50' : '#F44336',
                             fontWeight: 500,
@@ -336,7 +343,10 @@ export const Legend = ({
                                         color: isCategoryHovered ? '#335966' : '#222'
                                     }}>{category}</span>
                                 </div>
-                                <span className="text-xs text-gray-500" style={{ fontWeight: 500 }}>{formatNumber({ valueOf: () => categorySum })}</span>
+                                <span className="text-xs" style={{
+                                    fontWeight: 500,
+                                    color: categorySum < 0 ? '#F44336' : '#6B7280'
+                                }}>{formatNumber({ valueOf: () => categorySum })}</span>
                             </div>
                             {showEnvelopes && (
                                 <div style={{ marginLeft: 20, marginTop: 2 }} className="space-y-1">
@@ -365,7 +375,9 @@ export const Legend = ({
                                                         }}>{envelope}</span>
                                                     </div>
                                                     <span className="text-xs" style={{
-                                                        color: isHovered ? '#335966' : '#gray-400',
+                                                        color: (currentValues[envelope] || 0) < 0
+                                                            ? '#F44336'
+                                                            : (isHovered ? '#335966' : '#6B7280'),
                                                         fontWeight: isHovered ? 600 : 400
                                                     }}>
                                                         {formatNumber({ valueOf: () => currentValues[envelope] || 0 })}

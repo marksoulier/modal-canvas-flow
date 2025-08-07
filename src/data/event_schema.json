@@ -19,8 +19,8 @@
         {
             "name": "Other (Debt)",
             "category": "Debt",
-            "growth": "None",
-            "rate": 0,
+            "growth": "Monthly Compound",
+            "rate": 0.04,
             "account_type": "regular"
         },
         {
@@ -218,7 +218,7 @@
         {
             "type": "life_event",
             "display_type": "Life Event",
-            "onboarding_stage": "full",
+            "onboarding_stage": "updating_events",
             "display_event": true,
             "is_recurring": false,
             "can_be_reocurring": false,
@@ -321,7 +321,7 @@
                 {
                     "type": "update_amount",
                     "display_type": "Update Amount",
-                    "onboarding_stage": "full",
+                    "onboarding_stage": "declare_accounts",
                     "display_event": true,
                     "is_recurring": false,
                     "can_be_reocurring": true,
@@ -446,7 +446,7 @@
                 {
                     "type": "update_amount",
                     "display_type": "Update Amount",
-                    "onboarding_stage": "full",
+                    "onboarding_stage": "declare_accounts",
                     "display_event": true,
                     "is_recurring": false,
                     "can_be_reocurring": true,
@@ -492,7 +492,7 @@
         {
             "type": "declare_accounts",
             "display_type": "Declare Accounts",
-            "onboarding_stage": "full",
+            "onboarding_stage": "declare_accounts",
             "display_event": true,
             "is_recurring": false,
             "can_be_reocurring": false,
@@ -596,7 +596,7 @@
         {
             "type": "transfer_money",
             "display_type": "Money Transfer",
-            "onboarding_stage": "full",
+            "onboarding_stage": "declare_accounts",
             "display_event": true,
             "is_recurring": false,
             "can_be_reocurring": true,
@@ -698,7 +698,7 @@
                 {
                     "type": "update_amount",
                     "display_type": "Update Amount",
-                    "onboarding_stage": "full",
+                    "onboarding_stage": "declare_accounts",
                     "display_event": true,
                     "is_recurring": false,
                     "can_be_reocurring": true,
@@ -745,7 +745,7 @@
             "type": "income_with_changing_parameters",
             "display_type": "Income",
             "onboarding_stage": "full",
-            "display_event": true,
+            "display_event": false,
             "is_recurring": true,
             "can_be_reocurring": true,
             "weight": 40,
@@ -845,7 +845,7 @@
         {
             "type": "manual_correction",
             "display_type": "Manual Adjustment",
-            "onboarding_stage": "full",
+            "onboarding_stage": "declare_accounts",
             "display_event": true,
             "is_recurring": false,
             "can_be_reocurring": false,
@@ -962,7 +962,7 @@
         {
             "type": "loan",
             "display_type": "Loan",
-            "onboarding_stage": "full",
+            "onboarding_stage": "assets",
             "display_event": true,
             "is_recurring": false,
             "can_be_reocurring": true,
@@ -1975,7 +1975,7 @@
         {
             "type": "buy_house",
             "display_type": "Home Purchase",
-            "onboarding_stage": "full",
+            "onboarding_stage": "assets",
             "display_event": true,
             "is_recurring": false,
             "can_be_reocurring": false,
@@ -2007,14 +2007,6 @@
                     "parameter_units": "years",
                     "description": "Length of mortgage in years.",
                     "default": 30,
-                    "editable": true
-                },
-                {
-                    "type": "loan_rate",
-                    "display_name": "Interest Rate",
-                    "parameter_units": "apy",
-                    "description": "Annual interest rate on the mortgage.",
-                    "default": 0.03,
                     "editable": true
                 },
                 {
@@ -2220,7 +2212,7 @@
         {
             "type": "buy_car",
             "display_type": "Car Purchase",
-            "onboarding_stage": "full",
+            "onboarding_stage": "assets",
             "display_event": true,
             "is_recurring": false,
             "can_be_reocurring": false,

@@ -12,6 +12,7 @@ import { LinearGradient } from '@visx/gradient';
 import { TooltipWithBounds, defaultStyles } from '@visx/tooltip';
 import { runSimulation } from '../hooks/simulationRunner';
 import { usePlan, getEnvelopeCategory, getEnvelopeDisplayName, dateStringToDaysSinceBirth, daysSinceBirthToDateString, getEffectiveEventId } from '../contexts/PlanContext';
+import { useAuth } from '../contexts/AuthContext';
 import {
   ContextMenu,
   ContextMenuTrigger,
@@ -264,8 +265,12 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
   // Ref to store the setZoomToDateRange function for context access
   const setZoomToDateRangeRef = useRef<((startDay: number, endDay: number) => void) | null>(null);
 
+  // Ref to store the handleZoomToWindow function for context access
+  const handleZoomToWindowRef = useRef<((options: { years?: number; months?: number; days?: number }) => void) | null>(null);
+
   // Get the registerCurrentVisualizationRange function from context
   const { registerCurrentVisualizationRange } = usePlan();
+  const { isOnboardingAtOrAbove } = useAuth();
   const svgRef = useRef<SVGSVGElement>(null);
   const [cursorPos, setCursorPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
@@ -367,7 +372,7 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
     }
   }, [wheelHandler]);
 
-  const { plan, plan_locked, getEventIcon, updateParameter, schema, deleteEvent, getEventDisplayType, currentDay, registerSetZoomToDateRange, setVisualizationReady, convertDateParametersToDays, registerTriggerSimulation, updatePlanDirectly } = usePlan();
+  const { plan, plan_locked, getEventIcon, updateParameter, schema, deleteEvent, getEventDisplayType, currentDay, registerSetZoomToDateRange, setVisualizationReady, convertDateParametersToDays, registerTriggerSimulation, registerHandleZoomToWindow, updatePlanDirectly } = usePlan();
 
   // Register the setZoomToDateRange function with the context when it's available
   useEffect(() => {
@@ -375,6 +380,16 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
       registerSetZoomToDateRange(setZoomToDateRangeRef.current);
     }
   }, [registerSetZoomToDateRange]);
+
+  // Register the handleZoomToWindow function with the context when it's available
+  useEffect(() => {
+    if (handleZoomToWindowRef.current) {
+      registerHandleZoomToWindow(handleZoomToWindowRef.current);
+    }
+  }, [registerHandleZoomToWindow]);
+
+  // The actual handleZoomToWindow function will be assigned inside the Zoom component
+  // where it has access to the zoom state and xScale
 
 
 
@@ -721,11 +736,11 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
   }, [plan, schema, allEnvelopeKeys, categoryMap]);
 
   // Canvas context menu state
-  const [canvasContextMenu, setCanvasContextMenu] = useState<{
-    visible: boolean;
-    x: number;
-    y: number;
-  } | null>(null);
+  // const [canvasContextMenu, setCanvasContextMenu] = useState<{
+  //   visible: boolean;
+  //   x: number;
+  //   y: number;
+  // } | null>(null);
 
   // Track if mouse was dragged during left click
   const [leftClickStartPos, setLeftClickStartPos] = useState<{ x: number; y: number } | null>(null);
@@ -733,15 +748,15 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
   const [isClickingAnnotation, setIsClickingAnnotation] = useState(false);
 
   // Auto-close context menu after 3 seconds
-  useEffect(() => {
-    if (canvasContextMenu) {
-      const timer = setTimeout(() => {
-        setCanvasContextMenu(null);
-      }, 3000);
+  // useEffect(() => {
+  //   if (canvasContextMenu) {
+  //     const timer = setTimeout(() => {
+  //       setCanvasContextMenu(null);
+  //     }, 3000);
 
-      return () => clearTimeout(timer);
-    }
-  }, [canvasContextMenu]);
+  //     return () => clearTimeout(timer);
+  //   }
+  // }, [canvasContextMenu]);
 
   return (
     <div className="relative w-full h-full visualization-container">
@@ -1161,6 +1176,9 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
             );
           };
 
+          // Assign the function to the ref for external access
+          handleZoomToWindowRef.current = handleZoomToWindow;
+
           // Method to set zoom to show a specific date range
           const setZoomToDateRange = (startDay: number, endDay: number) => {
             console.log('🎯 Setting zoom to date range:', {
@@ -1237,126 +1255,138 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
                   gap: 8,
                 }}
               >
-                <button
-                  style={{
-                    background: 'rgba(51, 89, 102, 0.06)',
-                    color: '#335966',
-                    border: '1px solid #e5e7eb',
-                    borderRadius: 6,
-                    padding: '4px 12px',
-                    fontSize: 13,
-                    fontWeight: 500,
-                    opacity: 0.85,
-                    transition: 'background 0.2s',
-                    cursor: 'pointer',
-                    boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
-                  }}
-                  onClick={() => {
-                    handleZoomToWindow({ months: 1 });
-                  }}
-                >
-                  1m
-                </button>
-                <button
-                  style={{
-                    background: 'rgba(51, 89, 102, 0.06)',
-                    color: '#335966',
-                    border: '1px solid #e5e7eb',
-                    borderRadius: 6,
-                    padding: '4px 12px',
-                    fontSize: 13,
-                    fontWeight: 500,
-                    opacity: 0.85,
-                    transition: 'background 0.2s',
-                    cursor: 'pointer',
-                    boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
-                  }}
-                  onClick={() => {
-                    handleZoomToWindow({ months: 3 });
-                  }}
-                >
-                  3m
-                </button>
-                <button
-                  style={{
-                    background: 'rgba(51, 89, 102, 0.06)',
-                    color: '#335966',
-                    border: '1px solid #e5e7eb',
-                    borderRadius: 6,
-                    padding: '4px 12px',
-                    fontSize: 13,
-                    fontWeight: 500,
-                    opacity: 0.85,
-                    transition: 'background 0.2s',
-                    cursor: 'pointer',
-                    boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
-                  }}
-                  onClick={() => {
-                    handleZoomToWindow({ years: 1 });
-                  }}
-                >
-                  1yr
-                </button>
-                <button
-                  style={{
-                    background: 'rgba(51, 89, 102, 0.06)',
-                    color: '#335966',
-                    border: '1px solid #e5e7eb',
-                    borderRadius: 6,
-                    padding: '4px 12px',
-                    fontSize: 13,
-                    fontWeight: 500,
-                    opacity: 0.85,
-                    transition: 'background 0.2s',
-                    cursor: 'pointer',
-                    boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
-                  }}
-                  onClick={() => {
-                    handleZoomToWindow({ years: 5 });
-                  }}
-                >
-                  5yr
-                </button>
-                <button
-                  style={{
-                    background: 'rgba(51, 89, 102, 0.06)',
-                    color: '#335966',
-                    border: '1px solid #e5e7eb',
-                    borderRadius: 6,
-                    padding: '4px 12px',
-                    fontSize: 13,
-                    fontWeight: 500,
-                    opacity: 0.85,
-                    transition: 'background 0.2s',
-                    cursor: 'pointer',
-                    boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
-                  }}
-                  onClick={() => {
-                    handleZoomToWindow({ years: 10 });
-                  }}
-                >
-                  10yr
-                </button>
-                <button
-                  style={{
-                    background: 'rgba(51, 89, 102, 0.06)',
-                    color: '#335966',
-                    border: '1px solid #e5e7eb',
-                    borderRadius: 6,
-                    padding: '4px 12px',
-                    fontSize: 13,
-                    fontWeight: 500,
-                    opacity: 0.85,
-                    transition: 'background 0.2s',
-                    cursor: 'pointer',
-                    boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
-                  }}
-                  onClick={() => {
-                    handleZoomToWindow({ years: 50 });
-                  }}
-                >
-                  50yr
-                </button>
+                {isOnboardingAtOrAbove('user_info') && (
+                  <button
+                    style={{
+                      background: 'rgba(51, 89, 102, 0.06)',
+                      color: '#335966',
+                      border: '1px solid #e5e7eb',
+                      borderRadius: 6,
+                      padding: '4px 12px',
+                      fontSize: 13,
+                      fontWeight: 500,
+                      opacity: 0.85,
+                      transition: 'background 0.2s',
+                      cursor: 'pointer',
+                      boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
+                    }}
+                    onClick={() => {
+                      handleZoomToWindow({ months: 1 });
+                    }}
+                  >
+                    1m
+                  </button>
+                )}
+                {isOnboardingAtOrAbove('user_info') && (
+                  <button
+                    style={{
+                      background: 'rgba(51, 89, 102, 0.06)',
+                      color: '#335966',
+                      border: '1px solid #e5e7eb',
+                      borderRadius: 6,
+                      padding: '4px 12px',
+                      fontSize: 13,
+                      fontWeight: 500,
+                      opacity: 0.85,
+                      transition: 'background 0.2s',
+                      cursor: 'pointer',
+                      boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
+                    }}
+                    onClick={() => {
+                      handleZoomToWindow({ months: 3 });
+                    }}
+                  >
+                    3m
+                  </button>
+                )}
+                {isOnboardingAtOrAbove('updating_events') && (
+                  <button
+                    style={{
+                      background: 'rgba(51, 89, 102, 0.06)',
+                      color: '#335966',
+                      border: '1px solid #e5e7eb',
+                      borderRadius: 6,
+                      padding: '4px 12px',
+                      fontSize: 13,
+                      fontWeight: 500,
+                      opacity: 0.85,
+                      transition: 'background 0.2s',
+                      cursor: 'pointer',
+                      boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
+                    }}
+                    onClick={() => {
+                      handleZoomToWindow({ years: 1 });
+                    }}
+                  >
+                    1yr
+                  </button>
+                )}
+                {isOnboardingAtOrAbove('updating_events') && (
+                  <button
+                    style={{
+                      background: 'rgba(51, 89, 102, 0.06)',
+                      color: '#335966',
+                      border: '1px solid #e5e7eb',
+                      borderRadius: 6,
+                      padding: '4px 12px',
+                      fontSize: 13,
+                      fontWeight: 500,
+                      opacity: 0.85,
+                      transition: 'background 0.2s',
+                      cursor: 'pointer',
+                      boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
+                    }}
+                    onClick={() => {
+                      handleZoomToWindow({ years: 5 });
+                    }}
+                  >
+                    5yr
+                  </button>
+                )}
+                {isOnboardingAtOrAbove('declare_accounts') && (
+                  <button
+                    style={{
+                      background: 'rgba(51, 89, 102, 0.06)',
+                      color: '#335966',
+                      border: '1px solid #e5e7eb',
+                      borderRadius: 6,
+                      padding: '4px 12px',
+                      fontSize: 13,
+                      fontWeight: 500,
+                      opacity: 0.85,
+                      transition: 'background 0.2s',
+                      cursor: 'pointer',
+                      boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
+                    }}
+                    onClick={() => {
+                      handleZoomToWindow({ years: 10 });
+                    }}
+                  >
+                    10yr
+                  </button>
+                )}
+                {isOnboardingAtOrAbove('assets') && (
+                  <button
+                    style={{
+                      background: 'rgba(51, 89, 102, 0.06)',
+                      color: '#335966',
+                      border: '1px solid #e5e7eb',
+                      borderRadius: 6,
+                      padding: '4px 12px',
+                      fontSize: 13,
+                      fontWeight: 500,
+                      opacity: 0.85,
+                      transition: 'background 0.2s',
+                      cursor: 'pointer',
+                      boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
+                    }}
+                    onClick={() => {
+                      handleZoomToWindow({ years: 50 });
+                    }}
+                  >
+                    50yr
+                  </button>
+                )}
               </div>
 
               <svg
@@ -1427,18 +1457,18 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
                 }}
                 onMouseDown={(e) => {
                   // Open context menu on right click (button 2)
-                  if (e.button === 2) {
-                    e.preventDefault();
-                    const rect = svgRef.current?.getBoundingClientRect();
-                    if (rect) {
-                      setCanvasContextMenu({
-                        visible: true,
-                        x: e.clientX - rect.left,
-                        y: e.clientY - rect.top
-                      });
-                    }
-                    return; // Don't start dragging on right click
-                  }
+                  // if (e.button === 2) {
+                  //   e.preventDefault();
+                  //   const rect = svgRef.current?.getBoundingClientRect();
+                  //   if (rect) {
+                  //     setCanvasContextMenu({
+                  //       visible: true,
+                  //       x: e.clientX - rect.left,
+                  //       y: e.clientY - rect.top
+                  //     });
+                  //   }
+                  //   return; // Don't start dragging on right click
+                  // }
 
                   // Track left click start position
                   if (e.button === 0) {
@@ -1452,9 +1482,9 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
                 }}
                 onClick={(e) => {
                   // Close canvas context menu when clicking elsewhere
-                  if (canvasContextMenu) {
-                    setCanvasContextMenu(null);
-                  }
+                  // if (canvasContextMenu) {
+                  //   setCanvasContextMenu(null);
+                  // }
                 }}
                 onMouseUp={(e) => {
                   if (draggingAnnotation) {
@@ -1473,19 +1503,19 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
                   setIsDragging(false);
                   zoom.dragEnd();
                 }}
-                onContextMenu={(e) => {
-                  e.preventDefault();
-                  const rect = svgRef.current?.getBoundingClientRect();
-                  if (rect) {
-                    setCanvasContextMenu({
-                      visible: true,
-                      x: e.clientX - rect.left,
-                      y: e.clientY - rect.top
-                    });
-                  }
-                }}
+                // onContextMenu={(e) => {
+                //   e.preventDefault();
+                //   const rect = svgRef.current?.getBoundingClientRect();
+                //   if (rect) {
+                //     setCanvasContextMenu({
+                //       visible: true,
+                //       x: e.clientX - rect.left,
+                //       y: e.clientY - rect.top
+                //     });
+                //   }
+                // }
                 onWheel={(e) => {
-                  const scaleFactor = e.deltaY > 0 ? 0.95 : 1.05;
+                  const scaleFactor = e.deltaY > 0 ? 0.97 : 1.03;
 
                   // Get the center X position in screen coordinates
                   const centerX = width / 2;
@@ -1692,7 +1722,7 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
                 {/* Net Worth Line and Data Circles rendered outside the zoom <g> so their thickness and size are fixed */}
                 {/* Locked Plan Net Worth Line (light gray, overlay) */}
                 {/* Using visibleLockedNetWorthData which contains ${visibleLockedNetWorthData.length} points in current view */}
-                {lockedNetWorthData.length > 0 && (
+                {lockedNetWorthData.length > 0 && isOnboardingAtOrAbove('assets') && (
                   <LinePath
                     data={visibleLockedNetWorthData}
                     x={d => xScale(d.date) * zoom.transformMatrix.scaleX + zoom.transformMatrix.translateX}
@@ -1927,7 +1957,7 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
                                     setIsClickingAnnotation(true);
                                   }}
                                   onMouseUp={(e) => {
-                                    if (!hasDragged) {
+                                    if (!hasDragged && e.button === 0) {
                                       onAnnotationClick?.(event.id);
                                     }
                                     setHasDragged(false);
@@ -2067,7 +2097,7 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
                   </>
                 )}
               </svg>
-              {netWorthData.length > 0 && (
+              {netWorthData.length > 0 && isOnboardingAtOrAbove('declare_accounts') && (
                 <Legend
                   envelopes={Object.keys(netWorthData[0].parts)}
                   envelopeColors={envelopeColors}
@@ -2079,6 +2109,7 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
                   lockedNetWorthValue={closestPoint && lockedNetWorthData.length > 0 ?
                     lockedNetWorthData.find(d => d.date === closestPoint.date)?.value : undefined}
                   hoveredArea={hoveredArea}
+                  isOnboardingAtOrAbove={isOnboardingAtOrAbove}
                 />
               )}
 
@@ -2225,7 +2256,7 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
               )}
 
               {/* Canvas Context Menu */}
-              {canvasContextMenu && (
+              {/* {canvasContextMenu && (
                 <div
                   style={{
                     position: 'absolute',
@@ -2275,7 +2306,7 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
                     Edit Envelope
                   </button>
                 </div>
-              )}
+              )} */}
             </>
           );
         }}
