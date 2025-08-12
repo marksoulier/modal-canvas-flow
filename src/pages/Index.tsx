@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import type { Plan, Envelope } from '../contexts/PlanContext';
-import { Menu, Plus, Save, FileText, FolderOpen, User, Edit3, HelpCircle } from 'lucide-react';
+import { Menu, Plus, Save, FileText, FolderOpen, User, Edit3, HelpCircle, Split } from 'lucide-react';
 import { RefreshCw, Copy } from 'lucide-react';
 import {
   DropdownMenu,
@@ -46,7 +46,9 @@ export default function Index() {
     lockPlan,
     addEvent,
     copyPlanToLock,
-    isExampleViewing
+    isExampleViewing,
+    isCompareMode,
+    setCompareMode
   } = usePlan();
 
   // Modal states
@@ -411,20 +413,38 @@ export default function Index() {
                   {/* Copy and Switch buttons next to input */}
                   {isOnboardingAtOrAbove('assets') && (
                     <div className="flex items-center gap-1">
-                      <button
-                        onClick={copyPlanToLock}
-                        title="Copy current plan to locked plan"
-                        className="p-1 rounded hover:bg-gray-100 transition-colors"
-                      >
-                        <Copy size={18} className="text-gray-400 hover:text-gray-700" />
-                      </button>
-                      <button
-                        onClick={lockPlan}
-                        title="Switch with locked plan"
-                        className="p-1 rounded hover:bg-gray-100 transition-colors"
-                      >
-                        <RefreshCw size={18} className="text-gray-400 hover:text-gray-700" />
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => setCompareMode(!isCompareMode)}
+                          title="Toggle compare mode"
+                          className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${isCompareMode ? 'bg-[#03c6fc]/30' : 'bg-gray-200'}`}
+                          role="switch"
+                          aria-checked={isCompareMode}
+                        >
+                          <span
+                            className={`${isCompareMode ? 'translate-x-4' : 'translate-x-0'
+                              } pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out`}
+                          />
+                        </button>
+                        {isCompareMode && (
+                          <>
+                            <button
+                              onClick={copyPlanToLock}
+                              title="Copy current plan to locked plan"
+                              className="p-1 rounded hover:bg-gray-100 transition-colors"
+                            >
+                              <Copy size={18} className="text-gray-400 hover:text-gray-700" />
+                            </button>
+                            <button
+                              onClick={lockPlan}
+                              title="Switch with locked plan"
+                              className="p-1 rounded hover:bg-gray-100 transition-colors"
+                            >
+                              <RefreshCw size={18} className="text-gray-400 hover:text-gray-700" />
+                            </button>
+                          </>
+                        )}
+                      </div>
                     </div>
                   )}
                 </div>
@@ -442,20 +462,38 @@ export default function Index() {
                   {/* Copy and Switch buttons next to title */}
                   {isOnboardingAtOrAbove('assets') && (
                     <div className="flex items-center gap-1">
-                      <button
-                        onClick={copyPlanToLock}
-                        title="Copy current plan to locked plan"
-                        className="p-1 rounded hover:bg-gray-100 transition-colors"
-                      >
-                        <Copy size={18} className="text-gray-400 hover:text-gray-700" />
-                      </button>
-                      <button
-                        onClick={lockPlan}
-                        title="Switch with locked plan"
-                        className="p-1 rounded hover:bg-gray-100 transition-colors"
-                      >
-                        <RefreshCw size={18} className="text-gray-400 hover:text-gray-700" />
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => setCompareMode(!isCompareMode)}
+                          title="Toggle compare mode"
+                          className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${isCompareMode ? 'bg-[#03c6fc]/30' : 'bg-gray-200'}`}
+                          role="switch"
+                          aria-checked={isCompareMode}
+                        >
+                          <span
+                            className={`${isCompareMode ? 'translate-x-4' : 'translate-x-0'
+                              } pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out`}
+                          />
+                        </button>
+                        {isCompareMode && (
+                          <>
+                            <button
+                              onClick={copyPlanToLock}
+                              title="Copy current plan to locked plan"
+                              className="p-1 rounded hover:bg-gray-100 transition-colors"
+                            >
+                              <Copy size={18} className="text-gray-400 hover:text-gray-700" />
+                            </button>
+                            <button
+                              onClick={lockPlan}
+                              title="Switch with locked plan"
+                              className="p-1 rounded hover:bg-gray-100 transition-colors"
+                            >
+                              <RefreshCw size={18} className="text-gray-400 hover:text-gray-700" />
+                            </button>
+                          </>
+                        )}
+                      </div>
                     </div>
                   )}
                 </div>

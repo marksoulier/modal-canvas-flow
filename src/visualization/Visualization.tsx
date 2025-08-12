@@ -379,7 +379,7 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
     }
   }, [wheelHandler]);
 
-  const { plan, plan_locked, getEventIcon, updateParameter, schema, deleteEvent, getEventDisplayType, currentDay, registerSetZoomToDateRange, setVisualizationReady, convertDateParametersToDays, registerTriggerSimulation, registerHandleZoomToWindow, updatePlanDirectly } = usePlan();
+  const { plan, plan_locked, getEventIcon, updateParameter, schema, deleteEvent, getEventDisplayType, currentDay, registerSetZoomToDateRange, setVisualizationReady, convertDateParametersToDays, registerTriggerSimulation, registerHandleZoomToWindow, updatePlanDirectly, updateLockedPlanDirectly, isCompareMode } = usePlan();
 
   // Register the setZoomToDateRange function with the context when it's available
   useEffect(() => {
@@ -582,8 +582,8 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
       setNetWorthData(simulationResult);
       //console.log('📊 Simulation results length:', simulationResult.length);
 
-      // Run simulation for locked plan if it exists
-      if (plan_locked) {
+      // Run simulation for locked plan if it exists and compare mode is on
+      if (plan_locked && isCompareMode) {
         try {
           // Convert date parameters to days for locked plan simulation
           const convertedPlanLocked = {
@@ -599,14 +599,37 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
             getIntervalInDays(intervalToUse),
             currentDay,
             birthDate,
-            undefined,
+            (updates) => {
+              // Handle updates for locked plan if needed
+              if (updates.length > 0) {
+                // Deep clone locked plan before applying updates to avoid mutating shared references
+                const updatedPlan = JSON.parse(JSON.stringify(plan_locked));
+                updates.forEach(update => {
+                  const event = updatedPlan.events.find(e => e.id === update.eventId);
+                  if (event) {
+                    const param = event.parameters.find(p => p.type === update.paramType);
+                    if (param) {
+                      const eventSchema = schema.events.find(e => e.type === event.type);
+                      let paramSchema;
+                      if (eventSchema) {
+                        paramSchema = eventSchema.parameters.find(p => p.type === param.type);
+                      }
+                      if (paramSchema && paramSchema.parameter_units === 'date') {
+                        param.value = daysSinceBirthToDateString(update.value, plan_locked.birth_date);
+                      } else {
+                        param.value = update.value;
+                      }
+                    }
+                  }
+                });
+                updateLockedPlanDirectly(updatedPlan);
+              }
+            },
             rangeToUse
           );
 
-          // Only keep {date, value} for locked plan data
-          const lockedData = lockedResult.map(({ date, value }) => ({ date, value }));
-          setLockedNetWorthData(lockedData);
-          //console.log('📊 Locked simulation results length:', lockedData.length);
+          setLockedNetWorthData(lockedResult);
+          //console.log('📊 Locked simulation results length:', lockedResult.length);
         } catch (err) {
           console.error('Locked plan simulation failed:', err);
           setLockedNetWorthData([]);
@@ -1738,7 +1761,7 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
                 {/* Net Worth Line and Data Circles rendered outside the zoom <g> so their thickness and size are fixed */}
                 {/* Locked Plan Net Worth Line (light gray, overlay) */}
                 {/* Using visibleLockedNetWorthData which contains ${visibleLockedNetWorthData.length} points in current view */}
-                {lockedNetWorthData.length > 0 && isOnboardingAtOrAbove('assets') && (
+                {lockedNetWorthData.length > 0 && isOnboardingAtOrAbove('assets') && isCompareMode && (
                   <LinePath
                     data={visibleLockedNetWorthData}
                     x={d => xScale(d.date) * zoom.transformMatrix.scaleX + zoom.transformMatrix.translateX}
@@ -2071,7 +2094,7 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
                   const renderedLocked = renderGroup(Object.entries(snappedEventsMapLocked), true);
                   return (
                     <>
-                      {renderedLocked}
+                      {isCompareMode && renderedLocked}
                       {renderedCurrent}
                     </>
                   );
@@ -2182,7 +2205,7 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
                   categoryColors={categoryColors}
                   nonNetworthEnvelopes={DEBUG ? Object.keys(netWorthData[0].nonNetworthParts || {}) : undefined}
                   nonNetworthCurrentValues={DEBUG ? (closestPoint ? closestPoint.nonNetworthParts : netWorthData[netWorthData.length - 1].nonNetworthParts) : undefined}
-                  lockedNetWorthValue={closestPoint && lockedNetWorthData.length > 0 ?
+                  lockedNetWorthValue={isCompareMode && closestPoint && lockedNetWorthData.length > 0 ?
                     lockedNetWorthData.find(d => d.date === closestPoint.date)?.value : undefined}
                   hoveredArea={hoveredArea}
                   isOnboardingAtOrAbove={isOnboardingAtOrAbove}

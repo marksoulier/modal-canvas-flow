@@ -275,6 +275,8 @@ interface PlanContextType {
     plan: Plan | null;
     plan_locked: Plan | null; // <-- add this
     schema: Schema | null;
+    isCompareMode: boolean;
+    setCompareMode: (enabled: boolean) => void;
     loadPlan: (planData: Plan) => void;
     savePlan: () => string;
     loadPlanFromFile: (file: File) => Promise<void>;
@@ -318,6 +320,7 @@ interface PlanContextType {
     handleZoomToWindow: (options: { years?: number; months?: number; days?: number }) => void; // <-- add this new method
     registerHandleZoomToWindow: (fn: (options: { years?: number; months?: number; days?: number }) => void) => void; // <-- add this new method
     updatePlanDirectly: (planData: Plan) => void; // <-- add this new method for direct plan updates without viewing window reset
+    updateLockedPlanDirectly: (planData: Plan) => void; // <-- add this new method for direct locked plan updates without viewing window reset
     isExampleViewing: boolean; // Add this new property
     isUxTester: boolean; // Flag for UX tester mode
     daysSinceBirthToDateString: (days: number, birthDate: string) => string; // Add this for date conversion
@@ -394,6 +397,11 @@ function getNextEventId(plan: Plan): number {
     return allIds.length > 0 ? Math.max(...allIds) + 1 : 1;
 }
 
+// Helper: deep clone a plan to avoid shared references between `plan` and `plan_locked`
+function deepClonePlan(plan: Plan): Plan {
+    return JSON.parse(JSON.stringify(plan));
+}
+
 export function PlanProvider({ children }: PlanProviderProps) {
     const [plan, setPlan] = useState<Plan | null>(null);
     const [plan_locked, setPlanLocked] = useState<Plan | null>(null); // <-- add this
@@ -403,6 +411,19 @@ export function PlanProvider({ children }: PlanProviderProps) {
     const [shouldTriggerSimulation, setShouldTriggerSimulation] = useState(false);
     const [isExampleViewing, setIsExampleViewing] = useState(false); // Add this new state
     const [isUxTester, setIsUxTester] = useState(false); // Add this new state
+    // Add compare mode state with enhanced setter
+    const [isCompareMode, setCompareModeRaw] = useState(false);
+
+    // Enhanced setCompareMode that handles copying plan when enabled
+    const setCompareMode = useCallback((enabled: boolean) => {
+        if (enabled && plan) {
+            // When enabling compare mode, copy current plan to locked (deep clone to avoid shared refs)
+            setPlanLocked(deepClonePlan(plan));
+            // Trigger simulation to update visualization
+            setShouldTriggerSimulation(true);
+        }
+        setCompareModeRaw(enabled);
+    }, [plan]);
 
     // Add undo history management
     const [history, setHistory] = useState<Plan[]>([]);
@@ -525,9 +546,10 @@ export function PlanProvider({ children }: PlanProviderProps) {
         // Add to history stack when loading a new plan
         addToStack(planData);
         if (lockedPlanData) {
-            setPlanLocked(lockedPlanData);
+            // Always deep clone to avoid shared references between plan and plan_locked
+            setPlanLocked(deepClonePlan(lockedPlanData));
         } else {
-            setPlanLocked(planData);
+            setPlanLocked(deepClonePlan(planData));
         }
         console.log("planData.view_start_date: ", planData.view_start_date);
         console.log("planData.view_end_date: ", planData.view_end_date);
@@ -1331,9 +1353,10 @@ export function PlanProvider({ children }: PlanProviderProps) {
 
     // --- Add lockPlan method ---
     const lockPlan = useCallback(() => {
-        const temp = plan_locked;
-        setPlanLocked(plan);
-        setPlan(temp);
+        // Ensure no shared references by deep cloning when swapping
+        const temp = plan_locked ? deepClonePlan(plan_locked) : null;
+        setPlanLocked(plan ? deepClonePlan(plan) : null);
+        setPlan(temp as any);
         setShouldTriggerSimulation(true);
         console.log("plan_locked", plan_locked);
         console.log("plan", plan);
@@ -1341,8 +1364,12 @@ export function PlanProvider({ children }: PlanProviderProps) {
 
     const copyPlanToLock = useCallback(() => {
         if (!plan) return;
-        setPlanLocked(plan);
-        setShouldTriggerSimulation(true);
+        // Deep clone to avoid mutating original when locked plan changes
+        setPlanLocked(deepClonePlan(plan));
+        // Ensure simulation is triggered after plan is locked
+        setTimeout(() => {
+            setShouldTriggerSimulation(true);
+        }, 0);
     }, [plan]);
 
     const getEventDisclaimer = useCallback((eventType: string) => {
@@ -1791,9 +1818,15 @@ export function PlanProvider({ children }: PlanProviderProps) {
             // Direct plan update without triggering viewing window reset
             setPlan(planData);
         },
+        updateLockedPlanDirectly: (planData: Plan) => {
+            // Direct locked plan update without triggering viewing window reset
+            setPlanLocked(deepClonePlan(planData));
+        },
         isExampleViewing, // Add this to the context value
         isUxTester, // Expose UX tester flag in context
         daysSinceBirthToDateString, // Add this for date conversion
+        isCompareMode,
+        setCompareMode,
         undo, // <-- add to context value
         redo, // <-- add to context value
         addToStack, // <-- add to context value
