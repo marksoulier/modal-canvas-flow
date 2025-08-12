@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Trash2, HelpCircle, Calendar, Clock, FileText, DollarSign, Percent } from 'lucide-react';
 import {
     Dialog,
@@ -24,13 +24,12 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from './ui/tooltip';
-import { usePlan, findEventOrUpdatingEventById, getEventDefinition, dateStringToDaysSinceBirth } from '../contexts/PlanContext';
+import { usePlan, findEventOrUpdatingEventById, getEventDefinition } from '../contexts/PlanContext';
 import { useAuth } from '../contexts/AuthContext';
 import type { Plan, Event, Parameter, Schema, SchemaEvent, UpdatingEvent } from '../contexts/PlanContext';
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from './ui/accordion';
 import DatePicker from './DatePicker';
-import { Pencil } from 'lucide-react';
-import { valueToDay } from '../hooks/resultsEvaluation';
+// import { Pencil } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import EventParameterInputs from './EventParameterInputs';
 
@@ -51,8 +50,8 @@ const EventParametersForm: React.FC<EventParametersFormProps> = ({
     onOpenEnvelopeModal,
     onAddEnvelope
 }) => {
-    const { plan, schema, getEventIcon, updateParameter, deleteEvent, getParameterDisplayName, getParameterUnits, getEventDisplayType, addUpdatingEvent, getParameterDescription, updateEventDescription, updateEventTitle, canEventBeRecurring, updateEventRecurring, getParameterOptions, currentDay, getEnvelopeDisplayName, getEventFunctionsParts, updateEventFunctionParts, getEventFunctionPartsState, getEventFunctionPartsIcon, getEventFunctionPartsDescription, getEventDisclaimer, getEventOnboardingStage } = usePlan();
-    const { onboarding_state, isOnboardingAtOrAbove, getOnboardingStateNumber } = useAuth();
+    const { plan, schema, getEventIcon, updateParameter, deleteEvent, getParameterDisplayName, getParameterUnits, getEventDisplayType, addUpdatingEvent, getParameterDescription, updateEventDescription, updateEventTitle, canEventBeRecurring, updateEventRecurring, getParameterOptions, currentDay, getEnvelopeDisplayName, getEventFunctionsParts, updateEventFunctionParts, getEventFunctionPartsState, getEventFunctionPartsIcon, getEventFunctionPartsDescription, getEventDisclaimer } = usePlan();
+    const { isOnboardingAtOrAbove } = useAuth();
 
     // State for local parameter editing (now supports main and updating events)
     const [parameters, setParameters] = useState<Record<number, Record<number, { type: string; value: string | number }>>>({});
@@ -61,7 +60,7 @@ const EventParametersForm: React.FC<EventParametersFormProps> = ({
     const [title, setTitle] = useState<string>("");
     const [description, setDescription] = useState<string>("");
     // State for main event description input expansion
-    const [descExpanded, setDescExpanded] = useState(false);
+    // const [descExpanded, setDescExpanded] = useState(false);
     // State for updating event description input expansion (by updating event id)
     const [updatingDescExpanded, setUpdatingDescExpanded] = useState<Record<number, boolean>>({});
     // State for updating event descriptions
@@ -123,6 +122,7 @@ const EventParametersForm: React.FC<EventParametersFormProps> = ({
                 return <FileText className="w-4 h-4 text-muted-foreground/60" />;
         }
     };
+
 
     useEffect(() => {
         if (schema && plan) {
@@ -190,7 +190,7 @@ const EventParametersForm: React.FC<EventParametersFormProps> = ({
         setUpdatingTitles(updatingTitles);
 
         // Set the isRepeating state based on the event's is_recurring property
-        const { event: foundEventForState, parentEvent: foundParentEventForState } = findEventOrUpdatingEventById(plan, eventId);
+        const { event: foundEventForState } = findEventOrUpdatingEventById(plan, eventId);
         if (foundEventForState) {
             setIsRepeating((foundEventForState as any).is_recurring || false);
         }
@@ -318,7 +318,7 @@ const EventParametersForm: React.FC<EventParametersFormProps> = ({
     }
 
     const eventType = (event as any).type;
-    const eventIcon = getEventIcon(eventType);
+    const eventIcon = getEventIcon(eventType, event);
     const eventDisplayType = getEventDisplayType(eventType);
 
     // Find the schema event
@@ -363,13 +363,13 @@ const EventParametersForm: React.FC<EventParametersFormProps> = ({
 
     // For rendering parameters, use the helper to get the right event/updating event
     const currentEvent = foundEvent && !foundParentEvent ? foundEvent : null;
-    const currentUpdatingEvent = foundEvent && foundParentEvent ? foundEvent : null;
+    // const currentUpdatingEvent = foundEvent && foundParentEvent ? foundEvent : null;
 
     // --- Updating Events Section ---
     // Helper to get main event and its updating events
     const mainEvent = plan?.events.find(e => e.id === eventId);
     const mainEventSchema = mainEvent ? schema?.events.find(e => e.type === mainEvent.type) : undefined;
-    const updatingEventTypes = mainEventSchema?.updating_events?.map(ue => ue.type) || [];
+    // const updatingEventTypes = mainEventSchema?.updating_events?.map(ue => ue.type) || [];
 
     // Handler to add updating event
     const handleAddUpdatingEvent = () => {

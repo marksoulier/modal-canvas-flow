@@ -212,7 +212,8 @@
         "number_per_year",
         "quantity",
         "percentage",
-        "enum"
+        "enum",
+        "icon"
     ],
     "events": [
         {
@@ -230,6 +231,14 @@
             "disclaimer": "This event is used to place a life event onto the graph. It does not simulate any financial events.",
             "parameters": [
                 {
+                    "type": "icon",
+                    "display_name": "Icon",
+                    "parameter_units": "icon",
+                    "description": "Icon to display on the graph",
+                    "default": "life-event",
+                    "editable": true
+                },
+                {
                     "type": "start_time",
                     "display_name": "Date",
                     "parameter_units": "date",
@@ -246,7 +255,7 @@
             "display_event": true,
             "is_recurring": false,
             "can_be_reocurring": true,
-            "weight": 1,
+            "weight": 100,
             "category": "System",
             "description": "A simple inflow of money into an envelope.",
             "default_title": "Money Inflow",
@@ -371,7 +380,7 @@
             "display_event": true,
             "is_recurring": false,
             "can_be_reocurring": true,
-            "weight": 2,
+            "weight": 100,
             "category": "System",
             "description": "A simple outflow of money from an envelope.",
             "default_title": "Money Outflow",
@@ -449,6 +458,7 @@
                     "onboarding_stage": "declare_accounts",
                     "display_event": true,
                     "is_recurring": false,
+                    "weight": 80,
                     "can_be_reocurring": true,
                     "icon": "arrow-down",
                     "description": "Update the amount of the recurring outflow.",

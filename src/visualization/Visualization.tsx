@@ -36,7 +36,7 @@ import type {
   TimeInterval,
   Datum
 } from './viz_utils';
-import { getAllEventsByDate } from './Events';
+import { getAllEventsByDateWithLocked } from './Events';
 import type { Plan } from '../contexts/PlanContext';
 
 const DEBUG = false;
@@ -904,7 +904,7 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
             return generateEnvelopeColors(schema.categories);
           }, [schema]);
 
-          const allEventsByDate = getAllEventsByDate(plan!, schema || undefined);
+          const allEventsByDate = getAllEventsByDateWithLocked(plan!, plan_locked, schema || undefined, globalZoom);
           // console.log('📅 Events by Date in Visualization:', {
           //   totalDates: Object.keys(allEventsByDate).length,
           //   allDates: Object.keys(allEventsByDate).map(date => ({
@@ -1874,147 +1874,207 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
 
                 {/* Timeline Annotations (outside zoom transform) */}
                 {(() => {
-                  // 1. Build a map: snappedDataPointDate -> [events]
-                  const snappedEventsMap: { [snappedDate: number]: Array<{ event: any, originalDate: number, isEndingEvent: boolean, displayId: string }> } = {};
+                  // Separate snapped maps for current and locked plan
+                  const snappedEventsMapCurrent: { [snappedDate: number]: Array<{ event: any, originalDate: number, isEndingEvent: boolean, displayId: string, iconSizePercent?: number, isRecurringInstance?: boolean, recurrenceIndex?: number, isUpdatingEvent?: boolean, parentEventId?: number }> } = {};
+                  const snappedEventsMapLocked: { [snappedDate: number]: Array<{ event: any, originalDate: number, isEndingEvent: boolean, displayId: string, iconSizePercent?: number, isRecurringInstance?: boolean, recurrenceIndex?: number, isUpdatingEvent?: boolean, parentEventId?: number }> } = {};
+
+                  const visibleOnscreenDateSetCurrent = new Set(visibleData.map(p => p.date));
+                  const visibleOnscreenDateSetLocked = new Set(visibleLockedNetWorthData.map(p => p.date));
+
+                  const findClosestPoint = (points: { date: number, value: number }[], date: number) => {
+                    if (points.length === 0) return null;
+                    const future = points.filter(p => p.date >= date);
+                    if (future.length > 0) {
+                      return future.reduce((closest, current) => Math.abs(current.date - date) < Math.abs(closest.date - date) ? current : closest);
+                    }
+                    return points[points.length - 1];
+                  };
+
                   for (const [dateStr, eventsAtDate] of Object.entries(allEventsByDate)) {
                     const date = Number(dateStr);
-                    // Find the closest visible data point that is greater than or equal to the event date
-                    const visibleDataPoints = netWorthData.filter(p =>
-                      p.date >= xScale.domain()[0] && p.date <= xScale.domain()[1]
-                    );
-                    if (visibleDataPoints.length === 0) continue;
-
-                    // Find the closest data point that is >= the event date
-                    const futureDataPoints = visibleDataPoints.filter(p => p.date >= date);
-                    let closestDataPoint;
-
-                    if (futureDataPoints.length > 0) {
-                      // If we have future data points, find the closest one
-                      closestDataPoint = futureDataPoints.reduce((closest, current) =>
-                        Math.abs(current.date - date) < Math.abs(closest.date - date) ? current : closest
-                      );
-                    } else {
-                      // If no future data points, use the latest available data point
-                      closestDataPoint = visibleDataPoints[visibleDataPoints.length - 1];
-                    }
-
-                    if (!closestDataPoint) continue;
-                    // For each event at this date, add to the snapped map
-                    for (const event of eventsAtDate) {
-                      if (!snappedEventsMap[closestDataPoint.date]) {
-                        snappedEventsMap[closestDataPoint.date] = [];
+                    for (const eventEntry of eventsAtDate) {
+                      if (eventEntry.isShadowMode) {
+                        const closestLocked = findClosestPoint(lockedNetWorthData, date);
+                        if (!closestLocked) continue;
+                        if (!snappedEventsMapLocked[closestLocked.date]) snappedEventsMapLocked[closestLocked.date] = [];
+                        snappedEventsMapLocked[closestLocked.date].push({
+                          event: eventEntry.event,
+                          originalDate: date,
+                          isEndingEvent: eventEntry.isEndingEvent,
+                          displayId: eventEntry.displayId,
+                          iconSizePercent: (eventEntry as any).iconSizePercent,
+                          isRecurringInstance: (eventEntry as any).isRecurringInstance,
+                          recurrenceIndex: (eventEntry as any).recurrenceIndex,
+                          isUpdatingEvent: (eventEntry as any).isUpdatingEvent,
+                          parentEventId: (eventEntry as any).parentEventId,
+                        });
+                      } else {
+                        const closestCurrent = findClosestPoint(netWorthData, date);
+                        if (!closestCurrent) continue;
+                        if (!snappedEventsMapCurrent[closestCurrent.date]) snappedEventsMapCurrent[closestCurrent.date] = [];
+                        snappedEventsMapCurrent[closestCurrent.date].push({
+                          event: eventEntry.event,
+                          originalDate: date,
+                          isEndingEvent: eventEntry.isEndingEvent,
+                          displayId: eventEntry.displayId,
+                          iconSizePercent: (eventEntry as any).iconSizePercent,
+                          isRecurringInstance: (eventEntry as any).isRecurringInstance,
+                          recurrenceIndex: (eventEntry as any).recurrenceIndex,
+                          isUpdatingEvent: (eventEntry as any).isUpdatingEvent,
+                          parentEventId: (eventEntry as any).parentEventId,
+                        });
                       }
-                      snappedEventsMap[closestDataPoint.date].push({
-                        event: event.event,
-                        originalDate: date,
-                        isEndingEvent: event.isEndingEvent,
-                        displayId: event.displayId
-                      });
                     }
                   }
-                  // 2. Render each group stacked
-                  return Object.entries(snappedEventsMap).flatMap(([snappedDateStr, events]) => {
-                    const snappedDate = Number(snappedDateStr);
-                    // Find the closest data point (should exist)
-                    const closestDataPoint = netWorthData.find(p => p.date === snappedDate);
-                    if (!closestDataPoint) return null;
-                    const canvasX = xScale(closestDataPoint.date) * zoom.transformMatrix.scaleX + zoom.transformMatrix.translateX;
-                    const canvasY = visibleYScale(closestDataPoint.value) * zoom.transformMatrix.scaleY + zoom.transformMatrix.translateY;
-                    return events.map(({ event, isEndingEvent, displayId }, i) => {
-                      const isDraggingMain = draggingAnnotation?.displayId === displayId;
-                      const yOffset = i * 50;
-                      const DRAG_Y_OFFSET = 80; // adjust this value for better alignment
-                      const x = isDraggingMain
-                        ? cursorPos!.x - draggingAnnotation!.offsetX - 20
-                        : canvasX - 20;
-                      const y = isDraggingMain
-                        ? cursorPos!.y - draggingAnnotation!.offsetY - DRAG_Y_OFFSET
-                        : canvasY - DRAG_Y_OFFSET - yOffset;
-                      // For updating events, use the parent's ID for highlighting
-                      // Get the effective ID (parent's ID for updating events, own ID for main events)
-                      const effectiveEventId = getEffectiveEventId(plan!, event.id);
-                      // Also get effective ID for the hovered event
-                      const effectiveHoveredId = hoveredEventId ? getEffectiveEventId(plan!, hoveredEventId) : null;
 
-                      const isHighlighted = effectiveHoveredId === effectiveEventId;
-                      return (
-                        <foreignObject
-                          key={`annotation-${displayId}`}
-                          x={x}
-                          y={y}
-                          width={40}
-                          height={40}
-                          style={{
-                            overflow: 'visible',
-                            cursor: isDraggingMain ? 'grabbing' : 'move'
-                          }}
-                          onMouseDown={(e) => {
-                            handleAnnotationDragStart(e, event.id, displayId, closestDataPoint.date, yOffset, DRAG_Y_OFFSET, isEndingEvent);
-                          }}
-                          onMouseEnter={() => {
-                            setHoveredEventId(event.id);
-                            setEventDescriptionTooltip({
-                              left: x + 50, // adjust as needed for best placement
-                              top: y,
-                              displayType: event.title || getEventDisplayType(event.type),
-                              description: event.description || '',
-                            });
-                          }}
-                          onMouseLeave={() => {
-                            setHoveredEventId(null);
-                            setEventDescriptionTooltip(null);
-                          }}
-                        >
-                          <ContextMenu>
-                            <ContextMenuTrigger asChild>
-                              <div>
-                                <div
-                                  onMouseDown={(e) => {
-                                    setIsClickingAnnotation(true);
-                                  }}
-                                  onMouseUp={(e) => {
-                                    if (!hasDragged && e.button === 0) {
-                                      onAnnotationClick?.(event.id);
-                                    }
-                                    setHasDragged(false);
-                                    // Reset isClickingAnnotation after a short delay
-                                    setTimeout(() => setIsClickingAnnotation(false), 100);
-                                  }}
-                                >
-                                  <TimelineAnnotation
-                                    icon={getEventIcon(event.type)}
-                                    label={event.description}
-                                    highlighted={isHighlighted}
-                                    isRecurring={event.is_recurring}
-                                    isEnding={isEndingEvent}
-                                  />
-                                </div>
+                  const renderGroup = (entries: [string, Array<{ event: any, originalDate: number, isEndingEvent: boolean, displayId: string, iconSizePercent?: number, isRecurringInstance?: boolean, recurrenceIndex?: number, isUpdatingEvent?: boolean, parentEventId?: number }>][], useLocked: boolean) => {
+                    return entries.flatMap(([snappedDateStr, events]) => {
+                      const snappedDate = Number(snappedDateStr);
+                      const visibleSet = useLocked ? visibleOnscreenDateSetLocked : visibleOnscreenDateSetCurrent;
+                      if (!visibleSet.has(snappedDate)) return null;
+                      const dataArr = useLocked ? visibleLockedNetWorthData : visibleData;
+                      const closestDataPoint = dataArr.find(p => p.date === snappedDate);
+                      if (!closestDataPoint) return null;
+                      const canvasX = xScale(closestDataPoint.date) * zoom.transformMatrix.scaleX + zoom.transformMatrix.translateX;
+                      const canvasY = visibleYScale(closestDataPoint.value) * zoom.transformMatrix.scaleY + zoom.transformMatrix.translateY;
+                      // Precompute variable stacking offsets based on effective scales (icon size and zoom)
+                      const baseSize = 40;
+                      const gap = 10;
+                      const ZOOM_MIN_FOR_GROWTH = 1;      // start growing from this zoom
+                      const ZOOM_FULL_GROWTH = 300;        // icons reach near-full size around this zoom
+                      const computeZoomAmplify = (z: number) => {
+                        const t = Math.max(0, Math.min(1, (z - ZOOM_MIN_FOR_GROWTH) / (ZOOM_FULL_GROWTH - ZOOM_MIN_FOR_GROWTH)));
+                        // Exponential ease-out to approach 1 as t->1
+                        return 1 - Math.exp(-4 * t);
+                      };
+                      const zoomAmp = computeZoomAmplify(globalZoom);
+                      const effectiveScaleOf = (minScale: number) => minScale + (1 - minScale) * zoomAmp;
+                      const minScales = events.map(e => Math.max(0, (e.iconSizePercent ?? 100)) / 100);
+                      const effScales = minScales.map(ms => effectiveScaleOf(ms));
+                      const offsets = events.map((_, idx) => idx === 0 ? 0 : effScales.slice(0, idx).reduce((sum, s) => sum + (baseSize * s) + gap, 0));
+
+                      return events.map(({ event, isEndingEvent, displayId, iconSizePercent, isRecurringInstance, isUpdatingEvent, parentEventId }, i) => {
+                        const isDraggingMain = draggingAnnotation?.displayId === displayId;
+                        const yOffset = offsets[i];
+                        const DRAG_Y_OFFSET = 80;
+                        const minScale = Math.max(0, (iconSizePercent ?? 100)) / 100;
+                        const scale = effectiveScaleOf(minScale);
+                        const width = baseSize; // keep base viewport size; scale inner content
+                        const height = baseSize;
+                        const x = isDraggingMain
+                          ? cursorPos!.x - draggingAnnotation!.offsetX - 20
+                          : canvasX - 20;
+                        const y = isDraggingMain
+                          ? cursorPos!.y - draggingAnnotation!.offsetY - DRAG_Y_OFFSET
+                          : canvasY - DRAG_Y_OFFSET - yOffset;
+                        const xAdj = x - (baseSize * (scale - 1)) / 2;
+                        const yAdj = y - (baseSize * (scale - 1)) / 2 + 1 / scale * 10;
+                        const effectiveEventId = getEffectiveEventId(plan!, event.id);
+                        const effectiveHoveredId = hoveredEventId ? getEffectiveEventId(plan!, hoveredEventId) : null;
+                        const isHighlighted = useLocked ? false : (effectiveHoveredId === effectiveEventId);
+
+                        return (
+                          <foreignObject
+                            key={`annotation-${displayId}`}
+                            x={xAdj}
+                            y={yAdj}
+                            width={width}
+                            height={height}
+                            style={{
+                              overflow: 'visible',
+                              cursor: useLocked ? 'default' : (isRecurringInstance ? 'pointer' : (isDraggingMain ? 'grabbing' : 'move'))
+                            }}
+                            onMouseDown={useLocked || isRecurringInstance ? undefined : (e) => {
+                              const adjustedYOffset = yOffset + (baseSize * (scale - 1)) / 2;
+                              handleAnnotationDragStart(e, event.id, displayId, closestDataPoint.date, adjustedYOffset, DRAG_Y_OFFSET, isEndingEvent);
+                            }}
+                            onMouseEnter={useLocked ? undefined : () => {
+                              setHoveredEventId(event.id);
+                              setEventDescriptionTooltip({
+                                left: xAdj + baseSize * scale + 10,
+                                top: yAdj,
+                                displayType: event.title || getEventDisplayType(event.type),
+                                description: event.description || '',
+                              });
+                            }}
+                            onMouseLeave={useLocked ? undefined : () => {
+                              setHoveredEventId(null);
+                              setEventDescriptionTooltip(null);
+                            }}
+                          >
+                            {useLocked ? (
+                              <div style={{ width: baseSize, height: baseSize, transform: `scale(${scale})`, transformOrigin: 'top left' }}>
+                                <TimelineAnnotation
+                                  icon={getEventIcon(event.type, event)}
+                                  highlighted={isHighlighted}
+                                  isRecurring={event.is_recurring}
+                                  isEnding={isEndingEvent}
+                                  isShadowMode
+                                  isRecurringInstance={!!isRecurringInstance}
+                                />
                               </div>
-                            </ContextMenuTrigger>
-                            <ContextMenuContent>
-                              <ContextMenuItem asChild>
-                                <Button
-                                  variant="destructive"
-                                  size="sm"
-                                  className="w-full h-7 text-xs justify-start bg-red-50 text-red-600 border-red-200 hover:bg-red-100 hover:text-red-700"
-                                  onClick={() => {
-                                    deleteEvent(event.id);
-                                    onAnnotationDelete?.(event.id);
-                                    // Clear tooltip when event is deleted
-                                    setEventDescriptionTooltip(null);
-                                    setHoveredEventId(null);
-                                  }}
-                                >
-                                  <Trash2 className="mr-2 h-4 w-4" />
-                                  Delete Event
-                                </Button>
-                              </ContextMenuItem>
-                            </ContextMenuContent>
-                          </ContextMenu>
-                        </foreignObject>
-                      );
+                            ) : (
+                              <ContextMenu>
+                                <ContextMenuTrigger asChild>
+                                  <div>
+                                    <div
+                                      style={{ width: baseSize, height: baseSize, transform: `scale(${scale})`, transformOrigin: 'top left' }}
+                                      onMouseDown={isRecurringInstance ? undefined : (e) => {
+                                        setIsClickingAnnotation(true);
+                                      }}
+                                      onMouseUp={(e) => {
+                                        if (!hasDragged && e.button === 0) {
+                                          const clickTargetId = parentEventId ?? event.id;
+                                          onAnnotationClick?.(clickTargetId);
+                                        }
+                                        setHasDragged(false);
+                                        setTimeout(() => setIsClickingAnnotation(false), 100);
+                                      }}
+                                    >
+                                      <TimelineAnnotation
+                                        icon={getEventIcon(event.type, event)}
+                                        highlighted={isHighlighted}
+                                        isRecurring={event.is_recurring}
+                                        isEnding={isEndingEvent}
+                                        isRecurringInstance={!!isRecurringInstance}
+                                      />
+                                    </div>
+                                  </div>
+                                </ContextMenuTrigger>
+                                <ContextMenuContent>
+                                  <ContextMenuItem asChild>
+                                    <Button
+                                      variant="destructive"
+                                      size="sm"
+                                      className="w-full h-7 text-xs justify-start bg-red-50 text-red-600 border-red-200 hover:bg-red-100 hover:text-red-700"
+                                      onClick={() => {
+                                        deleteEvent(event.id);
+                                        onAnnotationDelete?.(event.id);
+                                        setEventDescriptionTooltip(null);
+                                        setHoveredEventId(null);
+                                      }}
+                                    >
+                                      <Trash2 className="mr-2 h-4 w-4" />
+                                      Delete Event
+                                    </Button>
+                                  </ContextMenuItem>
+                                </ContextMenuContent>
+                              </ContextMenu>
+                            )}
+                          </foreignObject>
+                        );
+                      });
                     });
-                  });
+                  };
+
+                  const renderedCurrent = renderGroup(Object.entries(snappedEventsMapCurrent), false);
+                  const renderedLocked = renderGroup(Object.entries(snappedEventsMapLocked), true);
+                  return (
+                    <>
+                      {renderedLocked}
+                      {renderedCurrent}
+                    </>
+                  );
                 })()}
 
 

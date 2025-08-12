@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Calendar, Clock, FileText, DollarSign, Percent, HelpCircle, Pencil } from 'lucide-react';
+import { HelpCircle, Pencil, Plus } from 'lucide-react';
+import * as LucideIcons from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import {
@@ -10,6 +11,12 @@ import {
     SelectValue,
 } from './ui/select';
 import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+} from './ui/dialog';
+import {
     Tooltip,
     TooltipContent,
     TooltipProvider,
@@ -18,6 +25,7 @@ import {
 import DatePicker from './DatePicker';
 import { valueToDay } from '../hooks/resultsEvaluation';
 import type { Parameter, Event, UpdatingEvent } from '../contexts/PlanContext';
+import { iconMap } from '../contexts/PlanContext';
 
 interface EventParameterInputsProps {
     param: Parameter;
@@ -52,6 +60,7 @@ const EventParameterInputs: React.FC<EventParameterInputsProps> = ({
     const [usdTodayMode, setUsdTodayMode] = useState<Record<number, boolean>>({});
     const [usdTodayValues, setUsdTodayValues] = useState<Record<number, string>>({});
     const [customDaysMode, setCustomDaysMode] = useState<Record<number, boolean>>({});
+    const [iconDialogOpen, setIconDialogOpen] = useState(false);
 
     const renderDatePicker = (param: Parameter, event: (Event | UpdatingEvent)) => {
         const paramData = parameters[event.id]?.[param.id];
@@ -252,6 +261,58 @@ const EventParameterInputs: React.FC<EventParameterInputsProps> = ({
             );
         }
 
+        if (paramUnits === 'icon') {
+            const currentValue = String(value || '');
+            const humanize = (key: string) => key.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+            const IconComp = currentValue ? (LucideIcons as any)[iconMap[currentValue]] || (LucideIcons as any).Circle : Plus;
+
+            return (
+                <>
+                    <button
+                        type="button"
+                        onClick={() => setIconDialogOpen(true)}
+                        className="w-full flex items-center justify-center border rounded-md p-2 hover:bg-gray-50 transition-colors text-gray-600 hover:text-gray-800"
+                    >
+                        <IconComp className="h-5 w-5" />
+                    </button>
+
+                    <Dialog open={iconDialogOpen} onOpenChange={setIconDialogOpen}>
+                        <DialogContent className="max-w-3xl">
+                            <DialogHeader>
+                                <DialogTitle>Select Icon</DialogTitle>
+                            </DialogHeader>
+                            <div className="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2 p-4 max-h-[60vh] overflow-y-auto">
+                                {Object.entries(iconMap).map(([key, lucideName]) => {
+                                    const IconComp = (LucideIcons as any)[lucideName] || (LucideIcons as any).Circle;
+                                    const isSelected = currentValue === key;
+                                    return (
+                                        <button
+                                            key={key}
+                                            type="button"
+                                            onClick={() => {
+                                                handleInputChange(event.id, param.id, key);
+                                                handleInputBlur(param.id, key, event.id);
+                                                setIconDialogOpen(false);
+                                            }}
+                                            className={[
+                                                'flex flex-col items-center gap-2 p-3 border rounded-lg transition-colors',
+                                                isSelected
+                                                    ? 'border-[#03c6fc] bg-[#03c6fc]/10 text-[#03c6fc]'
+                                                    : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50 text-gray-700'
+                                            ].join(' ')}
+                                            aria-pressed={isSelected}
+                                        >
+                                            <IconComp className="h-6 w-6" />
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </DialogContent>
+                    </Dialog>
+                </>
+            );
+        }
+
         if (paramUnits === 'usd') {
             // If parameter is not editable, show as read-only
             if (!isEditable) {
@@ -271,7 +332,7 @@ const EventParameterInputs: React.FC<EventParameterInputsProps> = ({
             const isTodayMode = usdTodayMode[param.id] || false;
             let displayValue = String(value);
             let todayValue = '';
-            let actualValue = value;
+            // let actualValue = value; // not used
             const placeholder = defaultValue ? String(defaultValue) : '';
             // Get eventDay from 'start_time' parameter
             let eventDay = currentDay;

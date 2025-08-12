@@ -23,6 +23,10 @@ const EXAMPLE_PLAN_MAPPING: Record<string, ExamplePlanConfig> = {
     'journey-20-example': {
         regularPlan: 'Journey of $20',
         lockedPlan: 'Journey of $20'
+    },
+    'save-for-house': {
+        regularPlan: 'Saving for a House',
+        lockedPlan: 'Saving for a House'
     }
 };
 
@@ -279,7 +283,7 @@ interface PlanContextType {
     deleteEvent: (eventId: number) => void;
     addEvent: (eventType: string, parameterOverrides?: { [type: string]: any }, replaceExisting?: boolean) => number;
     addUpdatingEvent: (mainEventId: number, updatingEventType: string) => number;
-    getEventIcon: (eventType: string) => React.ReactNode;
+    getEventIcon: (eventType: string, event?: Event | UpdatingEvent) => React.ReactNode;
     getEventDisplayType: (eventType: string) => string;
     getParameterDisplayName: (eventType: string, parameterType: string) => string;
     getParameterUnits: (eventType: string, parameterType: string) => string;
@@ -315,6 +319,7 @@ interface PlanContextType {
     registerHandleZoomToWindow: (fn: (options: { years?: number; months?: number; days?: number }) => void) => void; // <-- add this new method
     updatePlanDirectly: (planData: Plan) => void; // <-- add this new method for direct plan updates without viewing window reset
     isExampleViewing: boolean; // Add this new property
+    isUxTester: boolean; // Flag for UX tester mode
     daysSinceBirthToDateString: (days: number, birthDate: string) => string; // Add this for date conversion
     undo: () => void; // <-- add this
     redo: () => void; // <-- add this
@@ -347,6 +352,27 @@ export function usePlan() {
     return context;
 }
 
+// Helper: get weight for an event type from schema (defaults to 100 if not found)
+export function getEventWeightFromSchema(
+    schema: Schema | null,
+    eventType: string,
+    parentEventType?: string
+): number {
+    if (!schema) return 100;
+    // Try main event type first
+    const main = schema.events.find(e => e.type === eventType);
+    if (main && typeof main.weight === 'number') return main.weight;
+
+    // If not found or not a main event, try parent event type
+    if (parentEventType) {
+        const parent = schema.events.find(e => e.type === parentEventType);
+        if (parent && typeof parent.weight === 'number') return parent.weight;
+    }
+
+    // Default
+    return 100;
+}
+
 interface PlanProviderProps {
     children: React.ReactNode;
 }
@@ -376,6 +402,7 @@ export function PlanProvider({ children }: PlanProviderProps) {
     const [isVisualizationReady, setIsVisualizationReady] = useState(false); // <-- add this new state
     const [shouldTriggerSimulation, setShouldTriggerSimulation] = useState(false);
     const [isExampleViewing, setIsExampleViewing] = useState(false); // Add this new state
+    const [isUxTester, setIsUxTester] = useState(false); // Add this new state
 
     // Add undo history management
     const [history, setHistory] = useState<Plan[]>([]);
@@ -526,6 +553,8 @@ export function PlanProvider({ children }: PlanProviderProps) {
                 // Check URL parameters first
                 const urlParams = new URLSearchParams(window.location.search);
                 const planId = urlParams.get('plan_id');
+                const isUxTester = urlParams.get('ux_tester') === 'true';
+                setIsUxTester(isUxTester);
 
                 console.log('🔍 Checking URL parameters:', { planId });
 
@@ -553,6 +582,13 @@ export function PlanProvider({ children }: PlanProviderProps) {
                         console.log('📥 Loading example plans...');
                         loadPlanData(regularPlan.plan_data, lockedPlan.plan_data);
                         setIsExampleViewing(true); // Set example viewing mode
+                        // When loading an example plan, set anonymous onboarding to full (do not persist)
+                        try {
+                            await updateOnboardingState('full', false);
+                            console.log('✅ Anonymous onboarding set to full for example viewing (non-persistent)');
+                        } catch (e) {
+                            console.warn('Failed to set onboarding state to full (non-persistent):', e);
+                        }
                         setIsInitialized(true);
                         console.log('✅ Example plans loaded successfully');
                         return;
@@ -1049,9 +1085,20 @@ export function PlanProvider({ children }: PlanProviderProps) {
         return newId;
     }, [plan, schema, addToStack]);
 
-    const getEventIcon = useCallback((eventType: string) => {
+    const getEventIcon = useCallback((eventType: string, event?: Event | UpdatingEvent) => {
         if (!schema) return null;
-        // Try main events first
+
+        // For life events, use the icon from the event parameter if available
+        if (eventType === 'life_event' && event) {
+            const iconParam = event.parameters?.find(p => p.type === 'icon');
+            if (iconParam && typeof iconParam.value === 'string') {
+                const lucideIconName = iconMap[iconParam.value] || 'Circle';
+                const IconComponent = (LucideIcons as any)[lucideIconName] || LucideIcons.Circle;
+                return <IconComponent size={20} />;
+            }
+        }
+
+        // Default behavior for non-life events or when no icon parameter is found
         let eventSchema = schema.events.find(e => e.type === eventType);
         let iconName = eventSchema?.icon;
         // If not found, try updating events
@@ -1745,6 +1792,7 @@ export function PlanProvider({ children }: PlanProviderProps) {
             setPlan(planData);
         },
         isExampleViewing, // Add this to the context value
+        isUxTester, // Expose UX tester flag in context
         daysSinceBirthToDateString, // Add this for date conversion
         undo, // <-- add to context value
         redo, // <-- add to context value

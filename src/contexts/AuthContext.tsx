@@ -3,7 +3,6 @@ import { supabase } from '../integrations/supabase/client';
 import type { User } from '@supabase/supabase-js';
 import { toast } from 'sonner';
 import type { Plan as PlanContextPlan } from './PlanContext';
-import type { TablesInsert } from '../integrations/supabase/types';
 
 // Onboarding state mapping
 const ONBOARDING_STATES = [
@@ -80,7 +79,7 @@ interface AuthContextType {
     fetchDefaultPlans: () => Promise<{ plan_name: string | null; plan_data: any; plan_image: string | null }[]>;
     getOnboardingStateNumber: (state: OnboardingState) => number;
     getOnboardingStateFromNumber: (number: number) => OnboardingState | null;
-    updateOnboardingState: (newState: OnboardingState) => void;
+    updateOnboardingState: (newState: OnboardingState, persist?: boolean) => Promise<void>;
     advanceOnboardingStage: () => Promise<OnboardingState>;
     isOnboardingAtOrAbove: (requiredState: OnboardingState) => boolean;
 }
@@ -123,18 +122,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const nextStage = getOnboardingStateNumber(onboarding_state) + 1;
         const newState = getOnboardingStateFromNumber(nextStage);
         await updateOnboardingState(newState as OnboardingState);
-        return newState;
+        return newState as OnboardingState;
     };
     // Update onboarding state function
-    const updateOnboardingState = async (newState: OnboardingState) => {
+    const updateOnboardingState = async (newState: OnboardingState, persist: boolean = true) => {
         console.log('🔄 ONBOARDING STATE CHANGE:', {
             from: onboarding_state,
             to: newState,
             timestamp: new Date().toISOString()
         });
-        
+
         setOnboardingState(newState);
-        
+
+        if (!persist) return;
+
         // Persist to database for anonymous users
         try {
             const anonId = getOrCreateAnonId();
@@ -143,7 +144,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 onboarding_state: newState,
                 timestamp: new Date().toISOString()
             });
-            
+
             const { error } = await supabase
                 .from('anonymous_users')
                 .upsert({
@@ -152,8 +153,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 }, {
                     onConflict: 'id'
                 });
-            
-                        if (error) {
+
+            if (error) {
                 console.error('❌ Error persisting onboarding state:', error);
             } else {
                 console.log('✅ ONBOARDING STATE SAVED SUCCESSFULLY:', newState);
@@ -232,10 +233,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 // This will create anon_key if it doesn't exist
                 const anonId = getOrCreateAnonId();
                 console.log('🆔 ANON ID:', anonId);
-                
+
                 const anonData = await fetchAnonymousOnboarding();
                 console.log('📥 FETCHED ANONYMOUS DATA:', anonData);
-                
+
                 if (anonData?.onboarding_data && typeof anonData.onboarding_data === 'object') {
                     const onboardingData = anonData.onboarding_data as any;
                     if (onboardingData.onboarding_state) {
@@ -259,7 +260,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 setOnboardingState('user_info');
             }
         };
-        
+
         loadOnboardingState();
     }, []);
 

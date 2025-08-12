@@ -80,7 +80,7 @@ const OnboardingProgress: React.FC<OnboardingProgressProps> = ({ className = '',
   const [showVideoModal, setShowVideoModal] = useState(false);
   const [selectedStageKey, setSelectedStageKey] = useState<string>('');
   const { onboarding_state, advanceOnboardingStage, getOnboardingStateNumber, updateOnboardingState } = useAuth();
-  const { handleZoomToWindow } = usePlan();
+  const { handleZoomToWindow, isUxTester } = usePlan();
 
   const currentStageIndex = getOnboardingStateNumber(onboarding_state);
 
@@ -88,7 +88,7 @@ const OnboardingProgress: React.FC<OnboardingProgressProps> = ({ className = '',
     console.log('handleStageClick', stageKey);
 
     // Special handling for tax_system stage - open exit viewing modal instead of advancing
-    if (stageKey === 'tax_system') {
+    if (stageKey === 'tax_system' && !isUxTester) {
       console.log('🧾 Tax system stage clicked - opening exit viewing modal');
       if (onExitViewingMode) {
         onExitViewingMode();
@@ -125,7 +125,7 @@ const OnboardingProgress: React.FC<OnboardingProgressProps> = ({ className = '',
     // Advance to the next stage after completing video content
     const stageIndex = getOnboardingStateNumber(selectedStageKey as OnboardingState);
     const nextStage = await advanceOnboardingStage();
-    if (nextStage === 'full' && onAuthRequired) {
+    if (nextStage === 'full' && onAuthRequired && !isUxTester) {
       onAuthRequired();
     }
   };
@@ -271,7 +271,7 @@ const OnboardingProgress: React.FC<OnboardingProgressProps> = ({ className = '',
                           onClick={async (e: React.MouseEvent) => {
                             e.stopPropagation();
                             // If this is the last stage, trigger onAuthRequired
-                            if (index === ONBOARDING_STAGES.length - 2 && onAuthRequired) {
+                            if (index === ONBOARDING_STAGES.length - 2 && onAuthRequired && !isUxTester) {
                               await handleStageClick(stage.key);
                               onAuthRequired();
                             } else {
