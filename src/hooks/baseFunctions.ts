@@ -1026,6 +1026,16 @@ export const loan = (event: any, envelopes: Record<string, any>) => {
     );
     envelopes[params.to_key].functions.push(recieved_loan);
 
+    // GPU NOTE: loan (T - in)
+    addGPUDescriptor(envelopes, params.to_key, {
+        type: "T",
+        direction: "in",
+        t_k: params.start_time,
+        thetaParamKey: "a",
+        theta: P({ a: params.principal }),
+        growth: theta_growth_dest
+    });
+
     const loan_debit = T(
         { t_k: params.start_time },
         f_out,
@@ -1033,6 +1043,16 @@ export const loan = (event: any, envelopes: Record<string, any>) => {
         theta_growth_source
     );
     envelopes[params.from_key].functions.push(loan_debit);
+
+    // GPU NOTE: loan_debit (T - out)
+    addGPUDescriptor(envelopes, params.from_key, {
+        type: "T",
+        direction: "out",
+        t_k: params.start_time,
+        thetaParamKey: "b",
+        theta: P({ b: params.principal }),
+        growth: theta_growth_source
+    });
 
     // Now pay off the loan in a reoccuring schedule of monthly payments
     const loan_amortization = R(
@@ -1043,6 +1063,21 @@ export const loan = (event: any, envelopes: Record<string, any>) => {
     );
     envelopes[params.from_key].functions.push(loan_amortization);
 
+    // GPU NOTE: loan_amortization (R - in)
+
+    // GPU NOTE: loan_amortization (R - in)
+    addGPUDescriptor(envelopes, params.from_key, {
+        type: "R",
+        direction: "in",
+        t0: params.start_time + 365.25 / 12,
+        dt: 365.25 / 12,
+        tf: params.start_time + params.loan_term_years * 365.25,
+        thetaParamKey: "a",
+        theta: P({ P: -params.principal, r: loan_interest_rate, y: params.loan_term_years }),
+        growth: theta_growth_source,
+        computeValue: f_monthly_payment
+    });
+
     // Pay each monthly payment both the interest and the principle
     const payments_func = R(
         { t0: params.start_time + 365.25 / 12, dt: 365.25 / 12, tf: params.start_time + params.loan_term_years * 365.25 },
@@ -1052,6 +1087,21 @@ export const loan = (event: any, envelopes: Record<string, any>) => {
     );
 
     envelopes[params.to_key].functions.push(payments_func);
+
+    // GPU NOTE: loan monthly payment from cash (R - out) using f_monthly_payment
+    addGPUDescriptor(envelopes, params.to_key, {
+        type: "R",
+        direction: "in",
+        t0: params.start_time + 365.25 / 12,
+        dt: 365.25 / 12,
+        tf: params.start_time + params.loan_term_years * 365.25,
+        thetaParamKey: "a",
+        theta: P({ P: params.principal, r: loan_interest_rate, y: params.loan_term_years }),
+        growth: theta_growth_dest,
+        computeValue: f_monthly_payment
+    });
+
+
 
     // --- Loan Envelope Correction at End of Payment Cycle ---
     const loan_end_time = params.start_time + params.loan_term_years * 365.25;
@@ -1072,6 +1122,16 @@ export const loan = (event: any, envelopes: Record<string, any>) => {
             theta_growth_source
         );
         loanEnvelope.functions.push(correction_inflow);
+
+        // GPU NOTE: loan_correction (T - out)
+        addGPUDescriptor(envelopes, params.from_key, {
+            type: "T",
+            direction: "out",
+            t_k: loan_end_time,
+            thetaParamKey: "b",
+            theta: P({ b: loan_balance }),
+            growth: theta_growth_source
+        });
         const correction_outflow = T(
             { t_k: loan_end_time },
             f_in,
@@ -1079,6 +1139,16 @@ export const loan = (event: any, envelopes: Record<string, any>) => {
             theta_growth_dest
         );
         envelopes[params.to_key].functions.push(correction_outflow);
+
+        // GPU NOTE: loan_correction (T - in)
+        addGPUDescriptor(envelopes, params.to_key, {
+            type: "T",
+            direction: "in",
+            t_k: loan_end_time,
+            thetaParamKey: "a",
+            theta: P({ a: loan_balance }),
+            growth: theta_growth_dest
+        });
     }
 };
 
@@ -1101,6 +1171,18 @@ export const purchase = (event: any, envelopes: Record<string, any>) => {
         );
         // Add the purchase function to the specified envelope
         envelopes[params.from_key].functions.push(purchase_func);
+
+        // GPU NOTE: purchase (R - out)
+        addGPUDescriptor(envelopes, params.from_key, {
+            type: "R",
+            direction: "out",
+            t0: params.start_time,
+            dt: params.frequency_days,
+            tf: params.end_time,
+            thetaParamKey: "b",
+            theta: P({ b: params.money }),
+            growth: theta_growth_source
+        });
     } else {
         // Create a one-time outflow function for the purchase
         const purchase_func = T(
@@ -1111,6 +1193,16 @@ export const purchase = (event: any, envelopes: Record<string, any>) => {
         );
         // Add the purchase function to the specified envelope
         envelopes[params.from_key].functions.push(purchase_func);
+
+        // GPU NOTE: purchase (T - out)
+        addGPUDescriptor(envelopes, params.from_key, {
+            type: "T",
+            direction: "out",
+            t_k: params.start_time,
+            thetaParamKey: "b",
+            theta: P({ b: params.money }),
+            growth: theta_growth_source
+        });
     }
 };
 
@@ -1133,6 +1225,18 @@ export const gift = (event: any, envelopes: Record<string, any>) => {
         );
         // Add the gift function to the specified envelope
         envelopes[params.to_key].functions.push(gift_func);
+
+        // GPU NOTE: gift (R - out)
+        addGPUDescriptor(envelopes, params.from_key, {
+            type: "R",
+            direction: "out",
+            t0: params.start_time,
+            dt: params.frequency_days,
+            tf: params.end_time,
+            thetaParamKey: "b",
+            theta: P({ b: params.money }),
+            growth: theta_growth_dest
+        });
     } else {
         // Create a one-time gift function
         const gift_func = T(
@@ -1143,6 +1247,16 @@ export const gift = (event: any, envelopes: Record<string, any>) => {
         );
         // Add the gift function to the specified envelope
         envelopes[params.to_key].functions.push(gift_func);
+
+        // GPU NOTE: gift (T - in)
+        addGPUDescriptor(envelopes, params.to_key, {
+            type: "T",
+            direction: "in",
+            t_k: params.start_time,
+            thetaParamKey: "a",
+            theta: P({ a: params.money }),
+            growth: theta_growth_dest
+        });
     }
 };
 
@@ -1540,7 +1654,7 @@ export const buy_house = (event: any, envelopes: Record<string, any>, updatePlan
     // GPU NOTE: buy_house mortgage payment from source (R - out) using f_monthly_payment
     addGPUDescriptor(envelopes, params.from_key, {
         type: "R",
-        direction: "out",
+        direction: "in",
         t0: params.start_time + 365.25 / 12,
         dt: 365.25 / 12,
         tf: params.start_time + params.loan_term_years * 365.25,
@@ -1754,12 +1868,12 @@ export const buy_car = (event: any, envelopes: Record<string, any>, updatePlan?:
     // GPU NOTE: buy_car loan payment from source (R - out) using f_monthly_payment
     addGPUDescriptor(envelopes, from_key, {
         type: "R",
-        direction: "out",
+        direction: "in",
         t0: params.start_time + 365.25 / 12,
         dt: 365.25 / 12,
         tf: params.start_time + params.loan_term_years * 365.25,
         thetaParamKey: "b",
-        theta: P({ P: loan_amount, r: loan_interest_rate, y: params.loan_term_years }),
+        theta: P({ P: -loan_amount, r: loan_interest_rate, y: params.loan_term_years }),
         growth: theta_growth_source,
         computeValue: f_monthly_payment
     });
@@ -1781,7 +1895,7 @@ export const buy_car = (event: any, envelopes: Record<string, any>, updatePlan?:
         dt: 365.25 / 12,
         tf: params.start_time + params.loan_term_years * 365.25,
         thetaParamKey: "a",
-        theta: P({ P: -loan_amount, r: loan_interest_rate, y: params.loan_term_years }),
+        theta: P({ P: loan_amount, r: loan_interest_rate, y: params.loan_term_years }),
         growth: theta_growth_debt,
         computeValue: f_monthly_payment
     });
@@ -2859,6 +2973,15 @@ export const federal_subsidized_loan = (event: any, envelopes: Record<string, an
         theta_growth_during
     );
     envelopes[params.to_key].functions.push(loan_debt);
+    // GPU: during-school debt (T - out)
+    addGPUDescriptor(envelopes, params.to_key, {
+        type: "T",
+        direction: "out",
+        t_k: params.start_time,
+        thetaParamKey: "b",
+        theta: P({ b: params.amount }),
+        growth: theta_growth_during
+    });
 
     // Calculate when payments begin: graduation_date + 6 months (180 days)
     const payment_start_time = params.graduation_date + 180;
@@ -2874,6 +2997,15 @@ export const federal_subsidized_loan = (event: any, envelopes: Record<string, an
         theta_growth_during
     );
     envelopes[params.to_key].functions.push(debt_transfer_out);
+    // GPU: transfer out of during-school (T - in)
+    addGPUDescriptor(envelopes, params.to_key, {
+        type: "T",
+        direction: "in",
+        t_k: payment_start_time,
+        thetaParamKey: "a",
+        theta: P({ a: accumulated_debt_amount }),
+        growth: theta_growth_during
+    });
 
     // Transfer accumulated debt into after-school envelope
     const debt_transfer_in = T(
@@ -2883,6 +3015,15 @@ export const federal_subsidized_loan = (event: any, envelopes: Record<string, an
         theta_growth_after
     );
     envelopes[params.after_school_key].functions.push(debt_transfer_in);
+    // GPU: transfer into after-school (T - out)
+    addGPUDescriptor(envelopes, params.after_school_key, {
+        type: "T",
+        direction: "out",
+        t_k: payment_start_time,
+        thetaParamKey: "b",
+        theta: P({ b: accumulated_debt_amount }),
+        growth: theta_growth_after
+    });
 
     // Standard 10-year repayment schedule
     const loan_term_years = params.loan_term_years;
@@ -2962,6 +3103,15 @@ export const federal_subsidized_loan = (event: any, envelopes: Record<string, an
             theta_growth_after
         );
         studentLoanEnvelope.functions.push(correction_inflow);
+        // GPU: end correction (debt envelope T - out)
+        addGPUDescriptor(envelopes, params.after_school_key, {
+            type: "T",
+            direction: "out",
+            t_k: student_loan_end_time,
+            thetaParamKey: "b",
+            theta: P({ b: student_loan_balance }),
+            growth: theta_growth_after
+        });
         const correction_outflow = T(
             { t_k: student_loan_end_time },
             f_in,
@@ -2969,6 +3119,15 @@ export const federal_subsidized_loan = (event: any, envelopes: Record<string, an
             theta_growth_source
         );
         envelopes[params.from_key].functions.push(correction_outflow);
+        // GPU: end correction (cash/source T - in)
+        addGPUDescriptor(envelopes, params.from_key, {
+            type: "T",
+            direction: "in",
+            t_k: student_loan_end_time,
+            thetaParamKey: "a",
+            theta: P({ a: student_loan_balance }),
+            growth: theta_growth_source
+        });
     }
 };
 
@@ -2988,6 +3147,15 @@ export const federal_unsubsidized_loan = (event: any, envelopes: Record<string, 
         theta_growth_dest
     );
     envelopes[params.to_key].functions.push(loan_debt);
+    // GPU: unsubsidized/private during-school debt (T - out)
+    addGPUDescriptor(envelopes, params.to_key, {
+        type: "T",
+        direction: "out",
+        t_k: params.start_time,
+        thetaParamKey: "b",
+        theta: P({ b: params.amount }),
+        growth: theta_growth_dest
+    });
 
     // Calculate when payments begin: graduation_date + 6 months (180 days)
     const payment_start_time = params.graduation_date + 180;
@@ -3012,11 +3180,11 @@ export const federal_unsubsidized_loan = (event: any, envelopes: Record<string, 
     // GPU NOTE: unsubsidized student loan monthly payment from cash (R - out) using f_monthly_payment
     addGPUDescriptor(envelopes, params.from_key, {
         type: "R",
-        direction: "in",
+        direction: "out",
         t0: payment_start_time,
         dt: 365.25 / 12,
         tf: payment_end_time,
-        thetaParamKey: "a",
+        thetaParamKey: "b",
         theta: P({ P: accumulated_debt_amount, r: interest_rate, y: loan_term_years }),
         growth: theta_growth_source,
         computeValue: f_monthly_payment
@@ -3073,6 +3241,15 @@ export const federal_unsubsidized_loan = (event: any, envelopes: Record<string, 
             theta_growth_dest
         );
         studentLoanEnvelope.functions.push(correction_inflow);
+        // GPU: end correction (debt envelope T - out)
+        addGPUDescriptor(envelopes, params.to_key, {
+            type: "T",
+            direction: "out",
+            t_k: student_loan_end_time,
+            thetaParamKey: "b",
+            theta: P({ b: student_loan_balance }),
+            growth: theta_growth_dest
+        });
         const correction_outflow = T(
             { t_k: student_loan_end_time },
             f_in,
@@ -3080,6 +3257,15 @@ export const federal_unsubsidized_loan = (event: any, envelopes: Record<string, 
             theta_growth_source
         );
         envelopes[params.from_key].functions.push(correction_outflow);
+        // GPU: end correction (cash/source T - in)
+        addGPUDescriptor(envelopes, params.from_key, {
+            type: "T",
+            direction: "in",
+            t_k: student_loan_end_time,
+            thetaParamKey: "a",
+            theta: P({ a: student_loan_balance }),
+            growth: theta_growth_source
+        });
     }
 };
 
@@ -3099,6 +3285,15 @@ export const private_student_loan = (event: any, envelopes: Record<string, any>,
         theta_growth_dest
     );
     envelopes[params.to_key].functions.push(loan_debt);
+    // GPU: unsubsidized/private during-school debt (T - out)
+    addGPUDescriptor(envelopes, params.to_key, {
+        type: "T",
+        direction: "out",
+        t_k: params.start_time,
+        thetaParamKey: "b",
+        theta: P({ b: params.amount }),
+        growth: theta_growth_dest
+    });
 
     // Calculate when payments begin: graduation_date + 6 months (180 days)
     const payment_start_time = params.graduation_date + 180;
@@ -3184,6 +3379,16 @@ export const private_student_loan = (event: any, envelopes: Record<string, any>,
             theta_growth_dest
         );
         studentLoanEnvelope.functions.push(correction_inflow);
+
+        // GPU: end correction (debt envelope T - out)
+        addGPUDescriptor(envelopes, params.to_key, {
+            type: "T",
+            direction: "out",
+            t_k: student_loan_end_time,
+            thetaParamKey: "b",
+            theta: P({ b: student_loan_balance }),
+            growth: theta_growth_dest
+        });
         const correction_outflow = T(
             { t_k: student_loan_end_time },
             f_in,
@@ -3191,6 +3396,16 @@ export const private_student_loan = (event: any, envelopes: Record<string, any>,
             theta_growth_source
         );
         envelopes[params.from_key].functions.push(correction_outflow);
+
+        // GPU: end correction (cash/source T - in)
+        addGPUDescriptor(envelopes, params.from_key, {
+            type: "T",
+            direction: "in",
+            t_k: student_loan_end_time,
+            thetaParamKey: "a",
+            theta: P({ a: student_loan_balance }),
+            growth: theta_growth_source
+        });
     }
 };
 
