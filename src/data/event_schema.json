@@ -610,7 +610,7 @@
             "display_event": true,
             "is_recurring": false,
             "can_be_reocurring": true,
-            "weight": 80,
+            "weight": 100,
             "category": "System",
             "description": "Transfer money between envelopes with optional growth rate for destination.",
             "default_title": "Money Transfer",

@@ -1,5 +1,6 @@
 // resultsEvaluation.ts
 
+import { precomputeThetasForGPU, evaluateGPUDescriptors } from "./baseFunctionsGPU";
 /**
  * Converts a value at a specific day (future or past) to today's value (present value).
  * This is the inverse of valueToDay.
@@ -65,6 +66,11 @@ export function valueToDay(
     return valueToday * Math.pow(1 + inflationRate, d / 365);
 }
 
+// Computation mode flags
+export type ComputeMode = 'cpu' | 'gpu' | 'both';
+export const COMPUTE_MODE: ComputeMode = 'cpu';
+export const ENABLE_TIMING = true;
+
 export function evaluateResults(
     envelopes: Record<string, { functions: ((t: number) => number)[], growth_type: string, growth_rate: number }>,
     startDate: number,
@@ -75,10 +81,7 @@ export function evaluateResults(
     visibleRange?: { startDate: number, endDate: number }
 ): { results: Record<string, number[]>, timePoints: number[] } {
     // Initialize results
-    const results: Record<string, number[]> = {};
-    for (const key in envelopes) {
-        results[key] = [];
-    }
+    let results: Record<string, number[]> = {};
 
     let timePoints: number[];
 
@@ -126,12 +129,136 @@ export function evaluateResults(
         }
     }
 
-    // Evaluate functions at all points
-    for (const key in envelopes) {
-        results[key] = timePoints.map(t =>
-            envelopes[key].functions.reduce((sum, func) => sum + func(t), 0)
-        );
+    let thetaTime = 0;
+    let totalCpuTime = 0;
+    let totalGpuTime = 0;
+
+    // Precompute GPU theta series if using GPU
+    if (COMPUTE_MODE === 'gpu' || COMPUTE_MODE === 'both') {
+        const thetaStart = performance.now();
+        precomputeThetasForGPU(envelopes as any, timePoints);
+        thetaTime = performance.now() - thetaStart;
+        if (ENABLE_TIMING) {
+            console.info(`[Performance] Theta precomputation: ${thetaTime.toFixed(2)}ms`);
+        }
     }
+
+    // Compute all results using selected mode
+    const cpuStart = performance.now();
+    const cpuResults: Record<string, number[]> = {};
+    if (COMPUTE_MODE === 'cpu' || COMPUTE_MODE === 'both') {
+        for (const key in envelopes) {
+            cpuResults[key] = timePoints.map(t =>
+                envelopes[key].functions.reduce((sum, func) => sum + func(t), 0)
+            );
+        }
+        totalCpuTime = performance.now() - cpuStart;
+    }
+
+    const gpuStart = performance.now();
+    const gpuResults: Record<string, number[]> = {};
+    if (COMPUTE_MODE === 'gpu' || COMPUTE_MODE === 'both') {
+        for (const key in envelopes) {
+            gpuResults[key] = evaluateGPUDescriptors((envelopes as any)[key].gpuDescriptors, timePoints);
+        }
+        totalGpuTime = performance.now() - gpuStart;
+    }
+
+    // Use results based on selected mode
+    if (COMPUTE_MODE === 'cpu') {
+        results = cpuResults;
+    } else if (COMPUTE_MODE === 'gpu') {
+        results = gpuResults;
+    } else {
+        // In 'both' mode, use GPU results but validate against CPU
+        results = gpuResults;
+
+        // Compare results and log performance
+        if (ENABLE_TIMING) {
+            console.info(`[Performance] Total times - CPU: ${totalCpuTime.toFixed(2)}ms, GPU: ${totalGpuTime.toFixed(2)}ms (including ${thetaTime.toFixed(2)}ms theta), Speedup: ${(totalCpuTime / (totalGpuTime + thetaTime)).toFixed(2)}x`);
+        }
+
+        // Check for discrepancies
+        for (const key in results) {
+            let maxDiff = 0;
+            let maxIdx = -1;
+            for (let i = 0; i < timePoints.length; i++) {
+                const d = Math.abs(cpuResults[key][i] - gpuResults[key][i]);
+                if (d > maxDiff) {
+                    maxDiff = d;
+                    maxIdx = i;
+                }
+            }
+
+            if (maxDiff > 0.01) {
+                const env: any = (envelopes as any)[key];
+                const gpuDescs: any[] = env.gpuDescriptors || [];
+                // eslint-disable-next-line no-console
+                console.warn('[GPU DEBUG] Envelope mismatch detected', {
+                    key,
+                    maxDiff: +maxDiff.toFixed(6),
+                    atTime: timePoints[maxIdx],
+                    cpu: cpuResults[maxIdx],
+                    gpu: gpuResults[maxIdx],
+                    numCPUFuncs: env.functions?.length || 0,
+                    numGPUDescs: gpuDescs?.length || 0
+                });
+
+                // If no GPU descriptors but CPU functions present, that's likely the cause
+                if ((!gpuDescs || gpuDescs.length === 0) && (env.functions?.length || 0) > 0) {
+                    // eslint-disable-next-line no-console
+                    console.warn('[GPU DEBUG] No GPU descriptors present for envelope with CPU functions. This will cause mismatch.', {
+                        key
+                    });
+                }
+
+                // Detail: per-descriptor GPU contribution and per-function CPU contribution at mismatch index
+                const t = timePoints[maxIdx];
+                const cpuParts = (env.functions || []).map((fn: (t: number) => number, idx: number) => ({ idx, v: fn(t) }));
+                const gpuParts = (gpuDescs || []).flatMap((d: any, di: number) => {
+                    // sum contribution from this descriptor at time index
+                    const sign = d.direction === 'in' ? 1 : -1;
+                    const partsForDesc = (d.occurrences || []).map((occ: any) => {
+                        if (t < occ.t_k) return 0;
+                        const delta = t - occ.t_k;
+                        // approximate same growth as evaluateGPUDescriptors uses
+                        const growth_type = d.growth?.type || 'None';
+                        const r = d.growth?.r || 0;
+                        let growth = 1;
+                        if (growth_type === 'Simple Interest' || growth_type === 'Appreciation') {
+                            growth = 1 + r * (delta / 365.25);
+                        } else if (growth_type === 'Daily Compound') {
+                            growth = Math.pow(1 + r / 365.25, delta);
+                        } else if (growth_type === 'Monthly Compound') {
+                            growth = Math.pow(1 + r / 12, (12 * delta) / 365);
+                        } else if (growth_type === 'Yearly Compound') {
+                            growth = Math.pow(1 + r, delta / 365.25);
+                        } else if (growth_type === 'Depreciation') {
+                            growth = Math.max(0, Math.pow(1 - r, delta / 365.25));
+                        } else if (growth_type === 'Depreciation (Days)') {
+                            const days = d.growth?.days_of_usefulness;
+                            growth = days && days > 0 ? Math.max(0, 1 - delta / days) : 0;
+                        } else {
+                            growth = 1;
+                        }
+                        return sign * occ.baseValue * growth;
+                    });
+                    const v = partsForDesc.reduce((a: number, b: number) => a + b, 0);
+                    return [{ di, v }];
+                });
+
+                // eslint-disable-next-line no-console
+                console.warn('[GPU DEBUG] Contribution breakdown at mismatch', {
+                    key,
+                    time: t,
+                    cpuParts: cpuParts.slice(0, 8), // cap for readability
+                    gpuParts: gpuParts.slice(0, 8)
+                });
+            }
+        }
+    }
+
+    // Note: CPU vs GPU validation logs are emitted per-envelope above; results only carry GPU
 
     // console.log('📊 Evaluation Results:', {
     //     timePointsLength: timePoints.length,
