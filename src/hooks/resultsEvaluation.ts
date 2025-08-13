@@ -66,13 +66,19 @@ export function valueToDay(
     return valueToday * Math.pow(1 + inflationRate, d / 365);
 }
 
-// Computation mode flags
-export type ComputeMode = 'cpu' | 'gpu' | 'both';
-export const COMPUTE_MODE: ComputeMode = 'gpu';
+// Timing flag
 export const ENABLE_TIMING = true;
 
+// Minimal GPU envelope shape for this evaluator
+export type EnvelopeGPU = {
+    gpuDescriptors?: any[];
+    growth_type?: string;
+    growth_rate?: number;
+    days_of_usefulness?: number;
+};
+
 export function evaluateResults(
-    envelopes: Record<string, { functions: ((t: number) => number)[], growth_type: string, growth_rate: number }>,
+    envelopes: Record<string, EnvelopeGPU>,
     startDate: number,
     endDate: number,
     frequency: number,
@@ -130,143 +136,29 @@ export function evaluateResults(
     }
 
     let thetaTime = 0;
-    let totalCpuTime = 0;
     let totalGpuTime = 0;
 
-    // Precompute GPU theta series if using GPU
-    if (COMPUTE_MODE === 'gpu' || COMPUTE_MODE === 'both') {
-        const thetaStart = performance.now();
-        precomputeThetasForGPU(envelopes as any, timePoints);
-        thetaTime = performance.now() - thetaStart;
-        if (ENABLE_TIMING) {
-            console.info(`[Performance] Theta precomputation: ${thetaTime.toFixed(2)}ms`);
-        }
+    // Precompute GPU theta series
+    const thetaStart = performance.now();
+    precomputeThetasForGPU(envelopes as any, timePoints);
+    thetaTime = performance.now() - thetaStart;
+    if (ENABLE_TIMING) {
+        console.info(`[Performance] Theta precomputation: ${thetaTime.toFixed(2)}ms`);
     }
 
-    // Compute all results using selected mode
-    const cpuStart = performance.now();
-    const cpuResults: Record<string, number[]> = {};
-    if (COMPUTE_MODE === 'cpu' || COMPUTE_MODE === 'both') {
-        for (const key in envelopes) {
-            cpuResults[key] = timePoints.map(t =>
-                envelopes[key].functions.reduce((sum, func) => sum + func(t), 0)
-            );
-        }
-        totalCpuTime = performance.now() - cpuStart;
-    }
-
+    // Compute all results using GPU
     const gpuStart = performance.now();
     const gpuResults: Record<string, number[]> = {};
-    if (COMPUTE_MODE === 'gpu' || COMPUTE_MODE === 'both') {
-        for (const key in envelopes) {
-            gpuResults[key] = evaluateGPUDescriptors((envelopes as any)[key].gpuDescriptors, timePoints);
-        }
-        totalGpuTime = performance.now() - gpuStart;
+    for (const key in envelopes) {
+        gpuResults[key] = evaluateGPUDescriptors((envelopes as any)[key].gpuDescriptors, timePoints);
+    }
+    totalGpuTime = performance.now() - gpuStart;
+    if (ENABLE_TIMING) {
+        console.info(`[Performance] GPU evaluation: ${totalGpuTime.toFixed(2)}ms`);
     }
 
-    // Use results based on selected mode
-    if (COMPUTE_MODE === 'cpu') {
-        results = cpuResults;
-    } else if (COMPUTE_MODE === 'gpu') {
-        results = gpuResults;
-    } else {
-        // In 'both' mode, use GPU results but validate against CPU
-        results = gpuResults;
-
-        // Compare results and log consolidated performance
-        if (ENABLE_TIMING) {
-            const gpuTotalWithTheta = totalGpuTime + thetaTime;
-            const speedup = totalCpuTime / gpuTotalWithTheta;
-            console.info('📊 Performance Comparison:', {
-                'CPU Time': `${totalCpuTime.toFixed(2)}ms`,
-                'GPU Time': `${totalGpuTime.toFixed(2)}ms`,
-                'GPU Prep (Theta)': `${thetaTime.toFixed(2)}ms`,
-                'GPU Total (with prep)': `${gpuTotalWithTheta.toFixed(2)}ms`,
-                'Speedup': `${speedup.toFixed(2)}x`,
-                'Points Evaluated': timePoints.length,
-                'Envelopes': Object.keys(results).length
-            });
-        }
-
-        // Check for discrepancies
-        for (const key in results) {
-            let maxDiff = 0;
-            let maxIdx = -1;
-            for (let i = 0; i < timePoints.length; i++) {
-                const d = Math.abs(cpuResults[key][i] - gpuResults[key][i]);
-                if (d > maxDiff) {
-                    maxDiff = d;
-                    maxIdx = i;
-                }
-            }
-
-            if (maxDiff > 0.01) {
-                const env: any = (envelopes as any)[key];
-                const gpuDescs: any[] = env.gpuDescriptors || [];
-                // eslint-disable-next-line no-console
-                // console.warn('[GPU DEBUG] Envelope mismatch detected', {
-                //     key,
-                //     maxDiff: +maxDiff.toFixed(6),
-                //     atTime: timePoints[maxIdx],
-                //     cpu: cpuResults[maxIdx],
-                //     gpu: gpuResults[maxIdx],
-                //     numCPUFuncs: env.functions?.length || 0,
-                //     numGPUDescs: gpuDescs?.length || 0
-                // });
-
-                // If no GPU descriptors but CPU functions present, that's likely the cause
-                if ((!gpuDescs || gpuDescs.length === 0) && (env.functions?.length || 0) > 0) {
-                    // eslint-disable-next-line no-console
-                    console.warn('[GPU DEBUG] No GPU descriptors present for envelope with CPU functions. This will cause mismatch.', {
-                        key
-                    });
-                }
-
-                // Detail: per-descriptor GPU contribution and per-function CPU contribution at mismatch index
-                const t = timePoints[maxIdx];
-                const cpuParts = (env.functions || []).map((fn: (t: number) => number, idx: number) => ({ idx, v: fn(t) }));
-                const gpuParts = (gpuDescs || []).flatMap((d: any, di: number) => {
-                    // sum contribution from this descriptor at time index
-                    const sign = d.direction === 'in' ? 1 : -1;
-                    const partsForDesc = (d.occurrences || []).map((occ: any) => {
-                        if (t < occ.t_k) return 0;
-                        const delta = t - occ.t_k;
-                        // approximate same growth as evaluateGPUDescriptors uses
-                        const growth_type = d.growth?.type || 'None';
-                        const r = d.growth?.r || 0;
-                        let growth = 1;
-                        if (growth_type === 'Simple Interest' || growth_type === 'Appreciation') {
-                            growth = 1 + r * (delta / 365.25);
-                        } else if (growth_type === 'Daily Compound') {
-                            growth = Math.pow(1 + r / 365.25, delta);
-                        } else if (growth_type === 'Monthly Compound') {
-                            growth = Math.pow(1 + r / 12, (12 * delta) / 365);
-                        } else if (growth_type === 'Yearly Compound') {
-                            growth = Math.pow(1 + r, delta / 365.25);
-                        } else if (growth_type === 'Depreciation') {
-                            growth = Math.max(0, Math.pow(1 - r, delta / 365.25));
-                        } else if (growth_type === 'Depreciation (Days)') {
-                            const days = d.growth?.days_of_usefulness;
-                            growth = days && days > 0 ? Math.max(0, 1 - delta / days) : 0;
-                        } else {
-                            growth = 1;
-                        }
-                        return sign * occ.baseValue * growth;
-                    });
-                    const v = partsForDesc.reduce((a: number, b: number) => a + b, 0);
-                    return [{ di, v }];
-                });
-
-                // eslint-disable-next-line no-console
-                // console.warn('[GPU DEBUG] Contribution breakdown at mismatch', {
-                //     key,
-                //     time: t,
-                //     cpuParts: cpuParts.slice(0, 8), // cap for readability
-                //     gpuParts: gpuParts.slice(0, 8)
-                // });
-            }
-        }
-    }
+    // Use GPU results only
+    results = gpuResults;
 
     // Resolve deferred peek operations (phase after base evaluation, before inflation adjustment)
     // Generalized peek kinds:
@@ -308,14 +200,14 @@ export function evaluateResults(
                             direction,
                             t_k: op.day,
                             thetaParamKey,
-                            theta: (t: number) => theta,
+                            theta: (_t: number) => theta,
                             growth
                         });
                     } else {
                         // fallback: attach structure
                         (envelopes as any)[envKey] = (envelopes as any)[envKey] || {};
                         (envelopes as any)[envKey].gpuDescriptors = ((envelopes as any)[envKey].gpuDescriptors || []).concat([{
-                            type: 'T', direction, t_k: op.day, thetaParamKey, theta: (t: number) => theta, growth
+                            type: 'T', direction, t_k: op.day, thetaParamKey, theta: (_t: number) => theta, growth
                         }]);
                     }
                 }
@@ -350,7 +242,7 @@ export function evaluateResults(
                         direction,
                         t_k: d,
                         thetaParamKey,
-                        theta: (t: number) => ({ [thetaParamKey]: Math.abs(amount) }),
+                        theta: (_t: number) => ({ [thetaParamKey]: Math.abs(amount) }),
                         growth: { type: 'None', r: 0 }
                     } as any;
                     if (add) add(desc); else {
@@ -369,7 +261,6 @@ export function evaluateResults(
                 if (!taxableKey || !addKey || !taxesTarget) continue;
                 const taxableSeries = results[taxableKey] || [];
                 const addSeries = results[addKey] || [];
-                const env = (envelopes as any)[taxesTarget];
                 const addDesc = (desc: any) => {
                     if ((envelopes as any)[taxesTarget]?.gpuDescriptors?.push) {
                         (envelopes as any)[taxesTarget].gpuDescriptors.push(desc);
@@ -409,7 +300,7 @@ export function evaluateResults(
                     if (delta <= 0) continue;
                     addDesc({
                         type: 'Impulse', direction: 'out', t_k: d, thetaParamKey: 'b',
-                        theta: (t: number) => ({ b: delta }), growth: { type: 'None', r: 0 }
+                        theta: (_t: number) => ({ b: delta }), growth: { type: 'None', r: 0 }
                     });
                 }
             }
@@ -422,7 +313,7 @@ export function evaluateResults(
         for (const key in envelopes) {
             gpuResults[key] = evaluateGPUDescriptors((envelopes as any)[key].gpuDescriptors, timePoints);
         }
-        results = (COMPUTE_MODE === 'cpu') ? results : gpuResults;
+        results = gpuResults;
         if (ENABLE_TIMING) {
             console.info(`[Performance] Peek resolution + re-eval: ${(performance.now() - t0).toFixed(2)}ms (ops=${peekOps.length})`);
         }

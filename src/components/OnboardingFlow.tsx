@@ -7,7 +7,7 @@ import { Label } from './ui/label';
 import { Checkbox } from './ui/checkbox';
 // import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Card, CardContent } from './ui/card';
-import { DollarSign, Target, Home, Plane, Users, Coffee, TrendingUp, PiggyBank, Building, CreditCard, Wallet, Shield, Leaf, Mountain, Sparkles } from 'lucide-react';
+import { DollarSign, Target, Home, Plane, TrendingUp, PiggyBank, Building, Wallet, Shield, Sparkles } from 'lucide-react';
 import { usePlan } from '../contexts/PlanContext';
 import { useAuth } from '../contexts/AuthContext';
 import { toast } from 'sonner';
@@ -31,17 +31,9 @@ interface OnboardingData {
   onboarding_state?: string;
 }
 
-const CATEGORY_BASE_COLORS: Record<string, string> = {
-  'Savings': '#FFC107', // Yellow
-  'Investments': '#00BCD4', // Cyan
-  'Income': '#FF9800', // Orange
-  'Retirement': '#9C27B0', // Purple
-  'Debt': '#F44336', // Red
-  'Cash': '#4CAF50', // Green
-  'Assets': '#888888', // Grey
-};
+//
 
-const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ isOpen, onComplete, onAddEventAndEditParams }) => {
+const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ isOpen, onComplete }) => {
   const [currentStep, setCurrentStep] = useState(0);
   const [data, setData] = useState<OnboardingData & { _currentStep?: number }>({
     goals: [],
@@ -55,8 +47,8 @@ const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ isOpen, onComplete, onA
     _currentStep: 0,
   });
   const [loading, setLoading] = useState(true);
-  const { upsertAnonymousOnboarding, fetchAnonymousOnboarding, logAnonymousButtonClick, updateOnboardingState } = useAuth();
-  const { addEvent, updateBirthDate } = usePlan();
+  const { upsertAnonymousOnboarding, fetchAnonymousOnboarding, logAnonymousButtonClick } = useAuth();
+  const { updateBirthDate } = usePlan();
 
   // Fetch onboarding data on mount
   React.useEffect(() => {
@@ -355,6 +347,9 @@ const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ isOpen, onComplete, onA
     return (
       <Dialog open={isOpen} onOpenChange={() => { }}>
         <DialogContent className="sm:max-w-2xl max-w-4xl mx-8">
+          <DialogHeader>
+            <DialogTitle className="sr-only">Loading Onboarding</DialogTitle>
+          </DialogHeader>
           <div className="py-16 text-center text-lg">Loading your onboarding progress...</div>
         </DialogContent>
       </Dialog>

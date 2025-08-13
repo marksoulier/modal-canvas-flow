@@ -8,8 +8,8 @@ import {
     high_yield_savings_account, pay_taxes, buy_groceries, manual_correction,
     get_wage_job, transfer_money, income_with_changing_parameters,
     declare_accounts, purchase,
-    monthly_budgeting, roth_ira_contribution, tax_payment_estimated,
-    reoccuring_spending_inflation_adjusted, loan_amortization, loan,
+    monthly_budgeting, roth_ira_contribution,
+    reoccuring_spending_inflation_adjusted, loan,
     federal_subsidized_loan, federal_unsubsidized_loan, private_student_loan,
     usa_tax_system
 } from './baseFunctions';
@@ -148,8 +148,8 @@ export async function runSimulation(
                 case 'pass_away': pass_away(event, envelopes); break;
                 case 'monthly_budgeting': monthly_budgeting(event, envelopes); break;
                 case 'roth_ira_contribution': roth_ira_contribution(event, envelopes); break;
-                case 'tax_payment_estimated': tax_payment_estimated(event, envelopes); break;
-                case 'loan_amortization': loan_amortization(event, envelopes); break;
+                //case 'tax_payment_estimated': tax_payment_estimated(event, envelopes); break;
+                //case 'loan_amortization': loan_amortization(event, envelopes); break;
                 case 'loan': loan(event, envelopes); break;
                 case 'federal_subsidized_loan': federal_subsidized_loan(event, envelopes, (updates) => {
                     planUpdates.push(...updates);
