@@ -48,7 +48,7 @@ export const addGPUDescriptor = (
     envelopes[envelopeKey].gpuDescriptors.push(descriptor);
 };
 
-const f_growth_gpu = (theta_g: GrowthParams, t: number): number => {
+export const f_growth_gpu = (theta_g: GrowthParams, t: number): number => {
     const growth_type = theta_g.type;
     const r = theta_g.r;
     if (growth_type === "Simple Interest") {
@@ -183,6 +183,80 @@ export const evaluateGPUDescriptors = (
     }
 
     return result;
+};
+
+// Peek-evaluate descriptor values at arbitrary days without needing a full time grid.
+// Returns an array of balances aligned with the input days.
+export const peekEvaluateGPUDescriptors = (
+    gpuDescriptors: AnyGPUDescriptor[] | undefined,
+    days: number[]
+): number[] => {
+    if (!gpuDescriptors || gpuDescriptors.length === 0 || days.length === 0) {
+        return new Array(days.length).fill(0);
+    }
+
+    const maxDay = days.reduce((a, b) => Math.max(a, b), -Infinity);
+
+    const getOccurrences = (desc: AnyGPUDescriptor): { type: "T" | "R" | "Impulse"; direction: "in" | "out"; growth: any; occs: GPUOccurrence[] } => {
+        const isPre = (desc as GPUDescriptorPrecomputed).occurrences !== undefined;
+        if (isPre) {
+            const pre = desc as GPUDescriptorPrecomputed;
+            return { type: pre.type, direction: pre.direction, growth: pre.growth, occs: pre.occurrences || [] };
+        }
+        const raw = desc as GPUDescriptorRaw;
+        const occs: GPUOccurrence[] = [];
+        if ((raw.type === "T" || raw.type === "Impulse") && typeof raw.t_k === "number") {
+            const t_k = raw.t_k;
+            if (t_k <= maxDay) {
+                const baseTheta = raw.theta(t_k);
+                const tRel = 0;
+                const baseValue = typeof raw.computeValue === 'function'
+                    ? Number(raw.computeValue(baseTheta, tRel))
+                    : Number(baseTheta[raw.thetaParamKey] ?? 0);
+                occs.push({ t_k, startIndex: 0, baseValue });
+            }
+        } else if (raw.type === "R" && typeof raw.t0 === "number" && typeof raw.dt === "number" && typeof raw.tf === "number") {
+            let i = 0;
+            const endTf = Math.min(raw.tf, maxDay);
+            while (true) {
+                const t_k = raw.t0 + i * raw.dt;
+                if (t_k > endTf) break;
+                const baseTheta = raw.theta(t_k);
+                const tRel = t_k - raw.t0;
+                const baseValue = typeof raw.computeValue === 'function'
+                    ? Number(raw.computeValue(baseTheta, tRel))
+                    : Number(baseTheta[raw.thetaParamKey] ?? 0);
+                occs.push({ t_k, startIndex: 0, baseValue });
+                i++;
+            }
+        }
+        return { type: raw.type, direction: raw.direction, growth: raw.growth, occs };
+    };
+
+    const out: number[] = new Array(days.length).fill(0);
+    for (const desc of gpuDescriptors) {
+        const { type, direction, growth, occs } = getOccurrences(desc);
+        const sign = direction === 'in' ? 1 : -1;
+        for (let j = 0; j < days.length; j++) {
+            const d = days[j];
+            let sum = 0;
+            if (type === 'Impulse') {
+                for (const occ of occs) {
+                    if (d === occ.t_k) sum += occ.baseValue; // impulses only apply exactly at t_k
+                }
+            } else {
+                for (const occ of occs) {
+                    if (d < occ.t_k) continue;
+                    const delta = d - occ.t_k;
+                    const g = f_growth_gpu(growth, delta);
+                    sum += occ.baseValue * g;
+                }
+            }
+            out[j] += sign * sum;
+        }
+    }
+
+    return out;
 };
 
 

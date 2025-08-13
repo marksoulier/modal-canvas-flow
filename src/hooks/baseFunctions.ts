@@ -1,6 +1,6 @@
 // utilities.ts
 import type { Theta, FuncWithTheta } from "./types";
-import { addGPUDescriptor } from "./baseFunctionsGPU";
+import { addGPUDescriptor, precomputeThetasForGPU, evaluateGPUDescriptors } from "./baseFunctionsGPU";
 
 export const u = (t: number): number => (t >= 0 ? 1.0 : 0.0);
 
@@ -3341,15 +3341,10 @@ export const usa_tax_system = (event: any, envelopes: Record<string, any>) => {
     const params = event.parameters;
     const simulation_settings = envelopes.simulation_settings;
 
-    // Feature flag: use generalized peek mechanism for resets (year-end zeroing)
-    const USE_PEEK_FOR_YEAR_END_RESETS = true;
-
-    // Timing instrumentation for pre-evaluations in this event
+    // Timing instrumentation (GPU-only pre-evaluations)
     let preEvalYearEndBalancesMs = 0;
     let preEvalPerDayPenaltiesMs = 0;
     let preEvalPerDayTaxableMs = 0;
-    const USE_PEEK_FOR_PENALTIES = true;
-    const USE_PEEK_FOR_INCREMENTAL_TAX = true;
 
     // Get growth parameters for the envelopes
     const [theta_growth_taxable_income, theta_growth_penalty_401k, theta_growth_taxes_401k, theta_growth_roth, theta_growth_penalty_roth, theta_growth_401k, theta_growth_irs_registered_account] = get_growth_parameters(
@@ -3413,44 +3408,64 @@ export const usa_tax_system = (event: any, envelopes: Record<string, any>) => {
         }
     }
 
-    // Initialize peek queue holder
-    (envelopes as any).__peekQueries = (envelopes as any).__peekQueries || [];
+    // Precompute GPU occurrences once for the grid used by this event and cache series per envelope
+    const gridDays: number[] = timePoints;
+    const dayToIndex = new Map<number, number>();
+    for (let i = 0; i < gridDays.length; i++) dayToIndex.set(gridDays[i], i);
+    precomputeThetasForGPU(envelopes as any, gridDays);
+    (envelopes as any).__gpuSeriesCache = (envelopes as any).__gpuSeriesCache || {};
+    const getSeries = (envKey: string): number[] => {
+        const cache = (envelopes as any).__gpuSeriesCache;
+        if (cache[envKey]) return cache[envKey];
+        const env = envelopes[envKey];
+        const series = env && env.gpuDescriptors
+            ? evaluateGPUDescriptors(env.gpuDescriptors as any, gridDays)
+            : new Array(gridDays.length).fill(0);
+        cache[envKey] = series;
+        return series;
+    };
 
-    // Process taxable income corrections on year-end days
-    yearEndDays.forEach(yearEndDay => {
-        // --- Reset taxable income and additional envelopes at year end ---
-        const taxEnvelopes = [
-            params.taxable_income_key,
-            params.federal_withholdings_key,
-            params.state_withholdings_key,
-            params.local_withholdings_key,
-            params.ira_contributions_key,
-            params.penalty_401k_key,
-            params.taxes_401k_key,
-            params.roth_key,
-            params.penalty_roth_key,
-            params.roth_ira_principle_key,
-            params.roth_ira_withdraw_key, //The amount withdrawn from the ROTH IRA
-            params.p_401k_key, //Actual account value of 401k
-            params.p_401k_withdraw_key, //Withholding from 401k this year
-            params.p_401k_withdraw_withholding_key //Withholding from 401k this year
-        ];
+    // --- Reset taxable income and additional envelopes at year end ---
+    const taxEnvelopes = [
+        params.taxable_income_key,
+        params.federal_withholdings_key,
+        params.state_withholdings_key,
+        params.local_withholdings_key,
+        params.ira_contributions_key,
+        params.penalty_401k_key,
+        params.taxes_401k_key,
+        params.roth_key,
+        params.penalty_roth_key,
+        params.roth_ira_principle_key,
+        params.roth_ira_withdraw_key, //The amount withdrawn from the ROTH IRA
+        params.p_401k_key, //Actual account value of 401k
+        params.p_401k_withdraw_key, //Withholding from 401k this year
+        params.p_401k_withdraw_withholding_key //Withholding from 401k this year
+    ];
 
-        // Before year end, evaluate value of all tax related envelopes (timed)
-        const tStartBalances = performance.now();
-        const taxEnvelopesBalances: Record<string, number> = {};
-        if (!USE_PEEK_FOR_YEAR_END_RESETS) {
-            for (const key of taxEnvelopes) {
-                if (key && envelopes[key]) {
-                    let envBalance = 0.0;
-                    for (const func of envelopes[key].functions) {
-                        envBalance += func(yearEndDay);
-                    }
-                    taxEnvelopesBalances[key] = envBalance;
-                }
-            }
+    // Batch-peek balances for all year-end days per envelope (GPU-only; timed once)
+    const tStartBalances = performance.now();
+    const yearEndSeriesMap: Record<string, number[]> = {};
+    for (const key of taxEnvelopes) {
+        if (!key || !envelopes[key]) continue;
+        const s = getSeries(key);
+        const arr: number[] = new Array(yearEndDays.length);
+        for (let i = 0; i < yearEndDays.length; i++) {
+            const idx = dayToIndex.get(yearEndDays[i]);
+            arr[i] = (idx == null) ? 0 : (s[idx] || 0);
         }
-        preEvalYearEndBalancesMs += performance.now() - tStartBalances;
+        yearEndSeriesMap[key] = arr;
+    }
+    preEvalYearEndBalancesMs += performance.now() - tStartBalances;
+
+    // Process taxable income corrections on year-end days (use precomputed series)
+    for (let i = 0; i < yearEndDays.length; i++) {
+        const yearEndDay = yearEndDays[i];
+        const taxEnvelopesBalances: Record<string, number> = {};
+        for (const key of taxEnvelopes) {
+            if (!key) continue;
+            taxEnvelopesBalances[key] = (yearEndSeriesMap[key]?.[i]) || 0;
+        }
 
         //Calculate age and year
         const age = Math.floor(yearEndDay / 365);
@@ -3478,14 +3493,6 @@ export const usa_tax_system = (event: any, envelopes: Record<string, any>) => {
         //console.log("Taxes Owed", taxesOwed);
 
         // Withdraw the taxes withhed from irs_registered_account_key
-        const irsRegisteredAccountEnvelope = envelopes[params.irs_registered_account_key];
-        const pay_taxes_func = T(
-            { t_k: yearEndDay + 105 }, // 105 days from the end of the year is tax day.
-            f_out,
-            P({ b: taxesOwed }),
-            theta_growth_irs_registered_account
-        );
-        irsRegisteredAccountEnvelope.functions.push(pay_taxes_func);
         // GPU NOTE: USA tax day payment from IRS registered account (T - out)
         addGPUDescriptor(envelopes, params.irs_registered_account_key, {
             type: "T",
@@ -3506,224 +3513,105 @@ export const usa_tax_system = (event: any, envelopes: Record<string, any>) => {
             params.p_401k_withdraw_withholding_key,
             params.roth_ira_withdraw_key,
         ];
-        if (USE_PEEK_FOR_YEAR_END_RESETS) {
-            // Defer to peek resolver: request resets to zero at yearEndDay
-            for (const key of resetEnvelopes) {
-                if (key && envelopes[key]) {
-                    (envelopes as any).__peekQueries.push({
-                        kind: 'reset_to_zero',
-                        envelope: key,
-                        day: yearEndDay
-                    });
-                }
-            }
-        } else {
-            for (const key of resetEnvelopes) {
-                if (key && envelopes[key]) {
-                    let envBalance = 0.0;
-                    for (const func of envelopes[key].functions) {
-                        envBalance += func(yearEndDay);
-                    }
-                    if (envBalance !== 0) {
-                        const [_, theta_growth_env] = get_growth_parameters(envelopes, undefined, key);
-                        const diff = 0 - envBalance;
-                        const correctionFunc = T(
-                            { t_k: yearEndDay },
-                            diff > 0 ? f_in : f_out,
-                            P(diff > 0 ? { a: Math.abs(diff) } : { b: Math.abs(diff) }),
-                            theta_growth_env
-                        );
-                        envelopes[key].functions.push(correctionFunc);
-                        addGPUDescriptor(envelopes, key, {
-                            type: "T",
-                            direction: diff > 0 ? "in" : "out",
-                            t_k: yearEndDay,
-                            thetaParamKey: diff > 0 ? "a" : "b",
-                            theta: P(diff > 0 ? { a: Math.abs(diff) } : { b: Math.abs(diff) }),
-                            growth: theta_growth_env
-                        });
-                    }
-                }
+        // Reset envelopes to zero at year end using pre-peeked balances
+        // Batch GPU descriptors for resets, then push once per envelope
+        const resetsBatch: Record<string, any[]> = {};
+        for (const key of resetEnvelopes) {
+            if (!key || !envelopes[key]) continue;
+            const envBalance = (yearEndSeriesMap[key]?.[i]) || 0;
+            if (envBalance !== 0) {
+                const [_, theta_growth_env] = get_growth_parameters(envelopes, undefined, key);
+                const diff = 0 - envBalance;
+                const desc = {
+                    type: "T",
+                    direction: diff > 0 ? "in" : "out",
+                    t_k: yearEndDay,
+                    thetaParamKey: diff > 0 ? "a" : "b",
+                    theta: P(diff > 0 ? { a: Math.abs(diff) } : { b: Math.abs(diff) }),
+                    growth: theta_growth_env
+                };
+                (resetsBatch[key] = resetsBatch[key] || []).push(desc);
             }
         }
-    });
-
-    // Emit penalty peeks (vectorized) if enabled
-    if (USE_PEEK_FOR_PENALTIES && age59HalfDay !== null) {
-        (envelopes as any).__peekQueries.push({
-            kind: 'impulse_from_envelope',
-            sourceEnvelope: params.p_401k_key,
-            targetEnvelope: params.penalty_401k_key,
-            coeff: 0.10,
-            direction: 'out',
-            thetaParamKey: 'b',
-            days: timePoints,
-            filter: { op: 'lt', day: age59HalfDay }
-        });
-        (envelopes as any).__peekQueries.push({
-            kind: 'impulse_from_envelope',
-            sourceEnvelope: params.roth_key,
-            targetEnvelope: params.penalty_roth_key,
-            coeff: 0.10,
-            direction: 'out',
-            thetaParamKey: 'b',
-            days: timePoints,
-            filter: { op: 'lt', day: age59HalfDay }
-        });
+        for (const key of Object.keys(resetsBatch)) {
+            const list = (envelopes as any)[key].gpuDescriptors as any[];
+            if (Array.isArray(list)) list.push(...resetsBatch[key]);
+            else (envelopes as any)[key].gpuDescriptors = [...(resetsBatch[key])];
+        }
     }
 
-    // Emit incremental tax delta peeks if enabled
-    if (USE_PEEK_FOR_INCREMENTAL_TAX) {
-        (envelopes as any).__peekQueries.push({
-            kind: 'tax_delta_on_401k',
-            days: timePoints,
-            taxableIncomeKey: params.taxable_income_key,
-            addKey: params.p_401k_key,
-            taxesTargetEnvelope: params.taxes_401k_key,
-            filingStatus: params.filing_status || 'Single',
-            dependents: params.dependents ?? 0
-        });
+    // Compute penalties using GPU peeks
+    if (age59HalfDay !== null) {
+        const days = timePoints;
+        const series401k = getSeries(params.p_401k_key);
+        const seriesRoth = getSeries(params.roth_key);
+        const tStartPen = performance.now();
+        const penalty401kBatch: any[] = [];
+        const penaltyRothBatch: any[] = [];
+        for (let i = 0; i < days.length; i++) {
+            const d = days[i];
+            if (d >= age59HalfDay) continue;
+            const idx = dayToIndex.get(d);
+            if (idx == null) continue;
+            const bal401k = series401k[idx] || 0;
+            const balRoth = seriesRoth[idx] || 0;
+            const penalty401k = bal401k * 0.10;
+            const penaltyRoth = balRoth * 0.10;
+            if (penalty401k > 0) {
+                penalty401kBatch.push({ type: 'Impulse', direction: 'out', t_k: d, thetaParamKey: 'b', theta: P({ b: penalty401k }), growth: { type: 'None', r: 0 } });
+            }
+            if (penaltyRoth > 0) {
+                penaltyRothBatch.push({ type: 'Impulse', direction: 'out', t_k: d, thetaParamKey: 'b', theta: P({ b: penaltyRoth }), growth: { type: 'None', r: 0 } });
+            }
+        }
+        if (penalty401kBatch.length) {
+            const list = (envelopes as any)[params.penalty_401k_key].gpuDescriptors as any[];
+            if (Array.isArray(list)) list.push(...penalty401kBatch);
+            else (envelopes as any)[params.penalty_401k_key].gpuDescriptors = [...penalty401kBatch];
+        }
+        if (penaltyRothBatch.length) {
+            const list = (envelopes as any)[params.penalty_roth_key].gpuDescriptors as any[];
+            if (Array.isArray(list)) list.push(...penaltyRothBatch);
+            else (envelopes as any)[params.penalty_roth_key].gpuDescriptors = [...penaltyRothBatch];
+        }
+        preEvalPerDayPenaltiesMs += performance.now() - tStartPen;
     }
 
-    // For each time point, evaluate the 401K balance and create penalty/tax functions (fallback/disabled-peek)
-    if (!USE_PEEK_FOR_PENALTIES || !USE_PEEK_FOR_INCREMENTAL_TAX) {
-        timePoints.forEach(t => {
-
-            // Evaluate ROTH IRA balance at time t
-            const tStartPen = performance.now();
-            let balanceRothIra = 0.0;
-            for (const func of envelopeRothIra.functions) {
-                balanceRothIra += func(t);
-            }
-
-
-            // Evaluate 401K envelope balance at time t
-            let balance401k = 0.0;
-            for (const func of envelope401k.functions) {
-                balance401k += func(t);
-            }
-            preEvalPerDayPenaltiesMs += performance.now() - tStartPen;
-
-            // Only apply 401K penalty if person is under 59.5 years old
-            if ((!USE_PEEK_FOR_PENALTIES) && (!age59HalfDay || t < age59HalfDay)) {
-                // Calculate 10% penalty
-                const penaltyAmount = balance401k * 0.10;
-
-                // Calculate ROTH IRA penalty
-                const penaltyAmountRothIra = balanceRothIra * 0.10;
-
-                // Create an impulse function at time t for the penalty amount
-                if (penaltyAmount > 0) {
-                    const penaltyFunc = impulse_T(
-                        { t_k: t },
-                        f_out, // Using outflow function since it's a penalty (negative)
-                        P({ b: penaltyAmount }),
-                        theta_growth_penalty_401k,
-                        0
-                    );
-
-                    // Add the penalty function to the penalty envelope
-                    penaltyEnvelope.functions.push(penaltyFunc);
-                    // GPU NOTE: 401k early withdrawal penalty impulse (Impulse - out)
-                    addGPUDescriptor(envelopes, params.penalty_401k_key, {
-                        type: "Impulse",
-                        direction: "out",
-                        t_k: t,
-                        thetaParamKey: "b",
-                        theta: P({ b: penaltyAmount }),
-                        growth: { type: "None", r: 0 }
-                    });
-                }
-
-                if (penaltyAmountRothIra > 0) {
-
-                    //Roth IRA penalty
-                    const penaltyRothIraFunc = impulse_T(
-                        { t_k: t },
-                        f_out, // Using outflow function since it's a penalty (negative)
-                        P({ b: penaltyAmountRothIra }),
-                        theta_growth_penalty_roth,
-                        0
-                    );
-                    // Add the penalty function to the penalty envelope
-                    penaltyEnvelopeRothIra.functions.push(penaltyRothIraFunc);
-                    // GPU NOTE: ROTH IRA early withdrawal penalty impulse (Impulse - out)
-                    addGPUDescriptor(envelopes, params.penalty_roth_key, {
-                        type: "Impulse",
-                        direction: "out",
-                        t_k: t,
-                        thetaParamKey: "b",
-                        theta: P({ b: penaltyAmountRothIra }),
-                        growth: { type: "None", r: 0 }
-                    });
-                }
-            }
-
-            if (!USE_PEEK_FOR_INCREMENTAL_TAX) {
-                // Evaluate taxable income envelope balance at time t
-                const tStartTaxable = performance.now();
-                let taxableIncomeBalance = 0.0;
-                for (const func of taxableIncomeEnvelope.functions) {
-                    taxableIncomeBalance += func(t);
-                }
-                preEvalPerDayTaxableMs += performance.now() - tStartTaxable;
-                const taxParams_401K_included = {
-                    ...taxParams,
-                    taxable_income: taxableIncomeBalance + balance401k
-                };
-                const taxParamsBase = {
-                    ...taxParams,
-                    taxable_income: taxableIncomeBalance
-                };
-                const taxesOwed = calculateTaxes(taxParams_401K_included) - calculateTaxes(taxParamsBase);
-
-                // Create an impulse function at time t for the tax amount
-                const taxFunc = impulse_T(
-                    { t_k: t },
-                    f_out,
-                    P({ b: taxesOwed }),
-                    theta_growth_taxes_401k,
-                    0
-                );
-
-                taxesEnvelope.functions.push(taxFunc);
-                addGPUDescriptor(envelopes, params.taxes_401k_key, {
-                    type: "Impulse",
-                    direction: "out",
-                    t_k: t,
-                    thetaParamKey: "b",
-                    theta: P({ b: taxesOwed }),
-                    growth: { type: "None", r: 0 }
-                });
-            }
-
-            // console.log(`Added taxes of ${taxesOwed.toFixed(2)} on taxable income of ${taxableIncomeBalance.toFixed(2)} at time ${t}`);
-        });
+    // Compute incremental tax delta using GPU peeks for balances
+    {
+        const days = timePoints;
+        const seriesTaxable = getSeries(params.taxable_income_key);
+        const series401k = getSeries(params.p_401k_key);
+        const tStartTax = performance.now();
+        const taxesBatch: any[] = [];
+        for (let i = 0; i < days.length; i++) {
+            const d = days[i];
+            const idx = dayToIndex.get(d);
+            if (idx == null) continue;
+            const taxable = seriesTaxable[idx] || 0;
+            const addVal = series401k[idx] || 0;
+            const taxParamsBase = { ...taxParams, taxable_income: taxable };
+            const taxParamsPlus = { ...taxParams, taxable_income: taxable + addVal };
+            const delta = Math.max(0, calculateTaxes(taxParamsPlus) - calculateTaxes(taxParamsBase));
+            if (delta <= 0) continue;
+            taxesBatch.push({ type: 'Impulse', direction: 'out', t_k: d, thetaParamKey: 'b', theta: P({ b: delta }), growth: { type: 'None', r: 0 } });
+        }
+        if (taxesBatch.length) {
+            const list = (envelopes as any)[params.taxes_401k_key].gpuDescriptors as any[];
+            if (Array.isArray(list)) list.push(...taxesBatch);
+            else (envelopes as any)[params.taxes_401k_key].gpuDescriptors = [...taxesBatch];
+        }
+        preEvalPerDayTaxableMs += performance.now() - tStartTax;
     }
 
     // Apply manual correction to reset 401K penalty to 0 at age 59.5
     if (age59HalfDay !== null) {
-        // Evaluate penalty envelope balance at age 59.5
-        let penaltyBalance = 0.0;
-        for (const func of penaltyEnvelope.functions) {
-            penaltyBalance += func(age59HalfDay);
-        }
-
+        // Evaluate penalty envelope balance at age 59.5 using cached grid series
+        const seriesPenalty = getSeries(params.penalty_401k_key);
+        const idx = dayToIndex.get(age59HalfDay);
+        const penaltyBalance = (idx == null) ? 0 : (seriesPenalty[idx] || 0);
         if (penaltyBalance !== 0) {
-            // Apply difference correction - subtract the current balance to reset it to 0
-            const difference = 0 - penaltyBalance; // Target amount (0) minus current balance
-
-            // Create correction function following manual_correction pattern
-            const correctionFunc = T(
-                { t_k: age59HalfDay },
-                difference > 0 ? f_in : f_out,
-                P(difference > 0 ? { a: Math.abs(difference) } : { b: Math.abs(difference) }),
-                theta_growth_penalty_401k
-            );
-
-            // Add the correction to penalty envelope
-            penaltyEnvelope.functions.push(correctionFunc);
-            // GPU NOTE: USA 59.5 penalty reset correction (T - in/out)
+            const difference = 0 - penaltyBalance;
             addGPUDescriptor(envelopes, params.penalty_401k_key, {
                 type: "T",
                 direction: difference > 0 ? "in" : "out",
@@ -3732,8 +3620,6 @@ export const usa_tax_system = (event: any, envelopes: Record<string, any>) => {
                 theta: P(difference > 0 ? { a: Math.abs(difference) } : { b: Math.abs(difference) }),
                 growth: theta_growth_penalty_401k
             });
-
-            //console.log(`Applied 401K penalty correction of ${difference} at age 59.5 (day ${age59HalfDay})`);
         }
     }
 

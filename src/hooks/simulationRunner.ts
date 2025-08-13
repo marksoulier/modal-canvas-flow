@@ -96,7 +96,9 @@ export async function runSimulation(
 
         // Timer for applying events
         const eventsStart = performance.now();
+        let eventApplyMs = 0;
         for (const event of parsedEvents) {
+            const eventStart = performance.now();
             //console.log("Event: ", event)
 
             // Skip manual_correction events during the first pass
@@ -163,30 +165,34 @@ export async function runSimulation(
                 default:
                     console.warn(`⚠️ Unhandled event type: ${event.type}`);
             }
+            eventApplyMs += performance.now() - eventStart;
         }
 
 
         // Process all manual_correction events at the end
-        //console.log(`Processing ${manualCorrectionEvents.length} manual correction events at the end`);
+        const manualStart = performance.now();
         for (const event of manualCorrectionEvents) {
-            //console.log("Manual correction event: ", event.parameters);
             manual_correction(event, envelopes);
         }
+        const manualTime = performance.now() - manualStart;
 
         // Process all declare_accounts events at the end
-        //console.log(`Processing ${declareAccountsEvents.length} declare_accounts events at the end`);
+        const declareStart = performance.now();
         for (const event of declareAccountsEvents) {
-            //console.log("Declare accounts event: ", event.parameters);
             declare_accounts(event, envelopes);
         }
+        const declareTime = performance.now() - declareStart;
 
         // Process usa_tax_system events at the end
+        const taxStart = performance.now();
+        let usaTaxCount = 0;
         for (const event of parsedEvents) {
-            //console.log("Event: ", event);
             if (event.type === 'usa_tax_system') {
                 usa_tax_system(event, envelopes);
+                usaTaxCount++;
             }
         }
+        const usaTaxTime = performance.now() - taxStart;
 
         // Apply plan updates if callback is provided
         if (onPlanUpdate && planUpdates.length > 0) {
@@ -204,6 +210,16 @@ export async function runSimulation(
         //console.log("allEvalEnvelopes", allEvalEnvelopes);
 
         const eventsTime = performance.now() - eventsStart;
+        console.info('🧩 Event apply breakdown:', {
+            total: `${eventsTime.toFixed(2)}ms`,
+            events: parsedEvents.length,
+            avgPerEvent: `${(eventsTime / Math.max(1, parsedEvents.length)).toFixed(2)}ms`,
+            measuredApply: `${eventApplyMs.toFixed(2)}ms`,
+            manual: `${manualTime.toFixed(2)}ms`,
+            declare: `${declareTime.toFixed(2)}ms`,
+            usaTax: `${usaTaxTime.toFixed(2)}ms`,
+            usaTaxCount
+        });
 
         // Timer for results evaluation
         const resultsStart = performance.now();
