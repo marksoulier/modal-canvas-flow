@@ -115,7 +115,7 @@ export default function Index() {
   // Check for first Google sign-in on app startup
   useEffect(() => {
     const isFirstGoogleSignin = localStorage.getItem('first-google-signin');
-    console.log('isFirstGoogleSignin', isFirstGoogleSignin);
+    //console.log('isFirstGoogleSignin', isFirstGoogleSignin);
     if (isFirstGoogleSignin === 'true' && user) {
       // Clear the flag immediately
       localStorage.removeItem('first-google-signin');

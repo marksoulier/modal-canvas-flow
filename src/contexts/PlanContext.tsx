@@ -513,12 +513,12 @@ export function PlanProvider({ children }: PlanProviderProps) {
             const startDay = Math.floor((startDate.getTime() - birthDate.getTime()) / (1000 * 60 * 60 * 24));
             const endDay = Math.floor((endDate.getTime() - birthDate.getTime()) / (1000 * 60 * 60 * 24));
 
-            console.log('📅 Setting visualization date range:', {
-                startDate: planData.view_start_date,
-                endDate: planData.view_end_date,
-                startDay,
-                endDay
-            });
+            // console.log('📅 Setting visualization date range:', {
+            //     startDate: planData.view_start_date,
+            //     endDate: planData.view_end_date,
+            //     startDay,
+            //     endDay
+            // });
 
             // Set zoom to the specified range (this will be called after the visualization is ready)
             setTimeout(() => {
@@ -552,8 +552,8 @@ export function PlanProvider({ children }: PlanProviderProps) {
         } else {
             setPlanLocked(deepClonePlan(planData));
         }
-        console.log("planData.view_start_date: ", planData.view_start_date);
-        console.log("planData.view_end_date: ", planData.view_end_date);
+        //console.log("planData.view_start_date: ", planData.view_start_date);
+        //console.log("planData.view_end_date: ", planData.view_end_date);
         setVisualizationDateRange(planData);
     }, [setVisualizationDateRange, addToStack]);
 
@@ -701,8 +701,8 @@ export function PlanProvider({ children }: PlanProviderProps) {
         const startDate = new Date(birthDate.getTime() + currentRange.startDay * 24 * 60 * 60 * 1000);
         const endDate = new Date(birthDate.getTime() + currentRange.endDay * 24 * 60 * 60 * 1000);
 
-        console.log("startDate: ", startDate);
-        console.log("endDate: ", endDate);
+        //console.log("startDate: ", startDate);
+        //console.log("endDate: ", endDate);
 
         return {
             ...planToUpdate,
@@ -715,12 +715,11 @@ export function PlanProvider({ children }: PlanProviderProps) {
     useEffect(() => {
         if (!ENABLE_AUTO_PERSIST_PLAN) return;
         if (!plan) return;
-        if (!isVisualizationReady) {
-            console.warn('Visualization not ready, skipping auto-save.');
-            return;
-        }
+
+        // If visualization isn't ready, save without view range
+        const planToSave = isVisualizationReady ? addViewRangeToPlan(plan) : plan;
+
         try {
-            const planToSave = addViewRangeToPlan(plan);
             localStorage.setItem(LOCALSTORAGE_PLAN_KEY, JSON.stringify(planToSave));
 
             // --- Upsert anonymous plan if anon key exists ---
@@ -764,7 +763,7 @@ export function PlanProvider({ children }: PlanProviderProps) {
             try {
                 const planToSave = addViewRangeToPlan(plan);
                 localStorage.setItem(LOCALSTORAGE_PLAN_KEY, JSON.stringify(planToSave));
-                console.log('📅Saving plan with anon key to the supabase');
+                //console.log('📅Saving plan with anon key to the supabase');
 
                 // --- Upsert anonymous plan if anon key exists ---
                 const anonId = localStorage.getItem('anon_id');
@@ -971,7 +970,7 @@ export function PlanProvider({ children }: PlanProviderProps) {
                 value = daysSinceBirthToDateString(totalDays, plan.birth_date);
             }
 
-            console.log("param.type: ", param.type, "value: ", value, "wasOverridden:", wasOverridden);
+            //console.log("param.type: ", param.type, "value: ", value, "wasOverridden:", wasOverridden);
             return {
                 id: index,
                 type: param.type,
@@ -1359,8 +1358,8 @@ export function PlanProvider({ children }: PlanProviderProps) {
         setPlanLocked(plan ? deepClonePlan(plan) : null);
         setPlan(temp as any);
         setShouldTriggerSimulation(true);
-        console.log("plan_locked", plan_locked);
-        console.log("plan", plan);
+        //console.log("plan_locked", plan_locked);
+        //console.log("plan", plan);
     }, [plan, plan_locked]);
 
     const copyPlanToLock = useCallback(() => {

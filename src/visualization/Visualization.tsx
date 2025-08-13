@@ -42,7 +42,7 @@ import type { Plan } from '../contexts/PlanContext';
 const DEBUG = false;
 const IS_ANIMATION_ENABLED = true;
 const ZOOM_ANIMATION_DURATION = 750; // milliseconds
-const SIMULATION_ANIMATION_DURATION = 1000; // milliseconds
+const SIMULATION_ANIMATION_DURATION = 500; // milliseconds
 
 // Helper function for zoom animation with easing
 const animateZoom = (
@@ -1073,36 +1073,36 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
 
             // Only update parameter if within threshold AND there was actual dragging
             if (distance < 150 && plan && hasDragged) {
-              console.log('🎯 Drag End Position:', {
-                mousePoint: point,
-                dataPoint,
-                closestPoint: {
-                  date: closestPoint.date,
-                  formattedDate: formatDate(closestPoint.date, birthDate, 'full', true, false)
-                },
-                screenCoords: { x: screenX, y: screenY },
-                transformedCoords: { x: transformedX, y: transformedY },
-                distance
-              });
+              // console.log('🎯 Drag End Position:', {
+              //   mousePoint: point,
+              //   dataPoint,
+              //   closestPoint: {
+              //     date: closestPoint.date,
+              //     formattedDate: formatDate(closestPoint.date, birthDate, 'full', true, false)
+              //   },
+              //   screenCoords: { x: screenX, y: screenY },
+              //   transformedCoords: { x: transformedX, y: transformedY },
+              //   distance
+              // });
 
               // Find the event in the plan
               let event = plan.events.find(e => e.id === draggingAnnotation.eventId);
-              console.log("🎯 Found Event:", {
-                event,
-                eventId: draggingAnnotation.eventId,
-                isEndingEvent: draggingAnnotation.isEndingEvent
-              });
+              // console.log("🎯 Found Event:", {
+              //   event,
+              //   eventId: draggingAnnotation.eventId,
+              //   isEndingEvent: draggingAnnotation.isEndingEvent
+              // });
               if (event) {
                 if (draggingAnnotation.isEndingEvent) {
                   const endTimeParam = event.parameters.find(p => p.type === 'end_time');
                   if (endTimeParam) {
                     const dateString = daysSinceBirthToDateString(closestPoint.date, plan.birth_date);
-                    console.log('🎯 Updating End Time:', {
-                      eventId: event.id,
-                      originalDays: closestPoint.date,
-                      convertedDateString: dateString,
-                      birthDate: plan.birth_date
-                    });
+                    // console.log('🎯 Updating End Time:', {
+                    //   eventId: event.id,
+                    //   originalDays: closestPoint.date,
+                    //   convertedDateString: dateString,
+                    //   birthDate: plan.birth_date
+                    // });
                     updateParameter(event.id, endTimeParam.type, dateString);
                   }
                 } else {
@@ -1228,13 +1228,13 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
 
           // Method to set zoom to show a specific date range
           const setZoomToDateRange = (startDay: number, endDay: number) => {
-            console.log('🎯 Setting zoom to date range:', {
-              startDay,
-              endDay,
-              startDateFormatted: formatDate(startDay, birthDate, 'full', true, false),
-              endDateFormatted: formatDate(endDay, birthDate, 'full', true, false),
-              totalDays: endDay - startDay
-            });
+            // console.log('🎯 Setting zoom to date range:', {
+            //   startDay,
+            //   endDay,
+            //   startDateFormatted: formatDate(startDay, birthDate, 'full', true, false),
+            //   endDateFormatted: formatDate(endDay, birthDate, 'full', true, false),
+            //   totalDays: endDay - startDay
+            // });
 
             // Calculate the scale and translation to show this range
             const rangeWidth = endDay - startDay;
@@ -1243,14 +1243,14 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
             const targetScaleX = width / (xScale(endDay) - xScale(startDay));
             const targetTranslateX = -xScale(startDay) * targetScaleX;
 
-            console.log('🎯 Calculated zoom parameters:', {
-              targetScaleX,
-              targetTranslateX,
-              xScaleStartDay: xScale(startDay),
-              xScaleEndDay: xScale(endDay),
-              xScaleRange: xScale(endDay) - xScale(startDay),
-              width
-            });
+            // console.log('🎯 Calculated zoom parameters:', {
+            //   targetScaleX,
+            //   targetTranslateX,
+            //   xScaleStartDay: xScale(startDay),
+            //   xScaleEndDay: xScale(endDay),
+            //   xScaleRange: xScale(endDay) - xScale(startDay),
+            //   width
+            // });
 
             // Animate or immediately update based on IS_ANIMATION_ENABLED
             animateZoom(
@@ -1273,14 +1273,7 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
             // Log what the zoom will show after setting
             setTimeout(() => {
               const actualRange = getActualVisibleDateRange(zoom, xScale, width);
-              console.log('🎯 Actual range after zoom set:', {
-                requested: { startDay, endDay },
-                actual: actualRange,
-                difference: {
-                  start: actualRange.startDate - startDay,
-                  end: actualRange.endDate - endDay
-                }
-              });
+              //console.log('🎯 Actual visible date range:', actualRange);
             }, 50);
           };
 

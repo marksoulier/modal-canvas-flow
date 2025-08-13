@@ -56,8 +56,15 @@ export async function runSimulation(
     visibleRange?: { startDate: number, endDate: number }
 ): Promise<Datum[]> {
     try {
+        // Start total timer
+        const totalStart = performance.now();
+
+        // Timer for validation
+        const validateStart = performance.now();
         const schemaMap = extractSchema(schema);
         const issues = validateProblem(plan, schemaMap, schema, plan);
+        const validateTime = performance.now() - validateStart;
+
         if (issues.length > 0) {
             console.error("❌ Validation issues found:");
             for (const issue of issues) console.error(issue);
@@ -73,7 +80,10 @@ export async function runSimulation(
             visibleRange: visibleRange // Add visible range to simulation settings
         };
 
+        // Timer for parsing events
+        const parseStart = performance.now();
         const parsedEvents = parseEvents(plan);
+        const parseTime = performance.now() - parseStart;
 
         const envelopes = initializeEnvelopes(plan, simulation_settings);
         //console.log('Initialized envelopes:', envelopes);
@@ -84,6 +94,8 @@ export async function runSimulation(
         // Collect plan updates from events
         const planUpdates: Array<{ eventId: number, paramType: string, value: number }> = [];
 
+        // Timer for applying events
+        const eventsStart = performance.now();
         for (const event of parsedEvents) {
             //console.log("Event: ", event)
 
@@ -191,6 +203,10 @@ export async function runSimulation(
 
         //console.log("allEvalEnvelopes", allEvalEnvelopes);
 
+        const eventsTime = performance.now() - eventsStart;
+
+        // Timer for results evaluation
+        const resultsStart = performance.now();
         let allResults;
         if (plan.adjust_for_inflation) {
             const inflationRate = plan.inflation_rate;
@@ -198,6 +214,7 @@ export async function runSimulation(
         } else {
             allResults = evaluateResults(allEvalEnvelopes, startDate, endDate, interval, currentDay, undefined, simulation_settings.visibleRange);
         }
+        const resultsTime = performance.now() - resultsStart;
 
         // Now split the results into networth and non-networth for visualization
         const envelopeKeys = Object.keys(allResults.results);
@@ -208,6 +225,19 @@ export async function runSimulation(
         const nonZeroNetworthKeys = networthKeys.filter(key => allResults.results[key].some(value => value !== 0));
         const nonZeroNonNetworthKeys = nonNetworthKeys.filter(key => allResults.results[key].some(value => value !== 0));
 
+
+        // Log consolidated timing information
+        const totalTime = performance.now() - totalStart;
+        console.info('⏱️ Simulation Performance:', {
+            'Total Time': `${totalTime.toFixed(2)}ms`,
+            'Validation': `${validateTime.toFixed(2)}ms (${(validateTime / totalTime * 100).toFixed(1)}%)`,
+            'Event Parsing': `${parseTime.toFixed(2)}ms (${(parseTime / totalTime * 100).toFixed(1)}%)`,
+            'Event Processing': `${eventsTime.toFixed(2)}ms (${(eventsTime / totalTime * 100).toFixed(1)}%)`,
+            'Results Evaluation': `${resultsTime.toFixed(2)}ms (${(resultsTime / totalTime * 100).toFixed(1)}%)`,
+            'Events Count': parsedEvents.length,
+            'Time Points': allResults.timePoints.length,
+            'Envelopes': Object.keys(allEvalEnvelopes).length
+        });
         // Create a single array of Datum objects where each Datum contains all non-zero envelope values as parts
         return allResults.results[envelopeKeys[0]].map((_, i) => {
             const parts: { [key: string]: number } = {};

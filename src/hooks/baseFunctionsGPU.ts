@@ -158,6 +158,10 @@ export const evaluateGPUDescriptors = (
     if (!gpuDescriptors || gpuDescriptors.length === 0) return result;
 
     for (const desc of gpuDescriptors) {
+        // Defensive: skip any descriptors that haven't been precomputed
+        if (!desc || !(desc as any).occurrences || !Array.isArray((desc as any).occurrences)) {
+            continue;
+        }
         const sign = desc.direction === "in" ? 1 : -1;
         for (const occ of desc.occurrences) {
             const t_k = occ.t_k;

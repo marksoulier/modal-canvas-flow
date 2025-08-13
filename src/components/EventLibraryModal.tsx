@@ -9,6 +9,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from './ui/dialog';
 
 interface EventLibraryModalProps {
@@ -70,9 +71,15 @@ const EventLibraryModal: React.FC<EventLibraryModalProps> = ({ isOpen, onClose, 
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-[95vw] md:max-w-6xl w-full max-h-[90vh] md:h-[85vh] flex flex-col">
+      <DialogContent
+        className="max-w-[95vw] md:max-w-6xl w-full max-h-[90vh] md:h-[85vh] flex flex-col"
+        aria-describedby="event-library-description"
+      >
         <DialogHeader className="flex items-center justify-between p-2 border-b border-gray-200">
           <DialogTitle className="text-xl font-semibold text-gray-900">Financial Life Events Library</DialogTitle>
+          <DialogDescription id="event-library-description">
+            Browse and add financial life events to your timeline
+          </DialogDescription>
         </DialogHeader>
 
         {/* Search and Filters */}
