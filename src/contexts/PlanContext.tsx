@@ -140,7 +140,7 @@ export const iconMap: Record<string, string> = {
     'graduation-cap': 'GraduationCap',
     'plus-circle': 'PlusCircle',
     'badge-dollar-sign': 'BadgeDollarSign',
-    'dollar-bill': 'DollarBill',
+    'dollar-bill': 'DollarSign',
     'wallet': 'Wallet',
     'pencil': 'Pencil',
     'repeat': 'Repeat', // Lucide has 'Repeat'

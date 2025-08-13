@@ -317,6 +317,12 @@ export const outflow = (event: any, envelopes: Record<string, any>, onUpdate: (u
         const upd_type = upd.type;
         const upd_params = upd.parameters || {};
         if (upd_type === "update_amount") {
+            // Just use gamma to set the amount to new value at the start time
+            theta = gamma(theta, {
+                b: upd_params.amount
+            }, upd_params.start_time);
+        }
+        if (upd_type === "step_amount") {
             // Get the current amount at start time
             const current_amount = theta(upd_params.start_time).b;
 
@@ -394,6 +400,13 @@ export const inflow = (event: any, envelopes: Record<string, any>, onUpdate: (up
         const upd_type = upd.type;
         const upd_params = upd.parameters || {};
         if (upd_type === "update_amount") {
+            // Just use gamma to set the amount to new value at the start time
+            theta = gamma(theta, {
+                a: upd_params.amount
+            }, upd_params.start_time);
+        }
+
+        if (upd_type === "step_amount") {
             // Get the current amount at start time
             const current_amount = theta(upd_params.start_time).a;
 
@@ -570,6 +583,16 @@ export const transfer_money = (event: any, envelopes: Record<string, any>, onUpd
         const upd_type = upd.type;
         const upd_params = upd.parameters || {};
         if (upd_type === "update_amount") {
+            // Just use gamma to set the amount to new value at the start time
+            theta_inflow = gamma(theta_inflow, {
+                a: upd_params.amount
+            }, upd_params.start_time);
+
+            theta_outflow = gamma(theta_outflow, {
+                b: upd_params.amount
+            }, upd_params.start_time);
+        }
+        if (upd_type === "step_amount") {
             // For inflow
             // For inflow - apply step increases that will be evaluated when theta is called
             const current_amount_in = theta_inflow(upd_params.start_time).a;
@@ -943,18 +966,31 @@ export const monthly_budgeting = (event: any, envelopes: Record<string, any>) =>
     const inflation_rate = envelopes.simulation_settings.inflation_rate; // Default 2% if not provided
 
     // List of parameter keys to skip (not budget categories)
-    const skip_keys = new Set(["start_time", "end_time", "from_key", "inflation_rate"]);
+    const skip_keys = new Set(["start_time", "end_time", "from_key", "inflation_rate", "frequency_days"]);
 
     // Get growth parameters for source envelope
     const [theta_growth_source, _] = get_growth_parameters(envelopes, from_key);
 
     // For each budget category, create a recurring outflow
     Object.keys(params).forEach(key => {
-        if (!skip_keys.has(key) && typeof params[key] === "number" && params[key] > 0) {
-            // Allow for inflation adjustment by passing a function for b
-            const theta = P({
+        if (!skip_keys.has(key) && typeof params[key] === "number") {
+            // Base theta: inflation-adjusted from the event's start time
+            let theta = P({
                 b: inflationAdjust(params[key], inflation_rate, start_time)
             });
+
+            // Support updating events to change specific category amounts over time
+            for (const upd of event.updating_events || []) {
+                const upd_type = upd.type;
+                const upd_params = upd.parameters || {};
+                // Only apply updates targeted to this category key
+                if (upd_params.key === key && (upd_type === "update_monthly_budget")) {
+                    // From the update start time, switch b to a new inflation-adjusted base amount
+                    theta = gamma(theta, {
+                        b: inflationAdjust(upd_params.amount, inflation_rate, upd_params.start_time)
+                    }, upd_params.start_time);
+                }
+            }
             const outflow_func = R(
                 { t0: start_time, dt: params.frequency_days, tf: end_time },
                 f_out,

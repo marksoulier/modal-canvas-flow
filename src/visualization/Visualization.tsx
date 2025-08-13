@@ -884,6 +884,14 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
             d.date >= visibleXDomain[0] && d.date <= visibleXDomain[1]
           );
 
+          // Also compute actual visible data without padding for Y scale calculations
+          const actualVisibleData = netWorthData.filter(d =>
+            d.date >= actualVisibleRangeNoPadding.startDate && d.date <= actualVisibleRangeNoPadding.endDate
+          );
+          const actualVisibleLockedNetWorthData = lockedNetWorthData.filter(d =>
+            d.date >= actualVisibleRangeNoPadding.startDate && d.date <= actualVisibleRangeNoPadding.endDate
+          );
+
           // Update time interval based on zoom level
           useEffect(() => {
             const newInterval = getTimeIntervalFromZoom(globalZoom);
@@ -1138,17 +1146,17 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
             setClosestPoint(null);
           };
 
-          // Calculate visibleYScale based on visibleData only
+          // Calculate visibleYScale based on actual visible data (no padding)
           const visibleYScale = useMemo(() => {
-            if (!visibleData.length && !visibleLockedNetWorthData.length) return scaleLinear({ domain: [0, 1], range: [height, 0] });
+            if (!actualVisibleData.length && !actualVisibleLockedNetWorthData.length) return scaleLinear({ domain: [0, 1], range: [height, 0] });
             // Compute stacked sums for each data point
-            const stackedSums = visibleData.map((d: any) => {
+            const stackedSums = actualVisibleData.map((d: any) => {
               const values = [normalizeZero(d.value), ...Object.values(d.parts).map((v: any) => normalizeZero(v))];
               const positiveSum = values.filter(v => v > 0).reduce((a, b) => a + b, 0);
               const negativeSum = values.filter(v => v < 0).reduce((a, b) => a + b, 0);
               return { positiveSum, negativeSum };
             });
-            const lockedValues = visibleLockedNetWorthData.map(d => normalizeZero(d.value));
+            const lockedValues = actualVisibleLockedNetWorthData.map(d => normalizeZero(d.value));
             const maxY = Math.max(0, ...stackedSums.map(s => s.positiveSum), ...lockedValues);
             const minY = Math.min(0, ...stackedSums.map(s => s.negativeSum), ...lockedValues);
             const adjustedMinY = minY > 0 ? 0 : minY;
@@ -1161,7 +1169,7 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
               domain: [domainMin, domainMax],
               range: [height, 0],
             });
-          }, [visibleData, visibleLockedNetWorthData, height]);
+          }, [actualVisibleData, actualVisibleLockedNetWorthData, height]);
 
           // Find first day when net worth exceeds retirement goal
           const firstDayAboveGoal = useMemo(() => {

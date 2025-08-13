@@ -1277,6 +1277,46 @@
                     "default": 100,
                     "editable": true
                 }
+            ],
+            "updating_events": [
+                {
+                    "type": "update_monthly_budget",
+                    "display_type": "Update Monthly Budget",
+                    "onboarding_stage": "full",
+                    "is_recurring": false,
+                    "can_be_reocurring": false,
+                    "display_event": true,
+                    "icon": "dollar-sign",
+                    "description": "Update the monthly budget for a specific category.",
+                    "default_title": "Update Monthly Budget",
+                    "parameters": [
+                        {
+                            "type": "start_time",
+                            "display_name": "Start Date",
+                            "parameter_units": "date",
+                            "description": "When the update starts",
+                            "default": 0,
+                            "editable": true
+                        },
+                        {
+                            "type": "key",
+                            "display_name": "Category",
+                            "parameter_units": "enum",
+                            "options": ["groceries", "utilities", "rent", "transportation", "insurance", "healthcare", "dining_out", "entertainment", "personal_care", "miscellaneous"],
+                            "description": "Category to update.",
+                            "default": "groceries",
+                            "editable": true
+                        },
+                        {
+                            "type": "amount",
+                            "display_name": "New Amount",
+                            "parameter_units": "usd",
+                            "description": "New amount for the category.",
+                            "default": 600,
+                            "editable": true
+                        }
+                    ]
+                }
             ]
         },
         {
