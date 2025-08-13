@@ -335,6 +335,7 @@ interface PlanContextType {
     getEventFunctionPartsState: (eventId: number, functionTitle: string) => boolean;
     // Onboarding stage methods
     getEventOnboardingStage: (eventType: string) => string | undefined;
+    restartPlan: () => void; // restart to blank plan for both current and locked
 }
 
 // Schema and default data are now imported directly
@@ -1838,6 +1839,23 @@ export function PlanProvider({ children }: PlanProviderProps) {
         getEventFunctionPartsState,
         // Onboarding stage methods
         getEventOnboardingStage,
+        restartPlan: () => {
+            try {
+                // Load the imported blank/default plans into both states (deep cloned)
+                const freshPlan = deepClonePlan(defaultPlanData as Plan);
+                const freshLocked = deepClonePlan(defaultLockedPlanData as Plan);
+                setPlan(freshPlan);
+                setPlanLocked(freshLocked);
+                // Reset related states so we recompute with the fresh plan
+                setIsVisualizationReady(false);
+                setShouldTriggerSimulation(true);
+                // Reset history stack to the fresh plan
+                setHistory([freshPlan]);
+                setHistoryIndex(0);
+            } catch (e) {
+                console.warn('Failed to restart plan:', e);
+            }
+        },
     };
 
     // Don't render children until we've attempted to load the default plan and schema
