@@ -12,6 +12,9 @@ import cdEnvelopeVideo from './cd-envelope.mp4';
 import carVideo from './car.mp4';
 import loanVideo from './loan.mp4';
 import transferVideo from './transfer.mp4';
+import inflationVideo from './inflation.mp4';
+import gap5912Video from './59_12_gap.mp4';
+import comparePlansVideo from './compare_plans.mp4';
 
 
 export interface VideoItem {
@@ -77,6 +80,29 @@ This demo shows the key features of the application:
         tags: ['overview', 'basics', 'tutorial']
     },
     {
+        id: 'inflation',
+        title: 'Inflation',
+        category: 'getting-started',
+        videoSrc: inflationVideo,
+        duration: '2:15',
+        description: `# Inflation Basics
+
+Understand how inflation impacts your plan and how to use the **Adjust for inflation** setting.
+
+When turning on **Adjust for inflation**, what is happening is all values on the plan are being converted to todays purchasing power.
+So values in the future will be less as they will be worth less in todays dollars.
+
+Example:
+A loaf of bread bought in 2025 for $4.00 will be purchased in 2060 for $10.33 with a 2.4% inflation rate.
+
+
+## Key Points
+- Inflation reduces the purchasing power of money over time
+- Enable the toggle if you want values to be interpreted in today's dollars
+- Set an inflation rate that reflects your assumptions (e.g. 2–3%), you can adjust this in the plan preferences`,
+        tags: ['inflation', 'basics', 'settings']
+    },
+    {
         id: 'inflow-events',
         title: 'Inflow Events',
         category: 'getting-started',
@@ -101,6 +127,52 @@ At its most basic level, an inflow event is money entering an "envelope" which i
 - Each inflow must be assigned to a specific envelope
 - Track all income sources, not just regular salary`,
         tags: ['basics', 'inflow', 'income', 'money-management']
+    },
+    {
+        id: '59_12_gap',
+        title: 'Age 59½ Net Worth Jump',
+        category: 'advanced',
+        videoSrc: gap5912Video,
+        duration: '1:40',
+        description: `# Why Net Worth Jumps at Age 59½
+
+At age **59½**, withdrawals from many tax-advantaged retirement accounts (like 401(k) and IRA) no longer incur the early-withdrawal penalty.
+
+## What This Means
+- Before 59½: withdrawing may incur penalties in addition to taxes
+- After 59½: penalties are removed, which effectively increases accessible value
+
+## In the Visualization
+- You may see a noticeable jump in accessible net worth around this age
+- This is a modeling cue to help explain retirement account liquidity milestones`,
+        tags: ['retirement', '59-1/2', 'advanced']
+    },
+    {
+        id: 'compare-plans',
+        title: 'Compare Mode',
+        category: 'advanced',
+        videoSrc: comparePlansVideo,
+        duration: '1:50',
+        description: `# Compare Mode
+
+Use Compare Mode to visualize your current plan against a compared snapshot.
+
+## How It Works
+- Toggle **Compare** near the plan title
+- When enabled, your current plan is copied into a compared plan
+- A gray line shows the compared plan's net worth for side-by-side comparison
+- Events on the compared plan are not editable but shown as outlines
+- To edit the compared plan use the swap control in top left to switch it to the main plan
+- To copy the existing plan to the compared plan then click the copy button in top left
+
+The difference between the two plans is shown in the legend as the current plan minus the compared plan.
+A green number means the current plan is greater than the compared plan, a red number means the compared plan is greater than the current plan.
+
+## Tips
+- Make edits while Compare is on to see the impact vs. the snapshot
+- Use the copy and swap controls to manage the locked plan
+- Turn Compare off to focus on a single plan view`,
+        tags: ['compare', 'advanced', 'analysis']
     },
     {
         id: 'outflow-events',
@@ -447,7 +519,7 @@ export const onboardingVideoSegments: VideoSegment[] = [
     },
     {
         stageKey: 'updating_events',
-        videoIds: ['life-event', 'reocurring-event'],
+        videoIds: ['life-event', 'reocurring-event', 'inflation'],
         title: 'Setting Up Your Budget',
         description: 'Learn how to create and manage your budget envelopes'
     },
@@ -459,7 +531,7 @@ export const onboardingVideoSegments: VideoSegment[] = [
     },
     {
         stageKey: 'assets',
-        videoIds: ['loan', 'car', 'house', 'function-parts'],
+        videoIds: ['loan', 'car', 'house', 'function-parts', 'compare-plans', '59_12_gap'],
         title: 'Advanced Features',
         description: 'Explore powerful features for complex financial scenarios'
     },
