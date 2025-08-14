@@ -141,13 +141,9 @@ export default function Index() {
   // Auto-open onboarding modal when at user_info stage
   useEffect(() => {
     // Only proceed if we're not loading and the onboarding state is user_info
-    if (!isLoading && onboarding_state === 'user_info' && !onboardingOpen) {
+    if (!isLoading && onboarding_state === 'user_info') {
       // Wait for 1 second after the state is loaded before opening the modal
-      const timer = setTimeout(() => {
-        setOnboardingOpen(true);
-      }, 1000);
-      // Cleanup timer on unmount
-      return () => clearTimeout(timer);
+      setOnboardingOpen(true);
     }
   }, [isLoading, onboarding_state]);
 

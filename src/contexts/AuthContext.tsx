@@ -253,11 +253,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     //console.log('🆕 NEW USER - NO ONBOARDING DATA FOUND, INITIALIZING TO user_info');
                     await updateOnboardingState('user_info');
                 }
+                setIsLoading(false);
             } catch (error) {
                 console.error('❌ Error loading onboarding state:', error);
                 // Fallback to default state on error
                 //console.log('🔄 FALLBACK: Setting onboarding state to user_info');
                 setOnboardingState('user_info');
+                setIsLoading(false);
             }
         };
 
@@ -270,8 +272,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
             (event, session) => {
                 setUser(session?.user ?? null);
-                setIsLoading(false);
-
                 // Use setTimeout to avoid deadlock when calling other Supabase functions
                 if (session?.user) {
                     setTimeout(async () => {
@@ -290,8 +290,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             if (session?.user) {
                 //console.log('🔄 Fetching2 user data for:', session.user.id);
                 fetchUserData(session.user.id);
-            } else {
-                setIsLoading(false);
             }
         });
 
