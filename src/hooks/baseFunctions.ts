@@ -1,7 +1,6 @@
 // utilities.ts
-import type { Theta, FuncWithTheta } from "./types";
+import type { Theta } from "./types";
 import { addGPUDescriptor } from "./baseFunctionsGPU";
-import { enqueuePeek, peekResetToValue, peekResetToZero, peekImpulseFromSeries, peekTaxDeltaOnAdd } from './peekEngine';
 
 export const u = (t: number): number => (t >= 0 ? 1.0 : 0.0);
 
@@ -488,9 +487,22 @@ export const inflow = (event: any, envelopes: Record<string, any>, onUpdate: (up
 export const manual_correction = (event: any, envelopes: Record<string, any>) => {
     const params = event.parameters;
     const to_key = params.to_key;
+    const correctionTime = params.start_time;
+    const targetAmountAtCorrection = params.amount;
 
-    // Stage 10: corrections — reset envelope to a target value at time
-    enqueuePeek(envelopes, 10, peekResetToValue(to_key, params.start_time, params.amount));
+    // Growth parameters for envelope
+    const [_, theta_growth_dest] = get_growth_parameters(envelopes, undefined, to_key);
+
+    // Push a single-pass LazyCorrection GPU descriptor
+    addGPUDescriptor(envelopes, to_key, {
+        type: "LazyCorrection",
+        direction: "in", // sign resolved at evaluation based on diff
+        t_k: correctionTime,
+        thetaParamKey: "a",
+        theta: P({ a: 0 }), // not used
+        growth: theta_growth_dest,
+        target: targetAmountAtCorrection
+    });
 };
 
 
@@ -502,8 +514,17 @@ export const declare_accounts = (event: any, envelopes: Record<string, any>) => 
         const envelopeKey = `envelope${i}`;
         if (params[envelopeKey] && envelopes[params[envelopeKey]]) {
             const to_key = params[envelopeKey];
-            // Stage 10: corrections — reset to declared amount
-            enqueuePeek(envelopes, 10, peekResetToValue(to_key, params.start_time, params[amountKey]));
+            // Push a LazyCorrection descriptor to drive the envelope to the declared amount at start_time
+            const [_, theta_growth_dest] = get_growth_parameters(envelopes, undefined, to_key);
+            addGPUDescriptor(envelopes, to_key, {
+                type: "LazyCorrection",
+                direction: "in",
+                t_k: params.start_time,
+                thetaParamKey: "a",
+                theta: P({ a: 0 }),
+                growth: theta_growth_dest,
+                target: params[amountKey]
+            });
         }
     }
 };
@@ -2757,14 +2778,7 @@ export const usa_tax_system = (event: any, envelopes: Record<string, any>) => {
     // Create time range based on simulation settings
     const startTime = simulation_settings.start_time;
     const endTime = simulation_settings.end_time;
-    const interval = simulation_settings.interval;
     const birthDate = simulation_settings.birthDate;
-
-    // Generate time points similar to resultsEvaluation.ts
-    const timePoints = Array.from(
-        { length: Math.ceil((endTime - startTime) / interval) },
-        (_, i) => startTime + i * interval
-    );
 
     // Get year-end days based on birth date, this returns which days are Dec 31st of each year
     const yearEndDays = birthDate ? getYearEndDays(birthDate, startTime, endTime) : [];
@@ -2786,7 +2800,7 @@ export const usa_tax_system = (event: any, envelopes: Record<string, any>) => {
         }
     }
 
-    // Initialize staged peek queue holder (noop if already present)
+    // Initialize staged peek queue holder (noop if already present) — still used for impulses/tax deltas
     (envelopes as any).__peeks = (envelopes as any).__peeks || [];
 
     // Process taxable income corrections on year-end days
@@ -2798,8 +2812,6 @@ export const usa_tax_system = (event: any, envelopes: Record<string, any>) => {
         //Calculate age and year
         const age = Math.floor(yearEndDay / 365);
         const year = birthDate.getFullYear() + age;
-        //console.log("Age", age);
-        //console.log("Year", year);
 
         //Evaluate taxes paid on these amounts
         const taxParams_tax_season = {
@@ -2841,76 +2853,73 @@ export const usa_tax_system = (event: any, envelopes: Record<string, any>) => {
             params.p_401k_withdraw_withholding_key,
             params.roth_ira_withdraw_key,
         ];
-        // Stage 20: policy/reset — request resets to zero at yearEndDay
+        // Replace peek-based resets with LazyCorrection to target 0 at year end
         for (const key of resetEnvelopes) {
-            if (key && envelopes[key]) enqueuePeek(envelopes, 20, peekResetToZero(key, yearEndDay));
+            if (!key || !envelopes[key]) continue;
+            const [_, theta_growth_env] = get_growth_parameters(envelopes, undefined, key);
+            addGPUDescriptor(envelopes, key, {
+                type: "LazyCorrection",
+                direction: "in",
+                t_k: yearEndDay,
+                thetaParamKey: "a",
+                theta: P({ a: 0 }),
+                growth: theta_growth_env,
+                target: 0
+            });
         }
     });
 
-    // Emit penalty peeks (vectorized)
+    // Penalty dependency (single-pass, no impulses):
+    // For t < age59HalfDay, set w_penalty_401k(t) = 0.10 * w_401k(t) and w_penalty_roth(t) = 0.10 * w_roth(t)
+    // Implemented as a ScaleFromEnvelope descriptor that scales the current accumulated value.
     if (age59HalfDay !== null) {
-        const before59_5 = (d: number) => d < (age59HalfDay as number);
-        enqueuePeek(envelopes, 20, peekImpulseFromSeries({
+        addGPUDescriptor(envelopes, params.penalty_401k_key, {
+            type: "ScaleFromEnvelope",
+            direction: "out",
+            thetaParamKey: "b",
+            theta: P({ b: 0 }), // not used
+            growth: { type: "None", r: 0 },
             sourceKey: params.p_401k_key,
-            targetKey: params.penalty_401k_key,
             coeff: 0.10,
-            direction: 'out',
-            thetaParamKey: 'b',
-            days: timePoints,
-            filter: before59_5
-        }));
-        enqueuePeek(envelopes, 20, peekImpulseFromSeries({
+            untilDay: age59HalfDay as number,
+            applyBefore: true
+        });
+        addGPUDescriptor(envelopes, params.penalty_roth_key, {
+            type: "ScaleFromEnvelope",
+            direction: "out",
+            thetaParamKey: "b",
+            theta: P({ b: 0 }),
+            growth: { type: "None", r: 0 },
             sourceKey: params.roth_key,
-            targetKey: params.penalty_roth_key,
             coeff: 0.10,
-            direction: 'out',
-            thetaParamKey: 'b',
-            days: timePoints,
-            filter: before59_5
-        }));
+            untilDay: age59HalfDay as number,
+            applyBefore: true
+        });
     }
 
-    // Emit incremental tax delta peeks (stage 30)
-    enqueuePeek(envelopes, 30, peekTaxDeltaOnAdd({
-        days: timePoints,
-        taxableKey: params.taxable_income_key,
-        addKey: params.p_401k_key,
-        taxesTargetKey: params.taxes_401k_key,
-        filingStatus: params.filing_status || 'Single',
-        dependents: params.dependents ?? 0
-    }));
 
-    // Removed CPU fallback paths; always rely on peek-based GPU descriptors
-
-    // Apply manual correction to reset 401K penalty to 0 at age 59.5
+    // Reset 401K penalty to 0 at age 59.5 using LazyCorrection
     if (age59HalfDay !== null) {
-        // Evaluate penalty envelope balance at age 59.5
-        let penaltyBalance = 0.0;
-        for (const func of penaltyEnvelope.functions) {
-            penaltyBalance += func(age59HalfDay);
-        }
-
-        if (penaltyBalance !== 0) {
-            // Apply difference correction - subtract the current balance to reset it to 0
-            const difference = 0 - penaltyBalance; // Target amount (0) minus current balance
-
-            // Create correction function following manual_correction pattern
-            // GPU NOTE: USA 59.5 penalty reset correction (T - in/out)
-            addGPUDescriptor(envelopes, params.penalty_401k_key, {
-                type: "T",
-                direction: difference > 0 ? "in" : "out",
-                t_k: age59HalfDay,
-                thetaParamKey: difference > 0 ? "a" : "b",
-                theta: P(difference > 0 ? { a: Math.abs(difference) } : { b: Math.abs(difference) }),
-                growth: theta_growth_penalty_401k
-            });
-
-            //console.log(`Applied 401K penalty correction of ${difference} at age 59.5 (day ${age59HalfDay})`);
-        }
+        addGPUDescriptor(envelopes, params.penalty_401k_key, {
+            type: "LazyCorrection",
+            direction: "in",
+            t_k: age59HalfDay as number,
+            thetaParamKey: "a",
+            theta: P({ a: 0 }),
+            growth: theta_growth_penalty_401k,
+            target: 0
+        });
+        addGPUDescriptor(envelopes, params.penalty_roth_key, {
+            type: "LazyCorrection",
+            direction: "in",
+            t_k: age59HalfDay as number,
+            thetaParamKey: "a",
+            theta: P({ a: 0 }),
+            growth: theta_growth_penalty_roth,
+            target: 0
+        });
     }
-    // console.log('USA Tax System event processed with parameters:', params);
-    // console.log(`Applied 401K penalties at ${timePoints.length} time points`);
-    //console.log(`Applied taxable income corrections at ${yearEndDays.length} year-end days:`, yearEndDays);
+
 };
 
 

@@ -1,7 +1,5 @@
 // resultsEvaluation.ts
-
 import { precomputeThetasForGPU, evaluateGPUDescriptors } from "./baseFunctionsGPU";
-import { resolveStage } from "./peekEngine";
 /**
  * Converts a value at a specific day (future or past) to today's value (present value).
  * This is the inverse of valueToDay.
@@ -78,68 +76,53 @@ export type EnvelopeGPU = {
     days_of_usefulness?: number;
 };
 
+export function computeTimePoints(
+    startDate: number,
+    endDate: number,
+    frequency: number,
+    visibleRange?: { startDate: number, endDate: number },
+    currentDay?: number
+): number[] {
+    const points: number[] = [];
+    if (frequency === 365 || frequency === 182.5) {
+        for (let t = startDate; t <= endDate; t += frequency) points.push(t);
+        if (points.length === 0 || points[points.length - 1] !== endDate) points.push(endDate);
+    } else {
+        points.push(startDate);
+        if (visibleRange) {
+            for (let t = visibleRange.startDate; t <= visibleRange.endDate; t += frequency) {
+                points.push(t);
+            }
+        }
+        if (points[points.length - 1] !== endDate) points.push(endDate);
+    }
+    if (currentDay) {
+        const idx = points.findIndex(t => t === currentDay);
+        if (idx !== -1) points.splice(idx, 0, currentDay);
+    }
+    return points;
+}
+
 export function evaluateResults(
     envelopes: Record<string, EnvelopeGPU>,
     startDate: number,
     endDate: number,
     frequency: number,
-    currentDay?: number,
-    inflationRate?: number,
+    currentDay: number | undefined,
+    inflationRate: number | undefined,
+    timePoints: number[],
     visibleRange?: { startDate: number, endDate: number }
 ): { results: Record<string, number[]>, timePoints: number[] } {
     // Initialize results
     let results: Record<string, number[]> = {};
 
-    let timePoints: number[];
-
-    // If interval is 365, or 182.5 then do full range of dates
-    if (frequency === 365 || frequency === 182.5) {
-        // If no visible range specified, use single interval throughout
-        timePoints = Array.from(
-            { length: Math.ceil((endDate - startDate) / frequency) },
-            (_, i) => startDate + i * frequency
-        );
-
-        // Add end point if it's not already included
-        if (timePoints[timePoints.length - 1] !== endDate) {
-            timePoints.push(endDate);
-        }
-    } else {
-        // Start with first point
-        timePoints = [startDate];
-
-        // Add points in visible range at specified interval
-        if (visibleRange) {
-            // console.log('📊 Adding points in visible range:', {
-            //     rangeStart: visibleRange.startDate,
-            //     rangeEnd: visibleRange.endDate,
-            //     interval: frequency,
-            //     expectedPoints: Math.ceil((visibleRange.endDate - visibleRange.startDate) / frequency)
-            // });
-
-            for (let t = visibleRange.startDate; t <= visibleRange.endDate; t += frequency) {
-                timePoints.push(t);
-            }
-        }
-    }
-
-    // Add end point if it's not already included
-    if (timePoints[timePoints.length - 1] !== endDate) {
-        timePoints.push(endDate);
-    }
-
-    // See where I need to insert the current day point to be in the right order
-    if (currentDay) {
-        const currentDayIndex = timePoints.findIndex(t => t === currentDay);
-        if (currentDayIndex !== -1) {
-            timePoints.splice(currentDayIndex, 0, currentDay);
-        }
-    }
+    // Prevent unused param lints for now (kept for API compatibility)
+    void startDate; void endDate; void frequency; void visibleRange;
 
     let thetaTime = 0;
     let totalGpuTime = 0;
 
-    // Precompute GPU theta series
+    // Precompute GPU theta series using provided timePoints only
     const thetaStart = performance.now();
     precomputeThetasForGPU(envelopes as any, timePoints);
     thetaTime = performance.now() - thetaStart;
@@ -158,24 +141,9 @@ export function evaluateResults(
         console.info(`[Performance] GPU evaluation: ${totalGpuTime.toFixed(2)}ms`);
     }
 
-    // Use GPU results only
+    // Use GPU results only (single-pass evaluation)
     results = gpuResults;
 
-    // Staged peek resolution: 10 (corrections), 20 (policy/reset/penalties), 30 (tax)
-    const stages = [10, 20, 30];
-    for (const stage of stages) {
-        const t0 = performance.now();
-        const applied = resolveStage(envelopes as any, results, timePoints, stage);
-        if (!applied) continue;
-        precomputeThetasForGPU(envelopes as any, timePoints);
-        for (const key in envelopes) {
-            gpuResults[key] = evaluateGPUDescriptors((envelopes as any)[key].gpuDescriptors, timePoints);
-        }
-        results = gpuResults;
-        if (ENABLE_TIMING) {
-            console.info(`[Performance] Stage ${stage} peek resolution + re-eval: ${(performance.now() - t0).toFixed(2)}ms`);
-        }
-    }
 
     // Note: CPU vs GPU validation logs are emitted per-envelope above; results only carry GPU
 

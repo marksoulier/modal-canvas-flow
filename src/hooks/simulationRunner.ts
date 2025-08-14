@@ -13,7 +13,7 @@ import {
     federal_subsidized_loan, federal_unsubsidized_loan, private_student_loan,
     usa_tax_system
 } from './baseFunctions';
-import { evaluateResults } from './resultsEvaluation';
+import { evaluateResults, computeTimePoints } from './resultsEvaluation';
 import type { Plan, Schema } from '../contexts/PlanContext';
 
 interface Datum {
@@ -86,6 +86,9 @@ export async function runSimulation(
         const parseTime = performance.now() - parseStart;
 
         const envelopes = initializeEnvelopes(plan, simulation_settings);
+        // Precompute canonical time points once and store for consumers
+        const precomputedTimePoints: number[] = computeTimePoints(startDate, endDate, interval, simulation_settings.visibleRange, currentDay);
+        envelopes.simulation_settings.timePoints = precomputedTimePoints;
         //console.log('Initialized envelopes:', envelopes);
         // Collect manual_correction events to process at the end
         const manualCorrectionEvents: any[] = [];
@@ -210,9 +213,9 @@ export async function runSimulation(
         let allResults;
         if (plan.adjust_for_inflation) {
             const inflationRate = plan.inflation_rate;
-            allResults = evaluateResults(allEvalEnvelopes, startDate, endDate, interval, currentDay, inflationRate, simulation_settings.visibleRange);
+            allResults = evaluateResults(allEvalEnvelopes, startDate, endDate, interval, currentDay, inflationRate, precomputedTimePoints, simulation_settings.visibleRange);
         } else {
-            allResults = evaluateResults(allEvalEnvelopes, startDate, endDate, interval, currentDay, undefined, simulation_settings.visibleRange);
+            allResults = evaluateResults(allEvalEnvelopes, startDate, endDate, interval, currentDay, undefined, precomputedTimePoints, simulation_settings.visibleRange);
         }
         const resultsTime = performance.now() - resultsStart;
 
