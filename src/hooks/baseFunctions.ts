@@ -2755,7 +2755,7 @@ export const usa_tax_system = (event: any, envelopes: Record<string, any>) => {
         envelopes, params.taxable_income_key, params.penalty_401k_key, params.taxes_401k_key, params.roth_key, params.penalty_roth_key, params.p_401k_key, params.irs_registered_account_key
     );
 
-    //calcualte taxes owned just on the 401K balance part
+    //calcualte taxes
     const taxParams = {
         taxable_income: 0,
         federal_withholding: 0,
@@ -2771,9 +2771,6 @@ export const usa_tax_system = (event: any, envelopes: Record<string, any>) => {
         location: params.location || "City, State",
         tax_year: params.tax_year || new Date().getFullYear()
     };
-
-    // Get the relevant envelopes
-    const penaltyEnvelope = envelopes[params.penalty_401k_key];
 
     // Create time range based on simulation settings
     const startTime = simulation_settings.start_time;
@@ -2831,6 +2828,27 @@ export const usa_tax_system = (event: any, envelopes: Record<string, any>) => {
         const taxesOwed = calculateTaxes(taxParams_tax_season);
         //console.log("Tax Params", taxParams_tax_season);
         //console.log("Taxes Owed", taxesOwed);
+
+        // GPU NOTE: Additional taxes attributable specifically to including 401k in taxable income
+        // Compute delta at year end lazily using other envelopes' values at the same evaluation index
+        if (params.taxes_401k_key && envelopes[params.taxes_401k_key]) {
+            addGPUDescriptor(envelopes, params.taxes_401k_key, {
+                type: "LazyFromEnvelopes",
+                direction: "in",
+                t_k: yearEndDay,
+                thetaParamKey: "a",
+                theta: P({ a: 0 }),
+                growth: theta_growth_taxes_401k,
+                computeTarget: ({ index, getValueAt }: { index: number, getValueAt: (key: string) => number }) => {
+                    void index; // not used currently
+                    const taxableIncome = Number(getValueAt(params.taxable_income_key) || 0);
+                    const balance401k = Number(getValueAt(params.p_401k_key) || 0);
+                    const with401k = calculateTaxes({ ...taxParams_tax_season, taxable_income: taxableIncome + balance401k });
+                    const base = calculateTaxes({ ...taxParams_tax_season, taxable_income: taxableIncome });
+                    return -(with401k - base);
+                }
+            } as any);
+        }
 
         // Withdraw the taxes withhed from irs_registered_account_key
         // GPU NOTE: USA tax day payment from IRS registered account (T - out)

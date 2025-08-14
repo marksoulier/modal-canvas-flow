@@ -130,11 +130,36 @@ export function evaluateResults(
         console.info(`[Performance] Theta precomputation: ${thetaTime.toFixed(2)}ms`);
     }
 
-    // Compute all results using GPU
+    // Compute all results using GPU in two phases to support cross-envelope lazy targets
     const gpuStart = performance.now();
+    const baseResults: Record<string, number[]> = {};
+    const lazyOverlay: Record<string, number[]> = {};
+    // Phase A: evaluate without LazyFromEnvelopes (treats them as no-ops)
+    for (const key in envelopes) {
+        const descs = ((envelopes as any)[key].gpuDescriptors || []).filter((d: any) => d?.type !== 'LazyFromEnvelopes');
+        baseResults[key] = evaluateGPUDescriptors(descs, timePoints);
+    }
+    // Phase B: evaluate only LazyFromEnvelopes using Phase A values as context
+    for (const key in envelopes) {
+        const lazyDescs = ((envelopes as any)[key].gpuDescriptors || []).filter((d: any) => d?.type === 'LazyFromEnvelopes');
+        if (lazyDescs.length === 0) {
+            lazyOverlay[key] = new Array(timePoints.length).fill(0);
+            continue;
+        }
+        lazyOverlay[key] = evaluateGPUDescriptors(
+            lazyDescs,
+            timePoints,
+            (k: string, idx: number) => baseResults[k]?.[idx] ?? 0
+        );
+    }
+    // Sum base + overlay
     const gpuResults: Record<string, number[]> = {};
     for (const key in envelopes) {
-        gpuResults[key] = evaluateGPUDescriptors((envelopes as any)[key].gpuDescriptors, timePoints);
+        const a = baseResults[key] || new Array(timePoints.length).fill(0);
+        const b = lazyOverlay[key] || new Array(timePoints.length).fill(0);
+        const summed = new Array(timePoints.length);
+        for (let i = 0; i < timePoints.length; i++) summed[i] = (a[i] || 0) + (b[i] || 0);
+        gpuResults[key] = summed;
     }
     totalGpuTime = performance.now() - gpuStart;
     if (ENABLE_TIMING) {
@@ -144,18 +169,6 @@ export function evaluateResults(
     // Use GPU results only (single-pass evaluation)
     results = gpuResults;
 
-
-    // Note: CPU vs GPU validation logs are emitted per-envelope above; results only carry GPU
-
-    // console.log('📊 Evaluation Results:', {
-    //     timePointsLength: timePoints.length,
-    //     timeRange: {
-    //         first: timePoints[0],
-    //         last: timePoints[timePoints.length - 1],
-    //         span: timePoints[timePoints.length - 1] - timePoints[0]
-    //     },
-    //     resultKeysCount: Object.keys(results).length
-    // });
 
     // Apply inflation adjustment if needed
     if (currentDay !== undefined && inflationRate !== undefined) {

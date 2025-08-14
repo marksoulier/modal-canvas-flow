@@ -8,7 +8,7 @@ export type GrowthParams = {
 };
 
 export type GPUDescriptorRaw = {
-    type: "T" | "R" | "Impulse" | "LazyCorrection" | "ScaleFromEnvelope";
+    type: "T" | "R" | "Impulse" | "LazyCorrection" | "ScaleFromEnvelope" | "LazyFromEnvelopes";
     direction: "in" | "out";
     t_k?: number;
     t0?: number;
@@ -26,6 +26,9 @@ export type GPUDescriptorRaw = {
     coeff?: number;
     untilDay?: number; // if provided with applyBefore=true, applies when t < untilDay; if applyBefore=false, when t >= untilDay
     applyBefore?: boolean;
+    // For LazyFromEnvelopes only: compute target lazily using other envelopes' values
+    // getValueAt(key, idx?) returns the base (Phase A) value for envelope `key` at evaluation index `idx` (defaults to current index)
+    computeTarget?: (ctx: { index: number, getValueAt: (key: string, idx?: number) => number }) => number;
 };
 
 export type GPUOccurrence = {
@@ -42,7 +45,7 @@ export type GPUOccurrence = {
 // ScaleFromEnvelope pretty much make sthe equation of a envelope w(t) = coeff * w_source(t)
 
 export type GPUDescriptorPrecomputed = {
-    type: "T" | "R" | "Impulse" | "LazyCorrection" | "ScaleFromEnvelope";
+    type: "T" | "R" | "Impulse" | "LazyCorrection" | "ScaleFromEnvelope" | "LazyFromEnvelopes";
     direction: "in" | "out";
     occurrences: GPUOccurrence[];
     growth: any;
@@ -52,6 +55,8 @@ export type GPUDescriptorPrecomputed = {
     coeff?: number; // ScaleFromEnvelope
     untilDay?: number; // ScaleFromEnvelope
     applyBefore?: boolean; // ScaleFromEnvelope
+    // For LazyFromEnvelopes only
+    computeTarget?: (ctx: { index: number, getValueAt: (key: string, idx?: number) => number }) => number;
 };
 
 export type AnyGPUDescriptor = GPUDescriptorRaw | GPUDescriptorPrecomputed;
@@ -144,6 +149,20 @@ export const precomputeThetasForGPU = (
                 const startIndex = findStartIndex(timePoints, t_k);
                 // baseValue not known yet; store target for runtime resolution
                 occurrences.push({ t_k, startIndex, baseValue: 0, target: Number(raw.target ?? 0) });
+            } else if (raw.type === "LazyFromEnvelopes" && typeof raw.t_k === "number") {
+                const t_k = raw.t_k;
+                const startIndex = findStartIndex(timePoints, t_k);
+                const pre: GPUDescriptorPrecomputed = {
+                    type: raw.type,
+                    direction: raw.direction,
+                    occurrences: [{ t_k, startIndex, baseValue: 0 }],
+                    growth: raw.growth,
+                    computeTarget: raw.computeTarget,
+                    untilDay: raw.untilDay,
+                    applyBefore: raw.applyBefore,
+                };
+                newDescriptors.push(pre);
+                continue;
             } else if (raw.type === "ScaleFromEnvelope") {
                 // Expand by copying the source envelope's descriptors into this envelope,
                 // scaled by coeff and signed by this descriptor's direction.
@@ -303,7 +322,8 @@ export const precomputeThetasForGPU = (
 
 export const evaluateGPUDescriptors = (
     gpuDescriptors: GPUDescriptorPrecomputed[] | undefined,
-    timePoints: number[]
+    timePoints: number[],
+    getValueAt?: (key: string, index: number) => number
 ): number[] => {
     const result = new Array(timePoints.length).fill(0);
     if (!gpuDescriptors || gpuDescriptors.length === 0) return result;
@@ -322,6 +342,8 @@ export const evaluateGPUDescriptors = (
         coeff?: number;
         untilDay?: number;
         applyBefore?: boolean;
+        // LazyFromEnvelopes metadata
+        computeTarget?: (ctx: { index: number, getValueAt: (key: string) => number }) => number;
     };
     const flat: FlatOcc[] = [];
     for (const desc of gpuDescriptors) {
@@ -340,6 +362,7 @@ export const evaluateGPUDescriptors = (
                 coeff: (desc as any).coeff,
                 untilDay: (desc as any).untilDay,
                 applyBefore: (desc as any).applyBefore,
+                computeTarget: (desc as any).computeTarget,
             });
         }
         // ScaleFromEnvelope is expanded during precompute; no runtime meta row needed
@@ -360,6 +383,26 @@ export const evaluateGPUDescriptors = (
                 if (isAllowedAt(timePoints[j0])) {
                     result[j0] += occ.sign * occ.baseValue;
                 }
+            }
+            continue;
+        }
+        if (occ.type === "LazyFromEnvelopes") {
+            const compute = (occ as any).computeTarget as (ctx: { index: number, getValueAt: (key: string, idx?: number) => number }) => number;
+            if (typeof compute !== 'function') continue;
+            for (let j = 0; j < timePoints.length; j++) {
+                const t = timePoints[j];
+                if (!isAllowedAt(t)) continue;
+                const targetValue = compute({
+                    index: j,
+                    getValueAt: (key: string, idx?: number) => {
+                        if (!getValueAt) return 0;
+                        return Number(getValueAt(key, idx ?? j) ?? 0);
+                    }
+                });
+                const diff = targetValue - result[j];
+                if (Math.abs(diff) < 1e-9) continue;
+                // Impulse-like: set value at j to target by adding the difference only at j
+                result[j] += diff;
             }
             continue;
         }
