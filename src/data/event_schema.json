@@ -115,13 +115,6 @@
             "account_type": "non-networth-account"
         },
         {
-            "name": "401K Penalty",
-            "category": "Debt",
-            "growth": "None",
-            "rate": 0,
-            "account_type": "system-controlled"
-        },
-        {
             "name": "401K Taxes",
             "category": "Debt",
             "growth": "None",
@@ -164,6 +157,13 @@
             "account_type": "non-networth-account"
         },
         {
+            "name": "401K Penalty",
+            "category": "Debt",
+            "growth": "None",
+            "rate": 0,
+            "account_type": "system-controlled"
+        },
+        {
             "name": "ROTH IRA Withdraw",
             "category": "Debt",
             "growth": "None",
@@ -183,6 +183,20 @@
             "growth": "None",
             "rate": 0,
             "account_type": "system-controlled"
+        },
+        {
+            "name": "Short Term Capital Gains",
+            "category": "Debt",
+            "growth": "None",
+            "rate": 0,
+            "account_type": "non-networth-account"
+        },
+        {
+            "name": "Long Term Capital Gains",
+            "category": "Debt",
+            "growth": "None",
+            "rate": 0,
+            "account_type": "non-networth-account"
         }
     ],
     "account_types": [
