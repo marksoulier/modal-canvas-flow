@@ -65,6 +65,46 @@ export function valueToDay(
     return valueToday * Math.pow(1 + inflationRate, d / 365);
 }
 
+export function computeTimePoints(
+    startDate: number,
+    endDate: number,
+    frequency: number,
+    visibleRange?: { startDate: number, endDate: number },
+    currentDay?: number
+): number[] {
+    let timePoints: number[];
+
+    // If interval is 365, or 182.5 then do full range of dates
+    if (frequency === 365 || frequency === 182.5) {
+        timePoints = Array.from(
+            { length: Math.ceil((endDate - startDate) / frequency) },
+            (_, i) => startDate + i * frequency
+        );
+        if (timePoints[timePoints.length - 1] !== endDate) {
+            timePoints.push(endDate);
+        }
+    } else {
+        timePoints = [startDate];
+        if (visibleRange) {
+            for (let t = visibleRange.startDate; t <= visibleRange.endDate; t += frequency) {
+                timePoints.push(t);
+            }
+        }
+        if (timePoints[timePoints.length - 1] !== endDate) {
+            timePoints.push(endDate);
+        }
+    }
+
+    if (currentDay) {
+        const currentDayIndex = timePoints.findIndex(t => t === currentDay);
+        if (currentDayIndex !== -1) {
+            timePoints.splice(currentDayIndex, 0, currentDay);
+        }
+    }
+
+    return timePoints;
+}
+
 export function evaluateResults(
     envelopes: Record<string, { functions: ((t: number) => number)[], growth_type: string, growth_rate: number }>,
     startDate: number,
@@ -72,7 +112,8 @@ export function evaluateResults(
     frequency: number,
     currentDay?: number,
     inflationRate?: number,
-    visibleRange?: { startDate: number, endDate: number }
+    visibleRange?: { startDate: number, endDate: number },
+    timePointsOverride?: number[]
 ): { results: Record<string, number[]>, timePoints: number[] } {
     // Initialize results
     const results: Record<string, number[]> = {};
@@ -80,51 +121,7 @@ export function evaluateResults(
         results[key] = [];
     }
 
-    let timePoints: number[];
-
-    // If interval is 365, or 182.5 then do full range of dates
-    if (frequency === 365 || frequency === 182.5) {
-        // If no visible range specified, use single interval throughout
-        timePoints = Array.from(
-            { length: Math.ceil((endDate - startDate) / frequency) },
-            (_, i) => startDate + i * frequency
-        );
-
-        // Add end point if it's not already included
-        if (timePoints[timePoints.length - 1] !== endDate) {
-            timePoints.push(endDate);
-        }
-    } else {
-        // Start with first point
-        timePoints = [startDate];
-
-        // Add points in visible range at specified interval
-        if (visibleRange) {
-            // console.log('📊 Adding points in visible range:', {
-            //     rangeStart: visibleRange.startDate,
-            //     rangeEnd: visibleRange.endDate,
-            //     interval: frequency,
-            //     expectedPoints: Math.ceil((visibleRange.endDate - visibleRange.startDate) / frequency)
-            // });
-
-            for (let t = visibleRange.startDate; t <= visibleRange.endDate; t += frequency) {
-                timePoints.push(t);
-            }
-        }
-    }
-
-    // Add end point if it's not already included
-    if (timePoints[timePoints.length - 1] !== endDate) {
-        timePoints.push(endDate);
-    }
-
-    // See where I need to insert the current day point to be in the right order
-    if (currentDay) {
-        const currentDayIndex = timePoints.findIndex(t => t === currentDay);
-        if (currentDayIndex !== -1) {
-            timePoints.splice(currentDayIndex, 0, currentDay);
-        }
-    }
+    const timePoints = timePointsOverride ?? computeTimePoints(startDate, endDate, frequency, visibleRange, currentDay);
 
     // Evaluate functions at all points
     for (const key in envelopes) {

@@ -13,7 +13,7 @@ import {
     federal_subsidized_loan, federal_unsubsidized_loan, private_student_loan,
     usa_tax_system
 } from './baseFunctions';
-import { evaluateResults } from './resultsEvaluation';
+import { evaluateResults, computeTimePoints } from './resultsEvaluation';
 import type { Plan, Schema } from '../contexts/PlanContext';
 
 interface Datum {
@@ -76,6 +76,9 @@ export async function runSimulation(
         const parsedEvents = parseEvents(plan);
 
         const envelopes = initializeEnvelopes(plan, simulation_settings);
+        // Precompute canonical time points for the whole sim (reused across features)
+        const precomputedTimePoints = computeTimePoints(startDate, endDate, interval, simulation_settings.visibleRange, currentDay);
+        envelopes.simulation_settings.timePoints = precomputedTimePoints;
         //console.log('Initialized envelopes:', envelopes);
         // Collect manual_correction events to process at the end
         const manualCorrectionEvents: any[] = [];
@@ -154,21 +157,28 @@ export async function runSimulation(
         }
 
 
-        // Process all manual_correction events at the end
-        //console.log(`Processing ${manualCorrectionEvents.length} manual correction events at the end`);
-        for (const event of manualCorrectionEvents) {
-            //console.log("Manual correction event: ", event.parameters);
-            manual_correction(event, envelopes);
+        // Merge and sort time-based adjustment events, then process in chronological order
+        const adjustmentEvents = [
+            ...manualCorrectionEvents.map(e => ({ kind: 'manual_correction' as const, event: e })),
+            ...declareAccountsEvents.map(e => ({ kind: 'declare_accounts' as const, event: e })),
+        ];
+        adjustmentEvents.sort((a, b) => {
+            const ta = a.event.parameters?.start_time ?? 0;
+            const tb = b.event.parameters?.start_time ?? 0;
+            if (ta !== tb) return ta - tb;
+            // Stable deterministic tie-breaker: manual_correction before declare_accounts
+            if (a.kind === b.kind) return 0;
+            return a.kind === 'manual_correction' ? -1 : 1;
+        });
+        for (const item of adjustmentEvents) {
+            if (item.kind === 'manual_correction') {
+                manual_correction(item.event, envelopes);
+            } else {
+                declare_accounts(item.event, envelopes);
+            }
         }
 
-        // Process all declare_accounts events at the end
-        //console.log(`Processing ${declareAccountsEvents.length} declare_accounts events at the end`);
-        for (const event of declareAccountsEvents) {
-            //console.log("Declare accounts event: ", event.parameters);
-            declare_accounts(event, envelopes);
-        }
-
-        // Process usa_tax_system events at the end
+        // Process usa_tax_system events at the end (can use precomputed time points from simulation_settings)
         for (const event of parsedEvents) {
             //console.log("Event: ", event);
             if (event.type === 'usa_tax_system') {
@@ -194,9 +204,9 @@ export async function runSimulation(
         let allResults;
         if (plan.adjust_for_inflation) {
             const inflationRate = plan.inflation_rate;
-            allResults = evaluateResults(allEvalEnvelopes, startDate, endDate, interval, currentDay, inflationRate, simulation_settings.visibleRange);
+            allResults = evaluateResults(allEvalEnvelopes, startDate, endDate, interval, currentDay, inflationRate, simulation_settings.visibleRange, precomputedTimePoints);
         } else {
-            allResults = evaluateResults(allEvalEnvelopes, startDate, endDate, interval, currentDay, undefined, simulation_settings.visibleRange);
+            allResults = evaluateResults(allEvalEnvelopes, startDate, endDate, interval, currentDay, undefined, simulation_settings.visibleRange, precomputedTimePoints);
         }
 
         // Now split the results into networth and non-networth for visualization

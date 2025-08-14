@@ -30,6 +30,35 @@ export const T = (
     return (t: number) => f(params, t_k - t0) * u(t - t_k) * f_growth(theta_g, t - t_k);
 };
 
+// Growth magnitude function with different compounding types
+export const f_growth = (theta_g: Record<string, any>, t: number): number => {
+    const growth_type = theta_g.type;
+    const r = theta_g.r;
+    if (growth_type === "Simple Interest") {
+        return 1 + r * (t / 365.25);
+    } else if (growth_type === "Daily Compound") {
+        return Math.pow(1 + r / 365.25, t);
+    } else if (growth_type === "Monthly Compound") {
+        return Math.pow(1 + r / 12, 12 * t / 365);
+    } else if (growth_type === "Yearly Compound") {
+        return Math.pow(1 + r, t / 365.25);
+    } else if (growth_type === "Simple Interest") {
+        return 1 + r * (t / 365.25);
+    } else if (growth_type === "Appreciation") {
+        return 1 + r * (t / 365.25);
+    } else if (growth_type === "Depreciation") {
+        return Math.max(0, Math.pow(1 - r, t / 365.25));
+    } else if (growth_type === "Depreciation (Days)") {
+        const days = theta_g.days_of_usefulness;
+        if (!days || days <= 0) throw new Error("days_of_usefulness must be positive");
+        return Math.max(0, 1 - t / days);
+    } else if (growth_type === "None") {
+        return 1;
+    } else {
+        throw new Error(`Unknown growth type: ${growth_type}`);
+    }
+};
+
 export const impulse_T = (
     theta_event: Record<string, number>,
     f: (params: Record<string, any>, t: number) => number,
@@ -41,6 +70,99 @@ export const impulse_T = (
     const params = theta(t_k); // θ = θ(t_k) - evaluate at t_k
 
     return (t: number) => f(params, t_k - t0) * impulse(t - t_k);
+};
+
+// Helper: append a lazy correction to an envelope at a given time to match a target amount
+export const appendLazyCorrectionToEnvelope = (
+    env: { functions: Array<(t: number) => number> },
+    envelopes: Record<string, any>,
+    to_key: string,
+    correctionTime: number,
+    targetAmountAtCorrection: number
+) => {
+    const priorFunctions = [...env.functions];
+    const [_, theta_growth_dest] = get_growth_parameters(envelopes, undefined, to_key);
+
+    let cachedCorrection: ((t: number) => number) | null = null;
+    const lazyCorrection = (t: number) => {
+        if (!cachedCorrection) {
+            let simulatedAtCorrection = 0.0;
+            for (const f of priorFunctions) {
+                simulatedAtCorrection += f(correctionTime);
+            }
+            const difference = targetAmountAtCorrection - simulatedAtCorrection;
+            const correctionTheta = difference >= 0 ? P({ a: Math.abs(difference) }) : P({ b: Math.abs(difference) });
+            const correctionBase = difference >= 0 ? f_in : f_out;
+            cachedCorrection = T(
+                { t_k: correctionTime },
+                correctionBase,
+                correctionTheta,
+                theta_growth_dest
+            );
+        }
+        return cachedCorrection(t);
+    };
+
+    env.functions.push(lazyCorrection);
+};
+
+// Helper: append a lazy, one-time amount at t_k computed from a callback using prior snapshots
+export const appendLazyComputedAmountAt = (
+    env: { functions: Array<(t: number) => number> },
+    envelopes: Record<string, any>,
+    to_key: string,
+    eventTime: number,
+    computeAmount: () => number
+) => {
+    const [_, theta_growth_dest] = get_growth_parameters(envelopes, undefined, to_key);
+
+    let cachedFunc: ((t: number) => number) | null = null;
+    const lazyFunc = (t: number) => {
+        if (!cachedFunc) {
+            const amount = computeAmount();
+            const theta = amount >= 0 ? P({ b: Math.abs(amount) }) : P({ a: Math.abs(amount) });
+            const base = amount >= 0 ? f_out : f_in;
+            cachedFunc = T(
+                { t_k: eventTime },
+                base,
+                theta,
+                theta_growth_dest
+            );
+        }
+        return cachedFunc(t);
+    };
+
+    env.functions.push(lazyFunc);
+};
+
+// Helper: append a lazy impulse amount computed at evaluation time
+export const appendLazyImpulseAmountAt = (
+    env: { functions: Array<(t: number) => number> },
+    envelopes: Record<string, any>,
+    to_key: string,
+    eventTime: number,
+    computeAmount: () => number
+) => {
+    const [_, theta_growth_dest] = get_growth_parameters(envelopes, undefined, to_key);
+
+    let cachedFunc: ((t: number) => number) | null = null;
+    const lazyFunc = (t: number) => {
+        if (!cachedFunc) {
+            const amount = computeAmount();
+            const theta = amount >= 0 ? P({ b: Math.abs(amount) }) : P({ a: Math.abs(amount) });
+            const base = amount >= 0 ? f_out : f_in;
+            cachedFunc = impulse_T(
+                { t_k: eventTime },
+                base,
+                theta,
+                theta_growth_dest,
+                0
+            );
+        }
+        return cachedFunc(t);
+    };
+
+    env.functions.push(lazyFunc);
 };
 
 export const R = (
@@ -128,35 +250,6 @@ export const stepAdjust = (
     // During the stepping period
     const steps = Math.floor((t - start_time) / frequency);
     return current_amount + (step_amount * steps);
-};
-
-// Growth magnitude function with different compounding types
-export const f_growth = (theta_g: Record<string, any>, t: number): number => {
-    const growth_type = theta_g.type;
-    const r = theta_g.r;
-    if (growth_type === "Simple Interest") {
-        return 1 + r * (t / 365.25);
-    } else if (growth_type === "Daily Compound") {
-        return Math.pow(1 + r / 365.25, t);
-    } else if (growth_type === "Monthly Compound") {
-        return Math.pow(1 + r / 12, 12 * t / 365);
-    } else if (growth_type === "Yearly Compound") {
-        return Math.pow(1 + r, t / 365.25);
-    } else if (growth_type === "Simple Interest") {
-        return 1 + r * (t / 365.25);
-    } else if (growth_type === "Appreciation") {
-        return 1 + r * (t / 365.25);
-    } else if (growth_type === "Depreciation") {
-        return Math.max(0, Math.pow(1 - r, t / 365.25));
-    } else if (growth_type === "Depreciation (Days)") {
-        const days = theta_g.days_of_usefulness;
-        if (!days || days <= 0) throw new Error("days_of_usefulness must be positive");
-        return Math.max(0, 1 - t / days);
-    } else if (growth_type === "None") {
-        return 1;
-    } else {
-        throw new Error(`Unknown growth type: ${growth_type}`);
-    }
 };
 
 // Helper function to get growth parameters from envelopes for any list of keys
@@ -474,24 +567,7 @@ export const manual_correction = (event: any, envelopes: Record<string, any>) =>
     const to_key = params.to_key;
     const env = envelopes[to_key];
 
-    let simulated_value = 0.0;
-    for (const func of env.functions) {
-        simulated_value += func(params.start_time);
-    }
-    const difference = params.amount - simulated_value;
-    console.log("Difference applied:", difference);
-
-    // Get growth parameters from envelope
-    const [_, theta_growth_dest] = get_growth_parameters(envelopes, undefined, to_key);
-
-    // Create the correction function and append it to the envelope
-    const correction_func = T(
-        { t_k: params.start_time },
-        difference > 0 ? f_in : f_out,
-        P(difference > 0 ? { a: Math.abs(difference) } : { b: Math.abs(difference) }),
-        theta_growth_dest
-    );
-    env.functions.push(correction_func);
+    appendLazyCorrectionToEnvelope(env, envelopes, to_key, params.start_time, params.amount);
 };
 
 
@@ -537,22 +613,8 @@ export const declare_accounts = (event: any, envelopes: Record<string, any>) => 
         if (params[envelopeKey] && envelopes[params[envelopeKey]]) {
             const to_key = params[envelopeKey];
             const env = envelopes[to_key];
-            let simulated_value = 0.0;
-            for (const func of env.functions) {
-                simulated_value += func(params.start_time);
-            }
-            const difference = params[amountKey] - simulated_value;
-            console.log(`Difference applied to ${to_key}:`, difference);
-            // Get growth parameters from envelope
-            const [_, theta_growth_dest] = get_growth_parameters(envelopes, undefined, to_key);
-            // Create the correction function and append it to the envelope
-            const correction_func = T(
-                { t_k: params.start_time },
-                difference > 0 ? f_in : f_out,
-                P(difference > 0 ? { a: Math.abs(difference) } : { b: Math.abs(difference) }),
-                theta_growth_dest
-            );
-            env.functions.push(correction_func);
+            const target = params[amountKey];
+            appendLazyCorrectionToEnvelope(env, envelopes, to_key, params.start_time, target);
         }
     }
 };
@@ -2519,17 +2581,14 @@ export const usa_tax_system = (event: any, envelopes: Record<string, any>) => {
     const envelopeRothIra = envelopes[params.roth_key];
     const penaltyEnvelopeRothIra = envelopes[params.penalty_roth_key];
 
-    // Create time range based on simulation settings
+    // Use precomputed canonical time points when available
     const startTime = simulation_settings.start_time;
     const endTime = simulation_settings.end_time;
-    const interval = simulation_settings.interval;
     const birthDate = simulation_settings.birthDate;
 
-    // Generate time points similar to resultsEvaluation.ts
-    const timePoints = Array.from(
-        { length: Math.ceil((endTime - startTime) / interval) },
-        (_, i) => startTime + i * interval
-    );
+    // Prefer shared time points from simulation settings to align all features
+    const timePoints: number[] = simulation_settings.timePoints;
+    
 
     // Get year-end days based on birth date, this returns which days are Dec 31st of each year
     const yearEndDays = birthDate ? getYearEndDays(birthDate, startTime, endTime) : [];
@@ -2551,76 +2610,45 @@ export const usa_tax_system = (event: any, envelopes: Record<string, any>) => {
         }
     }
 
-    // Process taxable income corrections on year-end days
+    // Process taxable income corrections and tax payment lazily at year-end days
     yearEndDays.forEach(yearEndDay => {
-        // --- Reset taxable income and additional envelopes at year end ---
-
-        // Before year end, evalute value of all tax related envelopes
-        const taxEnvelopes = [
-            params.taxable_income_key,
-            params.federal_withholdings_key,
-            params.state_withholdings_key,
-            params.local_withholdings_key,
-            params.ira_contributions_key,
-            params.penalty_401k_key,
-            params.taxes_401k_key,
-            params.roth_key,
-            params.penalty_roth_key,
-            params.roth_ira_principle_key,
-            params.roth_ira_withdraw_key, //The amount withdrawn from the ROTH IRA
-            params.p_401k_key, //Actual account value of 401k
-            params.p_401k_withdraw_key, //Withholding from 401k this year
-            params.p_401k_withdraw_withholding_key //Withholding from 401k this year
-        ];
-
-        //Dictionary for saving relevant balances
-        const taxEnvelopesBalances: Record<string, number> = {};
-
-        for (const key of taxEnvelopes) {
-            if (key && envelopes[key]) {
-                let envBalance = 0.0;
-                for (const func of envelopes[key].functions) {
-                    envBalance += func(yearEndDay);
-                }
-                taxEnvelopesBalances[key] = envBalance;
-            }
-        }
-
-        //Calculate age and year
+        // Calculate age and year for that year-end
         const age = Math.floor(yearEndDay / 365);
         const year = birthDate.getFullYear() + age;
-        //console.log("Age", age);
-        //console.log("Year", year);
 
-        //Evaluate taxes paid on these amounts
-        const taxParams_tax_season = {
-            ...taxParams,
-            age: age,
-            tax_year: year,
-            taxable_income: taxEnvelopesBalances[params.taxable_income_key],
-            p_401k_withdraw: taxEnvelopesBalances[params.p_401k_withdraw_key],
-            p_401k_withdraw_withholding: taxEnvelopesBalances[params.p_401k_withdraw_withholding_key],
-            roth_ira_withdraw: taxEnvelopesBalances[params.roth_ira_withdraw_key],
-            roth_ira_principle: taxEnvelopesBalances[params.roth_ira_principle_key],
-            federal_withholding: taxEnvelopesBalances[params.federal_withholdings_key],
-            state_withholding: taxEnvelopesBalances[params.state_withholdings_key],
-            local_withholding: taxEnvelopesBalances[params.local_withholdings_key],
-        };
-
-        const taxesOwed = calculateTaxes(taxParams_tax_season);
-        //console.log("Tax Params", taxParams_tax_season);
-        //console.log("Taxes Owed", taxesOwed);
-
-        // Withdraw the taxes withhed from irs_registered_account_key
+        // Withdraw the taxes on tax day (105 days after year end), amount computed lazily from year-end balances
         const irsRegisteredAccountEnvelope = envelopes[params.irs_registered_account_key];
-        const pay_taxes_func = T(
-            { t_k: yearEndDay + 105 }, // 105 days from the end of the year is tax day.
-            f_out,
-            P({ b: taxesOwed }),
-            theta_growth_irs_registered_account
+        appendLazyComputedAmountAt(
+            irsRegisteredAccountEnvelope,
+            envelopes,
+            params.irs_registered_account_key,
+            yearEndDay + 105,
+            () => {
+                // Evaluate relevant balances at year end lazily
+                const readBalance = (key?: string) => {
+                    if (!key || !envelopes[key]) return 0.0;
+                    let sum = 0.0;
+                    for (const fn of envelopes[key].functions) sum += fn(yearEndDay);
+                    return sum;
+                };
+                const taxParams_tax_season = {
+                    ...taxParams,
+                    age: age,
+                    tax_year: year,
+                    taxable_income: readBalance(params.taxable_income_key),
+                    p_401k_withdraw: readBalance(params.p_401k_withdraw_key),
+                    p_401k_withdraw_withholding: readBalance(params.p_401k_withdraw_withholding_key),
+                    roth_ira_withdraw: readBalance(params.roth_ira_withdraw_key),
+                    roth_ira_principle: readBalance(params.roth_ira_principle_key),
+                    federal_withholding: readBalance(params.federal_withholdings_key),
+                    state_withholding: readBalance(params.state_withholdings_key),
+                    local_withholding: readBalance(params.local_withholdings_key),
+                } as any;
+                return calculateTaxes(taxParams_tax_season);
+            }
         );
-        irsRegisteredAccountEnvelope.functions.push(pay_taxes_func);
 
+        // Reset rolling-year envelopes to 0 at year end lazily
         const resetEnvelopes = [
             params.taxable_income_key,
             params.federal_withholdings_key,
@@ -2633,22 +2661,13 @@ export const usa_tax_system = (event: any, envelopes: Record<string, any>) => {
         ];
         for (const key of resetEnvelopes) {
             if (key && envelopes[key]) {
-                let envBalance = 0.0;
-                for (const func of envelopes[key].functions) {
-                    envBalance += func(yearEndDay);
-                }
-                if (envBalance !== 0) {
-                    // Get growth parameters for this envelope
-                    const [_, theta_growth_env] = get_growth_parameters(envelopes, undefined, key);
-                    const diff = 0 - envBalance;
-                    const correctionFunc = T(
-                        { t_k: yearEndDay },
-                        diff > 0 ? f_in : f_out,
-                        P(diff > 0 ? { a: Math.abs(diff) } : { b: Math.abs(diff) }),
-                        theta_growth_env
-                    );
-                    envelopes[key].functions.push(correctionFunc);
-                }
+                appendLazyCorrectionToEnvelope(
+                    envelopes[key],
+                    envelopes,
+                    key,
+                    yearEndDay,
+                    0
+                );
             }
         }
     });
@@ -2656,82 +2675,48 @@ export const usa_tax_system = (event: any, envelopes: Record<string, any>) => {
     // For each time point, evaluate the 401K balance and create penalty functions
     timePoints.forEach(t => {
 
-        // Evaluate ROTH IRA balance at time t
-        let balanceRothIra = 0.0;
-        for (const func of envelopeRothIra.functions) {
-            balanceRothIra += func(t);
-        }
-
-
-        // Evaluate 401K envelope balance at time t
-        let balance401k = 0.0;
-        for (const func of envelope401k.functions) {
-            balance401k += func(t);
-        }
-
-        // Only apply 401K penalty if person is under 59.5 years old
+        // Only apply 401K and Roth penalties if under 59.5 years old; amounts computed lazily at t
         if (!age59HalfDay || t < age59HalfDay) {
-            // Calculate 10% penalty
-            const penaltyAmount = balance401k * 0.10;
-
-            // Calculate ROTH IRA penalty
-            const penaltyAmountRothIra = balanceRothIra * 0.10;
-
-            // Create an impulse function at time t for the penalty amount
-            if (penaltyAmount > 0) {
-                const penaltyFunc = impulse_T(
-                    { t_k: t },
-                    f_out, // Using outflow function since it's a penalty (negative)
-                    P({ b: penaltyAmount }),
-                    theta_growth_penalty_401k,
-                    0
-                );
-
-                // Add the penalty function to the penalty envelope
-                penaltyEnvelope.functions.push(penaltyFunc);
-            }
-
-            if (penaltyAmountRothIra > 0) {
-
-                //Roth IRA penalty
-                const penaltyRothIraFunc = impulse_T(
-                    { t_k: t },
-                    f_out, // Using outflow function since it's a penalty (negative)
-                    P({ b: penaltyAmountRothIra }),
-                    theta_growth_penalty_roth,
-                    0
-                );
-                // Add the penalty function to the penalty envelope
-                penaltyEnvelopeRothIra.functions.push(penaltyRothIraFunc);
-            }
+            appendLazyImpulseAmountAt(
+                penaltyEnvelope,
+                envelopes,
+                params.penalty_401k_key,
+                t,
+                () => {
+                    let bal = 0.0;
+                    for (const fn of envelope401k.functions) bal += fn(t);
+                    return bal * 0.10;
+                }
+            );
+            appendLazyImpulseAmountAt(
+                penaltyEnvelopeRothIra,
+                envelopes,
+                params.penalty_roth_key,
+                t,
+                () => {
+                    let bal = 0.0;
+                    for (const fn of envelopeRothIra.functions) bal += fn(t);
+                    return bal * 0.10;
+                }
+            );
         }
 
-        // Evaluate taxable income envelope balance at time t
-        let taxableIncomeBalance = 0.0;
-        for (const func of taxableIncomeEnvelope.functions) {
-            taxableIncomeBalance += func(t);
-        }
-        const taxParams_401K_included = {
-            ...taxParams,
-            taxable_income: taxableIncomeBalance + balance401k
-        };
-        const taxParamsBase = {
-            ...taxParams,
-            taxable_income: taxableIncomeBalance
-        };
-        const taxesOwed = calculateTaxes(taxParams_401K_included) - calculateTaxes(taxParamsBase);
-
-        // Create an impulse function at time t for the tax amount
-        const taxFunc = impulse_T(
-            { t_k: t },
-            f_out, // Using outflow function since taxes are owed (positive debt)
-            P({ b: taxesOwed }),
-            theta_growth_taxes_401k,
-            0
+        // Taxes owed due to including 401k in taxable income at time t, computed lazily
+        appendLazyImpulseAmountAt(
+            taxesEnvelope,
+            envelopes,
+            params.taxes_401k_key,
+            t,
+            () => {
+                let taxableIncomeBalance = 0.0;
+                for (const fn of taxableIncomeEnvelope.functions) taxableIncomeBalance += fn(t);
+                let balance401k = 0.0;
+                for (const fn of envelope401k.functions) balance401k += fn(t);
+                const with401k = calculateTaxes({ ...taxParams, taxable_income: taxableIncomeBalance + balance401k });
+                const base = calculateTaxes({ ...taxParams, taxable_income: taxableIncomeBalance });
+                return with401k - base;
+            }
         );
-
-        // Add the tax function to the taxes envelope
-        taxesEnvelope.functions.push(taxFunc);
 
         // console.log(`Added taxes of ${taxesOwed.toFixed(2)} on taxable income of ${taxableIncomeBalance.toFixed(2)} at time ${t}`);
     });
@@ -2744,23 +2729,13 @@ export const usa_tax_system = (event: any, envelopes: Record<string, any>) => {
             penaltyBalance += func(age59HalfDay);
         }
 
-        if (penaltyBalance !== 0) {
-            // Apply difference correction - subtract the current balance to reset it to 0
-            const difference = 0 - penaltyBalance; // Target amount (0) minus current balance
-
-            // Create correction function following manual_correction pattern
-            const correctionFunc = T(
-                { t_k: age59HalfDay },
-                difference > 0 ? f_in : f_out,
-                P(difference > 0 ? { a: Math.abs(difference) } : { b: Math.abs(difference) }),
-                theta_growth_penalty_401k
-            );
-
-            // Add the correction to penalty envelope
-            penaltyEnvelope.functions.push(correctionFunc);
-
-            //console.log(`Applied 401K penalty correction of ${difference} at age 59.5 (day ${age59HalfDay})`);
-        }
+        appendLazyCorrectionToEnvelope(
+            penaltyEnvelope,
+            envelopes,
+            params.penalty_401k_key,
+            age59HalfDay,
+            0
+        );
     }
 
     // console.log('USA Tax System event processed with parameters:', params);

@@ -39,7 +39,7 @@ import type {
 import { getAllEventsByDateWithLocked } from './Events';
 import type { Plan } from '../contexts/PlanContext';
 
-const DEBUG = false;
+const DEBUG = true;
 const IS_ANIMATION_ENABLED = true;
 const ZOOM_ANIMATION_DURATION = 750; // milliseconds
 const SIMULATION_ANIMATION_DURATION = 1000; // milliseconds
