@@ -85,7 +85,7 @@ const f_growth_gpu = (theta_g: GrowthParams, t: number): number => {
     } else if (growth_type === "Yearly Compound") {
         return Math.pow(1 + r, t / 365.25);
     } else if (growth_type === "Appreciation") {
-        return 1 + r * (t / 365.25);
+        return Math.pow(1 + r, t / 365.25);
     } else if (growth_type === "Depreciation") {
         return Math.max(0, Math.pow(1 - r, t / 365.25));
     } else if (growth_type === "Depreciation (Days)") {
@@ -318,6 +318,36 @@ export const precomputeThetasForGPU = (
 
         env.gpuDescriptors = newDescriptors;
     }
+};
+
+// Evaluate an envelope at a specific time point
+export const evaluateEnvelopeAtTime = (
+    envelope: any,
+    time: number,
+    getValueAt?: (key: string) => number
+): number => {
+    if (!envelope || !Array.isArray(envelope.gpuDescriptors)) return 0;
+
+    // Create a clone of the envelope to avoid modifying the original
+    const tempEnvelope = {
+        ...envelope,
+        gpuDescriptors: envelope.gpuDescriptors.map((desc: any) => ({ ...desc }))
+    };
+
+    // Create a single-point timePoints array for evaluation
+    const timePoints = [time];
+
+    // Precompute descriptors locally for this evaluation only
+    precomputeThetasForGPU({ temp: tempEnvelope }, timePoints);
+
+    // Use the precomputed descriptors from our temporary envelope
+    const precomputedDescriptors = tempEnvelope.gpuDescriptors;
+
+    // Use evaluateGPUDescriptors with our precomputed descriptors
+    const result = evaluateGPUDescriptors(precomputedDescriptors, timePoints, getValueAt ? (key: string) => getValueAt(key) : undefined);
+
+    // Return the single time point result
+    return result[0];
 };
 
 export const evaluateGPUDescriptors = (

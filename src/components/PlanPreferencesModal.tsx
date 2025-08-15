@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { X, Plus, Wallet, List, Edit3 } from 'lucide-react';
+import { Plus, Wallet, List, Edit3 } from 'lucide-react';
 import { usePlan } from '../contexts/PlanContext';
 import {
     Dialog,
@@ -25,7 +25,7 @@ const PlanPreferencesModal: React.FC<PlanPreferencesModalProps> = ({
     onAddEnvelope,
     onManageEnvelopes,
 }) => {
-    const { plan, updatePlanTitle, updateBirthDate, setAdjustForInflation, updatePlanInflationRate, updateRetirementGoal, restartPlan } = usePlan();
+    const { plan, updatePlanTitle, updateBirthDate, setAdjustForInflation, updatePlanInflationRate, updateRetirementGoal, restartPlan, show_all, setShowAll, triggerSimulation } = usePlan();
     const [isEditingTitle, setIsEditingTitle] = useState(false);
     const [tempTitle, setTempTitle] = useState('');
     const titleInputRef = useRef<HTMLInputElement>(null);
@@ -159,6 +159,26 @@ const PlanPreferencesModal: React.FC<PlanPreferencesModalProps> = ({
                                 placeholder="Select birth date"
                                 showAgeInput={false}
                             />
+                        </div>
+
+                        {/* Event Visibility Section */}
+                        <div className="space-y-3">
+                            <h3 className="text-lg font-medium text-gray-900">Event Visibility</h3>
+                            <div className="flex items-center gap-2 select-none">
+                                <input
+                                    type="checkbox"
+                                    checked={show_all}
+                                    onChange={e => {
+                                        setShowAll(e.target.checked);
+                                        // Trigger an immediate visualization update
+                                        triggerSimulation();
+                                    }}
+                                    className="form-checkbox h-5 w-5 text-blue-600"
+                                />
+                                <span className="text-gray-700 cursor-default">
+                                    Show all events (including hidden)
+                                </span>
+                            </div>
                         </div>
 
                         {/* Inflation Adjustment Section */}

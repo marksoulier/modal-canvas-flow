@@ -169,13 +169,13 @@ export function parseEvents(problem: any) {
         description: event.description || "",
         is_recurring: event.is_recurring || false,
         parameters: Object.fromEntries(event.parameters.map((p: any) => [p.type, p.value])),
-        event_functions: event.event_functions || [],
+        event_functions: Object.fromEntries((event.event_functions || []).map((f: any) => [f.type, f.enabled])),
         updating_events: (event.updating_events || []).map((upd: any) => ({
             id: upd.id,
             type: upd.type,
             description: upd.description || "",
             parameters: Object.fromEntries(upd.parameters.map((p: any) => [p.type, p.value])),
-            event_functions: upd.event_functions || []
+            event_functions: Object.fromEntries((upd.event_functions || []).map((f: any) => [f.type, f.enabled]))
         }))
     }));
 }

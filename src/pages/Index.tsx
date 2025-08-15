@@ -42,13 +42,14 @@ export default function Index() {
     loadPlanFromFile,
     savePlanToFile,
     updatePlanTitle,
-    loadPlan,
     lockPlan,
     addEvent,
     copyPlanToLock,
     isExampleViewing,
     isCompareMode,
-    setCompareMode
+    setCompareMode,
+    updatePlanDirectly,
+    triggerSimulation
   } = usePlan();
 
   // Modal states
@@ -309,16 +310,21 @@ export default function Index() {
     if (isAddingEnvelope) {
       updatedEnvelopes = [...plan.envelopes, envelope];
     } else if (editingEnvelope) {
-      updatedEnvelopes = plan.envelopes.map(e => e === editingEnvelope ? envelope : e);
+      updatedEnvelopes = plan.envelopes.map(e => e.name === editingEnvelope.name ? envelope : e);
     } else {
       updatedEnvelopes = plan.envelopes;
     }
-    // Save to plan
+    // Update plan directly to preserve locked plan and visualization state
     const updatedPlan = { ...plan, envelopes: updatedEnvelopes };
-    loadPlan(updatedPlan);
+    updatePlanDirectly(updatedPlan);
+    // Close modal and reset state
     setAddEnvelopeModalOpen(false);
     setEditingEnvelope(null);
     setIsAddingEnvelope(false);
+    // Trigger simulation after a short delay to ensure plan is updated
+    setTimeout(() => {
+      triggerSimulation();
+    }, 100);
   };
 
   // Modify the event library open handler

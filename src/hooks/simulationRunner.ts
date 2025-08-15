@@ -5,7 +5,7 @@ import {
     buy_house, buy_car, have_kid, marriage, divorce, pass_away,
     buy_health_insurance, buy_life_insurance,
     receive_government_aid, invest_money,
-    high_yield_savings_account, pay_taxes, buy_groceries, manual_correction,
+    high_yield_savings_account, buy_groceries, manual_correction,
     get_wage_job, transfer_money, income_with_changing_parameters,
     declare_accounts, purchase,
     monthly_budgeting, roth_ira_contribution,
@@ -56,14 +56,10 @@ export async function runSimulation(
     visibleRange?: { startDate: number, endDate: number }
 ): Promise<Datum[]> {
     try {
-        // Start total timer
-        const totalStart = performance.now();
 
         // Timer for validation
-        const validateStart = performance.now();
         const schemaMap = extractSchema(schema);
         const issues = validateProblem(plan, schemaMap, schema, plan);
-        const validateTime = performance.now() - validateStart;
 
         if (issues.length > 0) {
             console.error("❌ Validation issues found:");
@@ -81,9 +77,7 @@ export async function runSimulation(
         };
 
         // Timer for parsing events
-        const parseStart = performance.now();
         const parsedEvents = parseEvents(plan);
-        const parseTime = performance.now() - parseStart;
 
         const envelopes = initializeEnvelopes(plan, simulation_settings);
         // Precompute canonical time points once and store for consumers
@@ -98,7 +92,6 @@ export async function runSimulation(
         const planUpdates: Array<{ eventId: number, paramType: string, value: number }> = [];
 
         // Timer for applying events
-        const eventsStart = performance.now();
         for (const event of parsedEvents) {
             //console.log("Event: ", event)
 
@@ -141,7 +134,6 @@ export async function runSimulation(
                 case 'receive_government_aid': receive_government_aid(event, envelopes); break;
                 case 'invest_money': invest_money(event, envelopes); break;
                 case 'high_yield_savings_account': high_yield_savings_account(event, envelopes); break;
-                case 'pay_taxes': pay_taxes(event, envelopes); break;
                 case 'buy_groceries': buy_groceries(event, envelopes); break;
                 case 'transfer_money': transfer_money(event, envelopes, (updates) => {
                     planUpdates.push(...updates);
@@ -206,10 +198,8 @@ export async function runSimulation(
 
         //console.log("allEvalEnvelopes", allEvalEnvelopes);
 
-        const eventsTime = performance.now() - eventsStart;
 
         // Timer for results evaluation
-        const resultsStart = performance.now();
         let allResults;
         if (plan.adjust_for_inflation) {
             const inflationRate = plan.inflation_rate;
@@ -217,7 +207,6 @@ export async function runSimulation(
         } else {
             allResults = evaluateResults(allEvalEnvelopes, startDate, endDate, interval, currentDay, undefined, precomputedTimePoints, simulation_settings.visibleRange);
         }
-        const resultsTime = performance.now() - resultsStart;
 
         // Now split the results into networth and non-networth for visualization
         const envelopeKeys = Object.keys(allResults.results);
@@ -228,19 +217,6 @@ export async function runSimulation(
         const nonZeroNetworthKeys = networthKeys.filter(key => allResults.results[key].some(value => value !== 0));
         const nonZeroNonNetworthKeys = nonNetworthKeys.filter(key => allResults.results[key].some(value => value !== 0));
 
-
-        // Log consolidated timing information
-        const totalTime = performance.now() - totalStart;
-        console.info('⏱️ Simulation Performance:', {
-            'Total Time': `${totalTime.toFixed(2)}ms`,
-            'Validation': `${validateTime.toFixed(2)}ms (${(validateTime / totalTime * 100).toFixed(1)}%)`,
-            'Event Parsing': `${parseTime.toFixed(2)}ms (${(parseTime / totalTime * 100).toFixed(1)}%)`,
-            'Event Processing': `${eventsTime.toFixed(2)}ms (${(eventsTime / totalTime * 100).toFixed(1)}%)`,
-            'Results Evaluation': `${resultsTime.toFixed(2)}ms (${(resultsTime / totalTime * 100).toFixed(1)}%)`,
-            'Events Count': parsedEvents.length,
-            'Time Points': allResults.timePoints.length,
-            'Envelopes': Object.keys(allEvalEnvelopes).length
-        });
         // Create a single array of Datum objects where each Datum contains all non-zero envelope values as parts
         return allResults.results[envelopeKeys[0]].map((_, i) => {
             const parts: { [key: string]: number } = {};
