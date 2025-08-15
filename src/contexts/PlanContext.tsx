@@ -165,7 +165,8 @@ export interface Parameter {
 
 // New interface for event functions in schema
 export interface SchemaEventFunctionParts {
-    title: string;
+    type: string;  // Key for internal use (e.g., "inflow", "outflow")
+    title: string; // Display title (can have spaces, e.g., "Money Inflow")
     description: string;
     icon: string;
     default_state: boolean;
@@ -173,7 +174,8 @@ export interface SchemaEventFunctionParts {
 
 // New interface for event functions in plan events
 export interface EventFunctionParts {
-    title: string;
+    type: string;    // Key for internal use
+    title: string;   // Display title
     enabled: boolean;
 }
 
@@ -185,6 +187,7 @@ export interface UpdatingEvent {
     is_recurring: boolean;
     parameters: Parameter[];
     event_functions?: EventFunctionParts[]; // New field for event functions
+    hide?: boolean; // Controls whether the event should be shown in the visualization
 }
 
 export interface Event {
@@ -196,6 +199,7 @@ export interface Event {
     parameters: Parameter[];
     updating_events?: UpdatingEvent[];
     event_functions?: EventFunctionParts[]; // New field for event functions
+    hide?: boolean; // Controls whether the event should be shown in the visualization
 }
 
 export interface Envelope {
@@ -276,7 +280,9 @@ interface PlanContextType {
     plan_locked: Plan | null; // <-- add this
     schema: Schema | null;
     isCompareMode: boolean;
+    show_all: boolean;
     setCompareMode: (enabled: boolean) => void;
+    toggleEventVisibility: (eventId: number) => void; // Add method to toggle event visibility
     loadPlan: (planData: Plan) => void;
     savePlan: () => string;
     loadPlanFromFile: (file: File) => Promise<void>;
@@ -336,6 +342,7 @@ interface PlanContextType {
     // Onboarding stage methods
     getEventOnboardingStage: (eventType: string) => string | undefined;
     restartPlan: () => void; // restart to blank plan for both current and locked
+    setShowAll: (value: boolean) => void;
 }
 
 // Schema and default data are now imported directly
@@ -414,6 +421,9 @@ export function PlanProvider({ children }: PlanProviderProps) {
     const [isUxTester, setIsUxTester] = useState(false); // Add this new state
     // Add compare mode state with enhanced setter
     const [isCompareMode, setCompareModeRaw] = useState(false);
+
+    // Add show_all state
+    const [show_all, setShowAll] = useState(false);
 
     // Enhanced setCompareMode that handles copying plan when enabled
     const setCompareMode = useCallback((enabled: boolean) => {
@@ -513,12 +523,12 @@ export function PlanProvider({ children }: PlanProviderProps) {
             const startDay = Math.floor((startDate.getTime() - birthDate.getTime()) / (1000 * 60 * 60 * 24));
             const endDay = Math.floor((endDate.getTime() - birthDate.getTime()) / (1000 * 60 * 60 * 24));
 
-            console.log('📅 Setting visualization date range:', {
-                startDate: planData.view_start_date,
-                endDate: planData.view_end_date,
-                startDay,
-                endDay
-            });
+            // console.log('📅 Setting visualization date range:', {
+            //     startDate: planData.view_start_date,
+            //     endDate: planData.view_end_date,
+            //     startDay,
+            //     endDay
+            // });
 
             // Set zoom to the specified range (this will be called after the visualization is ready)
             setTimeout(() => {
@@ -552,8 +562,8 @@ export function PlanProvider({ children }: PlanProviderProps) {
         } else {
             setPlanLocked(deepClonePlan(planData));
         }
-        console.log("planData.view_start_date: ", planData.view_start_date);
-        console.log("planData.view_end_date: ", planData.view_end_date);
+        //console.log("planData.view_start_date: ", planData.view_start_date);
+        //console.log("planData.view_end_date: ", planData.view_end_date);
         setVisualizationDateRange(planData);
     }, [setVisualizationDateRange, addToStack]);
 
@@ -625,43 +635,41 @@ export function PlanProvider({ children }: PlanProviderProps) {
 
                 // Continue with normal initialization if no example plan found
                 console.log('➡️ Continuing with normal initialization...');
-                let loaded = false;
-                let lockedLoaded = false;
                 let mainPlan = null;
                 let lockedPlan = null;
 
+                // First try localStorage
                 if (ENABLE_AUTO_PERSIST_PLAN) {
+                    console.log('📦 Checking localStorage first...');
                     const stored = localStorage.getItem(LOCALSTORAGE_PLAN_KEY);
                     const storedLocked = localStorage.getItem(LOCALSTORAGE_PLAN_LOCKED_KEY);
 
+                    let localStorageValid = false;
                     if (stored) {
                         try {
                             mainPlan = JSON.parse(stored);
-                            loaded = true;
+                            lockedPlan = storedLocked ? JSON.parse(storedLocked) : defaultLockedPlanData;
+                            localStorageValid = true;
+                            console.log('✅ Successfully loaded plan from localStorage');
                         } catch (e) {
                             console.warn('Failed to parse plan from localStorage:', e);
                         }
                     }
 
-                    if (storedLocked) {
-                        try {
-                            lockedPlan = JSON.parse(storedLocked);
-                            lockedLoaded = true;
-                        } catch (e) {
-                            console.warn('Failed to parse locked plan from localStorage:', e);
-                        }
+                    // If we successfully loaded from localStorage, use that immediately
+                    if (localStorageValid) {
+                        loadPlanData(mainPlan, lockedPlan);
+                        setIsInitialized(true);
+                        return;
                     }
                 }
 
-                // If no stored plans, use defaults
-                if (!loaded) {
-                    mainPlan = defaultPlanData;
-                }
-                if (!lockedLoaded) {
-                    lockedPlan = defaultLockedPlanData;
-                }
+                // If localStorage didn't work, use defaults
+                console.log('📄 Using default plans as fallback');
+                mainPlan = defaultPlanData;
+                lockedPlan = defaultLockedPlanData;
 
-                // Load the plans
+                // Load the default plans
                 loadPlanData(mainPlan, lockedPlan);
                 setIsInitialized(true);
 
@@ -701,8 +709,8 @@ export function PlanProvider({ children }: PlanProviderProps) {
         const startDate = new Date(birthDate.getTime() + currentRange.startDay * 24 * 60 * 60 * 1000);
         const endDate = new Date(birthDate.getTime() + currentRange.endDay * 24 * 60 * 60 * 1000);
 
-        console.log("startDate: ", startDate);
-        console.log("endDate: ", endDate);
+        //console.log("startDate: ", startDate);
+        //console.log("endDate: ", endDate);
 
         return {
             ...planToUpdate,
@@ -715,19 +723,24 @@ export function PlanProvider({ children }: PlanProviderProps) {
     useEffect(() => {
         if (!ENABLE_AUTO_PERSIST_PLAN) return;
         if (!plan) return;
-        if (!isVisualizationReady) {
-            console.warn('Visualization not ready, skipping auto-save.');
-            return;
-        }
+
+        // If visualization isn't ready, save without view range
+        const planToSave = isVisualizationReady ? addViewRangeToPlan(plan) : plan;
+
         try {
-            const planToSave = addViewRangeToPlan(plan);
+            // Always save to localStorage first
             localStorage.setItem(LOCALSTORAGE_PLAN_KEY, JSON.stringify(planToSave));
 
-            // --- Upsert anonymous plan if anon key exists ---
+            // Optionally sync to database in background, but don't wait for it
             const anonId = localStorage.getItem('anon_id');
             if (anonId && typeof upsertAnonymousPlan === 'function') {
                 const planName = planToSave.title || 'Anonymous Plan';
-                upsertAnonymousPlan(planName, planToSave);
+                // Use setTimeout to ensure this runs after the current execution
+                setTimeout(() => {
+                    upsertAnonymousPlan(planName, planToSave).catch(e => {
+                        console.warn('Failed to sync plan to database:', e);
+                    });
+                }, 0);
             }
         } catch (e) {
             console.warn('Failed to save plan to localStorage:', e);
@@ -764,7 +777,7 @@ export function PlanProvider({ children }: PlanProviderProps) {
             try {
                 const planToSave = addViewRangeToPlan(plan);
                 localStorage.setItem(LOCALSTORAGE_PLAN_KEY, JSON.stringify(planToSave));
-                console.log('📅Saving plan with anon key to the supabase');
+                //console.log('📅Saving plan with anon key to the supabase');
 
                 // --- Upsert anonymous plan if anon key exists ---
                 const anonId = localStorage.getItem('anon_id');
@@ -971,7 +984,7 @@ export function PlanProvider({ children }: PlanProviderProps) {
                 value = daysSinceBirthToDateString(totalDays, plan.birth_date);
             }
 
-            console.log("param.type: ", param.type, "value: ", value, "wasOverridden:", wasOverridden);
+            //console.log("param.type: ", param.type, "value: ", value, "wasOverridden:", wasOverridden);
             return {
                 id: index,
                 type: param.type,
@@ -981,6 +994,7 @@ export function PlanProvider({ children }: PlanProviderProps) {
 
         // Create event functions from schema if they exist
         const eventFunctions = eventSchema.event_functions_parts?.map(func => ({
+            type: func.type,
             title: func.title,
             enabled: func.default_state
         })) || [];
@@ -994,7 +1008,8 @@ export function PlanProvider({ children }: PlanProviderProps) {
             is_recurring: eventSchema.is_recurring || false,
             parameters: parameters,
             updating_events: [],
-            event_functions: eventFunctions
+            event_functions: eventFunctions,
+            hide: false // Default to not be hidden in visualization
         };
 
         setPlan(prevPlan => {
@@ -1067,8 +1082,22 @@ export function PlanProvider({ children }: PlanProviderProps) {
             }
         });
 
+        // --- NEW: Check for envelope parameters and add missing envelopes ---
+        let newEnvelopes = [...plan.envelopes];
+        const planEnvelopeNames = newEnvelopes.map(e => e.name);
+        updatingEventSchema.parameters.forEach(param => {
+            if (param.parameter_units === 'envelope' && typeof param.default === 'string' && !planEnvelopeNames.includes(param.default)) {
+                const defaultEnvelope = schema.default_envelopes?.find(env => env.name === param.default);
+                if (defaultEnvelope) {
+                    newEnvelopes.push({ ...defaultEnvelope });
+                    planEnvelopeNames.push(defaultEnvelope.name);
+                }
+            }
+        });
+
         // Create event functions from schema if they exist
         const updatingEventFunctions = updatingEventSchema.event_functions_parts?.map(func => ({
+            type: func.type,
             title: func.title,
             enabled: func.default_state
         })) || [];
@@ -1081,7 +1110,8 @@ export function PlanProvider({ children }: PlanProviderProps) {
             description: updatingEventSchema.description,
             is_recurring: updatingEventSchema.is_recurring || false,
             parameters: parameters,
-            event_functions: updatingEventFunctions
+            event_functions: updatingEventFunctions,
+            hide: false // Default to not  in visualization
         };
 
         setPlan(prevPlan => {
@@ -1096,7 +1126,8 @@ export function PlanProvider({ children }: PlanProviderProps) {
                         };
                     }
                     return event;
-                })
+                }),
+                envelopes: newEnvelopes
             };
 
             // Add to history stack after adding updating event
@@ -1359,8 +1390,8 @@ export function PlanProvider({ children }: PlanProviderProps) {
         setPlanLocked(plan ? deepClonePlan(plan) : null);
         setPlan(temp as any);
         setShouldTriggerSimulation(true);
-        console.log("plan_locked", plan_locked);
-        console.log("plan", plan);
+        //console.log("plan_locked", plan_locked);
+        //console.log("plan", plan);
     }, [plan, plan_locked]);
 
     const copyPlanToLock = useCallback(() => {
@@ -1642,6 +1673,7 @@ export function PlanProvider({ children }: PlanProviderProps) {
                         const eventSchema = schema.events.find(e => e.type === event.type);
                         if (eventSchema?.event_functions_parts) {
                             updatedEventFunctions.push(...eventSchema.event_functions_parts.map(func => ({
+                                type: func.type,
                                 title: func.title,
                                 enabled: func.title === functionTitle ? enabled : func.default_state
                             })));
@@ -1665,6 +1697,7 @@ export function PlanProvider({ children }: PlanProviderProps) {
                                 const updatingEventSchema = mainEventSchema?.updating_events?.find(ue => ue.type === updatingEvent.type);
                                 if (updatingEventSchema?.event_functions_parts) {
                                     updatedEventFunctions.push(...updatingEventSchema.event_functions_parts.map(func => ({
+                                        type: func.type,
                                         title: func.title,
                                         enabled: func.title === functionTitle ? enabled : func.default_state
                                     })));
@@ -1738,10 +1771,39 @@ export function PlanProvider({ children }: PlanProviderProps) {
         return undefined;
     }, [schema]);
 
+    // Function to toggle event visibility
+    const toggleEventVisibility = useCallback((eventId: number) => {
+        if (!plan) return;
+
+        setPlan(prevPlan => {
+            if (!prevPlan) return null;
+
+            const updatedEvents = prevPlan.events.map(event => {
+                if (event.id === eventId) {
+                    return { ...event, hide: !event.hide };
+                }
+                // Check updating events
+                if (event.updating_events) {
+                    const updatedUpdatingEvents = event.updating_events.map(updatingEvent => {
+                        if (updatingEvent.id === eventId) {
+                            return { ...updatingEvent, hide: !updatingEvent.hide };
+                        }
+                        return updatingEvent;
+                    });
+                    return { ...event, updating_events: updatedUpdatingEvents };
+                }
+                return event;
+            });
+
+            return { ...prevPlan, events: updatedEvents };
+        });
+    }, [plan]);
+
     const value = {
         plan,
         plan_locked, // <-- add to context value
         schema,
+        toggleEventVisibility, // Add the new function
         loadPlan,
         savePlan,
         loadPlanFromFile,
@@ -1856,6 +1918,8 @@ export function PlanProvider({ children }: PlanProviderProps) {
                 console.warn('Failed to restart plan:', e);
             }
         },
+        show_all,
+        setShowAll,
     };
 
     // Don't render children until we've attempted to load the default plan and schema

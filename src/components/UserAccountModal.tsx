@@ -4,6 +4,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from './ui/dialog';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
@@ -90,9 +91,15 @@ const UserAccountModal: React.FC<UserAccountModalProps> = ({ isOpen, onClose, on
   if (isLoading) {
     return (
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent
+          className="sm:max-w-lg"
+          aria-describedby="loading-description"
+        >
           <DialogHeader>
             <DialogTitle>Loading...</DialogTitle>
+            <DialogDescription id="loading-description">
+              Loading your account information
+            </DialogDescription>
           </DialogHeader>
           <div className="flex items-center justify-center p-8">
             <div className="text-sm">Loading user data...</div>
@@ -105,9 +112,15 @@ const UserAccountModal: React.FC<UserAccountModalProps> = ({ isOpen, onClose, on
   if (!user) {
     return (
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent
+          className="sm:max-w-lg"
+          aria-describedby="signin-description"
+        >
           <DialogHeader>
             <DialogTitle>Not Signed In</DialogTitle>
+            <DialogDescription id="signin-description">
+              Authentication required to access account settings
+            </DialogDescription>
           </DialogHeader>
           <div className="flex items-center justify-center p-8">
             <div className="text-sm">Please sign in to view your account.</div>
@@ -386,9 +399,15 @@ const UserAccountModal: React.FC<UserAccountModalProps> = ({ isOpen, onClose, on
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-5xl h-[85vh] p-0 gap-0 overflow-hidden flex flex-col">
+      <DialogContent
+        className="sm:max-w-5xl h-[85vh] p-0 gap-0 overflow-hidden flex flex-col"
+        aria-describedby="account-settings-description"
+      >
         <DialogHeader className="px-6 py-4 border-b border-border">
           <DialogTitle>Account Settings</DialogTitle>
+          <DialogDescription id="account-settings-description">
+            Manage your account settings, subscription, and saved plans
+          </DialogDescription>
         </DialogHeader>
         <div className="flex-1 flex min-h-0">
           {/* Sidebar */}

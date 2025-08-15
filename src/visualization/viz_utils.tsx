@@ -288,7 +288,7 @@ export const Legend = ({
         return null;
     }
     // Calculate net worth as the sum of all envelope values
-    const netWorth = envelopes.reduce((sum, env) => sum + (currentValues[env] || 0), 0);
+    const netWorth = normalizeZero(envelopes.reduce((sum, env) => sum + (currentValues[env] || 0), 0));
 
     // Choose a color for the net worth box (you can pick a unique color or reuse a category color)
     const netWorthColor = { area: '#335966', line: '#03c6fc' }; // Example: blue/teal
@@ -336,7 +336,7 @@ export const Legend = ({
             <div className="space-y-3">
                 {Object.entries(categoryMap).map(([category, envs]) => {
                     const catColor = categoryColors[category] || { area: '#ccc', line: '#888' };
-                    const categorySum = envs.reduce((sum, env) => sum + (currentValues[env] || 0), 0);
+                    const categorySum = normalizeZero(envs.reduce((sum, env) => sum + (currentValues[env] || 0), 0));
                     // Only show envelope list if:
                     // - more than one envelope in category, or
                     // - the only envelope does NOT start with 'Other'
@@ -371,7 +371,7 @@ export const Legend = ({
                             {showEnvelopes && (
                                 <div style={{ marginLeft: 20, marginTop: 2 }} className="space-y-1">
                                     {envs
-                                        .filter(envelope => Number((currentValues[envelope] || 0).toFixed(2)) !== 0) // Filter out values that round to 0.00
+                                        .filter(envelope => normalizeZero(currentValues[envelope] || 0) !== 0) // Filter out near-zero values
                                         .map((envelope) => {
                                             const envColor = envelopeColors[envelope] || catColor;
                                             const isHovered = hoveredArea?.envelope === "envelope";
@@ -400,7 +400,7 @@ export const Legend = ({
                                                             : (isHovered ? '#335966' : '#6B7280'),
                                                         fontWeight: isHovered ? 600 : 400
                                                     }}>
-                                                        {formatNumber({ valueOf: () => currentValues[envelope] || 0 })}
+                                                        {formatNumber({ valueOf: () => normalizeZero(currentValues[envelope] || 0) })}
                                                     </span>
                                                 </div>
                                             );
@@ -414,7 +414,7 @@ export const Legend = ({
                 {/* Render non-networth categories */}
                 {Object.entries(nonNetworthCategoryMap).map(([category, envs]) => {
                     const catColor = categoryColors[category] || { area: '#ff6b6b', line: '#ff4757' };
-                    const categorySum = envs.reduce((sum, env) => sum + ((nonNetworthCurrentValues && nonNetworthCurrentValues[env]) || 0), 0);
+                    const categorySum = normalizeZero(envs.reduce((sum, env) => sum + ((nonNetworthCurrentValues && nonNetworthCurrentValues[env]) || 0), 0));
                     const showEnvelopes = envs.length > 1 || (envs.length === 1 && !/^other/i.test(envs[0]));
                     const isCategoryHovered = hoveredArea?.category === "category";
                     return (
@@ -446,7 +446,7 @@ export const Legend = ({
                             {showEnvelopes && nonNetworthCurrentValues && (
                                 <div style={{ marginLeft: 20, marginTop: 2 }} className="space-y-1">
                                     {envs
-                                        .filter(envelope => Number((nonNetworthCurrentValues[envelope] || 0).toFixed(2)) !== 0) // Filter out values that round to 0.00
+                                        .filter(envelope => normalizeZero(nonNetworthCurrentValues[envelope] || 0) !== 0) // Filter out near-zero values
                                         .map((envelope) => {
                                             const envColor = envelopeColors[envelope] || catColor;
                                             const isHovered = hoveredArea?.envelope === "envelope";
@@ -475,7 +475,7 @@ export const Legend = ({
                                                         color: isHovered ? '#335966' : '#gray-400',
                                                         fontWeight: isHovered ? 600 : 400
                                                     }}>
-                                                        {formatNumber({ valueOf: () => nonNetworthCurrentValues[envelope] || 0 })}
+                                                        {formatNumber({ valueOf: () => normalizeZero(nonNetworthCurrentValues[envelope] || 0) })}
                                                     </span>
                                                 </div>
                                             );

@@ -1,5 +1,5 @@
 // resultsEvaluation.ts
-
+import { precomputeThetasForGPU, evaluateGPUDescriptors } from "./baseFunctionsGPU";
 /**
  * Converts a value at a specific day (future or past) to today's value (present value).
  * This is the inverse of valueToDay.
@@ -65,6 +65,17 @@ export function valueToDay(
     return valueToday * Math.pow(1 + inflationRate, d / 365);
 }
 
+// Timing flag
+export const ENABLE_TIMING = true;
+
+// Minimal GPU envelope shape for this evaluator
+export type EnvelopeGPU = {
+    gpuDescriptors?: any[];
+    growth_type?: string;
+    growth_rate?: number;
+    days_of_usefulness?: number;
+};
+
 export function computeTimePoints(
     startDate: number,
     endDate: number,
@@ -72,73 +83,92 @@ export function computeTimePoints(
     visibleRange?: { startDate: number, endDate: number },
     currentDay?: number
 ): number[] {
-    let timePoints: number[];
-
-    // If interval is 365, or 182.5 then do full range of dates
+    const points: number[] = [];
     if (frequency === 365 || frequency === 182.5) {
-        timePoints = Array.from(
-            { length: Math.ceil((endDate - startDate) / frequency) },
-            (_, i) => startDate + i * frequency
-        );
-        if (timePoints[timePoints.length - 1] !== endDate) {
-            timePoints.push(endDate);
-        }
+        for (let t = startDate; t <= endDate; t += frequency) points.push(t);
+        if (points.length === 0 || points[points.length - 1] !== endDate) points.push(endDate);
     } else {
-        timePoints = [startDate];
+        points.push(startDate);
         if (visibleRange) {
             for (let t = visibleRange.startDate; t <= visibleRange.endDate; t += frequency) {
-                timePoints.push(t);
+                points.push(t);
             }
         }
-        if (timePoints[timePoints.length - 1] !== endDate) {
-            timePoints.push(endDate);
-        }
+        if (points[points.length - 1] !== endDate) points.push(endDate);
     }
-
     if (currentDay) {
-        const currentDayIndex = timePoints.findIndex(t => t === currentDay);
-        if (currentDayIndex !== -1) {
-            timePoints.splice(currentDayIndex, 0, currentDay);
-        }
+        const idx = points.findIndex(t => t === currentDay);
+        if (idx !== -1) points.splice(idx, 0, currentDay);
     }
-
-    return timePoints;
+    return points;
 }
 
 export function evaluateResults(
-    envelopes: Record<string, { functions: ((t: number) => number)[], growth_type: string, growth_rate: number }>,
+    envelopes: Record<string, EnvelopeGPU>,
     startDate: number,
     endDate: number,
     frequency: number,
-    currentDay?: number,
-    inflationRate?: number,
-    visibleRange?: { startDate: number, endDate: number },
-    timePointsOverride?: number[]
+    currentDay: number | undefined,
+    inflationRate: number | undefined,
+    timePoints: number[],
+    visibleRange?: { startDate: number, endDate: number }
 ): { results: Record<string, number[]>, timePoints: number[] } {
     // Initialize results
-    const results: Record<string, number[]> = {};
-    for (const key in envelopes) {
-        results[key] = [];
+    let results: Record<string, number[]> = {};
+
+    // Prevent unused param lints for now (kept for API compatibility)
+    void startDate; void endDate; void frequency; void visibleRange;
+
+    let thetaTime = 0;
+    let totalGpuTime = 0;
+
+    // Precompute GPU theta series using provided timePoints only
+    const thetaStart = performance.now();
+    precomputeThetasForGPU(envelopes as any, timePoints);
+    thetaTime = performance.now() - thetaStart;
+    if (ENABLE_TIMING) {
+        console.info(`[Performance] Theta precomputation: ${thetaTime.toFixed(2)}ms`);
     }
 
-    const timePoints = timePointsOverride ?? computeTimePoints(startDate, endDate, frequency, visibleRange, currentDay);
-
-    // Evaluate functions at all points
+    // Compute all results using GPU in two phases to support cross-envelope lazy targets
+    const gpuStart = performance.now();
+    const baseResults: Record<string, number[]> = {};
+    const lazyOverlay: Record<string, number[]> = {};
+    // Phase A: evaluate without LazyFromEnvelopes (treats them as no-ops)
     for (const key in envelopes) {
-        results[key] = timePoints.map(t =>
-            envelopes[key].functions.reduce((sum, func) => sum + func(t), 0)
+        const descs = ((envelopes as any)[key].gpuDescriptors || []).filter((d: any) => d?.type !== 'LazyFromEnvelopes');
+        baseResults[key] = evaluateGPUDescriptors(descs, timePoints);
+    }
+    // Phase B: evaluate only LazyFromEnvelopes using Phase A values as context
+    for (const key in envelopes) {
+        const lazyDescs = ((envelopes as any)[key].gpuDescriptors || []).filter((d: any) => d?.type === 'LazyFromEnvelopes');
+        if (lazyDescs.length === 0) {
+            lazyOverlay[key] = new Array(timePoints.length).fill(0);
+            continue;
+        }
+        lazyOverlay[key] = evaluateGPUDescriptors(
+            lazyDescs,
+            timePoints,
+            (k: string, idx: number) => baseResults[k]?.[idx] ?? 0
         );
     }
+    // Sum base + overlay
+    const gpuResults: Record<string, number[]> = {};
+    for (const key in envelopes) {
+        const a = baseResults[key] || new Array(timePoints.length).fill(0);
+        const b = lazyOverlay[key] || new Array(timePoints.length).fill(0);
+        const summed = new Array(timePoints.length);
+        for (let i = 0; i < timePoints.length; i++) summed[i] = (a[i] || 0) + (b[i] || 0);
+        gpuResults[key] = summed;
+    }
+    totalGpuTime = performance.now() - gpuStart;
+    if (ENABLE_TIMING) {
+        console.info(`[Performance] GPU evaluation: ${totalGpuTime.toFixed(2)}ms`);
+    }
 
-    // console.log('📊 Evaluation Results:', {
-    //     timePointsLength: timePoints.length,
-    //     timeRange: {
-    //         first: timePoints[0],
-    //         last: timePoints[timePoints.length - 1],
-    //         span: timePoints[timePoints.length - 1] - timePoints[0]
-    //     },
-    //     resultKeysCount: Object.keys(results).length
-    // });
+    // Use GPU results only (single-pass evaluation)
+    results = gpuResults;
+
 
     // Apply inflation adjustment if needed
     if (currentDay !== undefined && inflationRate !== undefined) {

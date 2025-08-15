@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Trash2, HelpCircle, Calendar, Clock, FileText, DollarSign, Percent } from 'lucide-react';
+import { Trash2, HelpCircle, Calendar, Clock, FileText, DollarSign, Percent, Eye, EyeOff } from 'lucide-react';
 import {
     Dialog,
     DialogContent,
@@ -28,7 +28,6 @@ import { usePlan, findEventOrUpdatingEventById, getEventDefinition } from '../co
 import { useAuth } from '../contexts/AuthContext';
 import type { Plan, Event, Parameter, Schema, SchemaEvent, UpdatingEvent } from '../contexts/PlanContext';
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from './ui/accordion';
-import DatePicker from './DatePicker';
 // import { Pencil } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import EventParameterInputs from './EventParameterInputs';
@@ -50,7 +49,7 @@ const EventParametersForm: React.FC<EventParametersFormProps> = ({
     onOpenEnvelopeModal,
     onAddEnvelope
 }) => {
-    const { plan, schema, getEventIcon, updateParameter, deleteEvent, getParameterDisplayName, getParameterUnits, getEventDisplayType, addUpdatingEvent, getParameterDescription, updateEventDescription, updateEventTitle, canEventBeRecurring, updateEventRecurring, getParameterOptions, currentDay, getEnvelopeDisplayName, getEventFunctionsParts, updateEventFunctionParts, getEventFunctionPartsState, getEventFunctionPartsIcon, getEventFunctionPartsDescription, getEventDisclaimer } = usePlan();
+    const { plan, schema, getEventIcon, updateParameter, deleteEvent, getParameterDisplayName, getParameterUnits, getEventDisplayType, addUpdatingEvent, getParameterDescription, updateEventDescription, updateEventTitle, canEventBeRecurring, updateEventRecurring, getParameterOptions, currentDay, getEnvelopeDisplayName, getEventFunctionsParts, updateEventFunctionParts, getEventFunctionPartsState, getEventFunctionPartsIcon, getEventFunctionPartsDescription, getEventDisclaimer, toggleEventVisibility } = usePlan();
     const { isOnboardingAtOrAbove } = useAuth();
 
     // State for local parameter editing (now supports main and updating events)
@@ -421,14 +420,28 @@ const EventParametersForm: React.FC<EventParametersFormProps> = ({
             <DialogContent className="max-w-5xl w-[90vw] max-h-[85vh] overflow-hidden flex flex-col">
                 <DialogHeader className="space-y-3 border-b border-border pb-4">
                     <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                            <span className="text-2xl">{eventIcon}</span>
-                            <div>
-                                <DialogTitle className="text-xl font-semibold text-foreground">{eventName}</DialogTitle>
-                                <DialogDescription className="text-sm text-muted-foreground">
-                                    {eventDef?.description || "Customize this financial life event"}
-                                </DialogDescription>
+                        <div className="flex items-center justify-between w-full">
+                            <div className="flex items-center gap-3">
+                                <span className="text-2xl">{eventIcon}</span>
+                                <div>
+                                    <DialogTitle className="text-xl font-semibold text-foreground">{eventName}</DialogTitle>
+                                    <DialogDescription className="text-sm text-muted-foreground">
+                                        {eventDef?.description || "Customize this financial life event"}
+                                    </DialogDescription>
+                                </div>
                             </div>
+                            <button
+                                type="button"
+                                onClick={() => toggleEventVisibility(eventId)}
+                                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                                title={event.hide ? "Show event" : "Hide event"}
+                            >
+                                {event.hide ? (
+                                    <EyeOff className="w-5 h-5 text-gray-400 hover:text-gray-600" />
+                                ) : (
+                                    <Eye className="w-5 h-5 text-gray-400 hover:text-gray-600" />
+                                )}
+                            </button>
                         </div>
                     </div>
                 </DialogHeader>

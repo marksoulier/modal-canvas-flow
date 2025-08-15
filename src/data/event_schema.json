@@ -115,13 +115,6 @@
             "account_type": "non-networth-account"
         },
         {
-            "name": "401K Penalty",
-            "category": "Debt",
-            "growth": "None",
-            "rate": 0,
-            "account_type": "system-controlled"
-        },
-        {
             "name": "401K Taxes",
             "category": "Debt",
             "growth": "None",
@@ -164,6 +157,13 @@
             "account_type": "non-networth-account"
         },
         {
+            "name": "401K Penalty",
+            "category": "Debt",
+            "growth": "None",
+            "rate": 0,
+            "account_type": "system-controlled"
+        },
+        {
             "name": "ROTH IRA Withdraw",
             "category": "Debt",
             "growth": "None",
@@ -183,6 +183,20 @@
             "growth": "None",
             "rate": 0,
             "account_type": "system-controlled"
+        },
+        {
+            "name": "Short Term Capital Gains",
+            "category": "Debt",
+            "growth": "None",
+            "rate": 0,
+            "account_type": "non-networth-account"
+        },
+        {
+            "name": "Long Term Capital Gains",
+            "category": "Debt",
+            "growth": "None",
+            "rate": 0,
+            "account_type": "non-networth-account"
         }
     ],
     "account_types": [
@@ -260,6 +274,15 @@
             "description": "A simple inflow of money into an envelope.",
             "default_title": "Money Inflow",
             "icon": "arrow-up",
+            "event_functions_parts": [
+                {
+                    "type": "inflow",
+                    "title": "Inflow",
+                    "description": "Move money into the destination envelope",
+                    "icon": "arrow-up",
+                    "default_state": true
+                }
+            ],
             "parameters": [
                 {
                     "type": "start_time",
@@ -385,6 +408,15 @@
             "description": "A simple outflow of money from an envelope.",
             "default_title": "Money Outflow",
             "icon": "arrow-down",
+            "event_functions_parts": [
+                {
+                    "type": "outflow",
+                    "title": "Outflow",
+                    "description": "Take money from the source envelope",
+                    "icon": "arrow-down",
+                    "default_state": true
+                }
+            ],
             "parameters": [
                 {
                     "type": "start_time",
@@ -512,6 +544,15 @@
             "default_title": "Initial Account Balances",
             "icon": "list",
             "disclaimer": "This event is used to set the starting balances for up to five envelopes. Use this on todays date to set the account balance for your envelopes.",
+            "event_functions_parts": [
+                {
+                    "type": "alter_account_balance",
+                    "title": "Enforce Account Balance",
+                    "description": "Enforce the account balances listed",
+                    "icon": "list",
+                    "default_state": true
+                }
+            ],
             "parameters": [
                 {
                     "type": "start_time",
@@ -610,12 +651,28 @@
             "display_event": true,
             "is_recurring": false,
             "can_be_reocurring": true,
-            "weight": 80,
+            "weight": 100,
             "category": "System",
             "description": "Transfer money between envelopes with optional growth rate for destination.",
             "default_title": "Money Transfer",
             "icon": "arrow-right-arrow-left",
             "disclaimer": "This event transfers a specified amount between envelopes. It does not simulate transfer fees, delays, or currency conversion.",
+            "event_functions_parts": [
+                {
+                    "type": "inflow",
+                    "title": "Inflow",
+                    "description": "Move money into the destination envelope",
+                    "icon": "arrow-up",
+                    "default_state": true
+                },
+                {
+                    "type": "outflow",
+                    "title": "Outflow",
+                    "description": "Take money from the source envelope",
+                    "icon": "arrow-down",
+                    "default_state": true
+                }
+            ],
             "parameters": [
                 {
                     "type": "start_time",
@@ -690,20 +747,6 @@
                     "editable": false
                 }
             ],
-            "event_functions_parts": [
-                {
-                    "title": "Inflow",
-                    "description": "Move money into the destination envelope",
-                    "icon": "arrow-up",
-                    "default_state": true
-                },
-                {
-                    "title": "Outflow",
-                    "description": "Take money from the source envelope",
-                    "icon": "arrow-down",
-                    "default_state": true
-                }
-            ],
             "updating_events": [
                 {
                     "type": "update_amount",
@@ -763,6 +806,15 @@
             "description": "Receive a recurring income at a specified interval. The frequency and amount can be updated over time.",
             "icon": "repeat",
             "disclaimer": "This event simulates recurring income deposits at set intervals. It does not account for missed payments, taxes, or income changes.",
+            "event_functions_parts": [
+                {
+                    "type": "inflow",
+                    "title": "Inflow",
+                    "description": "Move money into the destination envelope",
+                    "icon": "arrow-up",
+                    "default_state": true
+                }
+            ],
             "parameters": [
                 {
                     "type": "start_time",
@@ -864,6 +916,15 @@
             "description": "Manually adjust the value of an envelope for tracking accuracy.",
             "icon": "edit",
             "disclaimer": "This event allows manual adjustment of an envelope's value. This is used to correct an account to a specific amount.",
+            "event_functions_parts": [
+                {
+                    "type": "alter_account_balance",
+                    "title": "Enforce Account Balance",
+                    "description": "Enforce the account balance to the specified amount",
+                    "icon": "edit",
+                    "default_state": true
+                }
+            ],
             "parameters": [
                 {
                     "type": "start_time",
@@ -878,7 +939,7 @@
                     "display_name": "Adjustment Amount",
                     "parameter_units": "usd",
                     "description": "The value added or subtracted (negative values allowed).",
-                    "default": 1000,
+                    "default": 50,
                     "editable": true
                 },
                 {
@@ -902,6 +963,36 @@
             "description": "Take a personal loan over a specified period. Payed back in monthly payments.",
             "icon": "credit-card",
             "disclaimer": "This event uses loan amortization, calculating monthly payments and interest. It does not account for missed payments, prepayments, or changes in interest rates.",
+            "event_functions_parts": [
+                {
+                    "type": "pay_off_loan",
+                    "title": "Pay Off Loan",
+                    "description": "Simulate the debt being paid off by your debt payments",
+                    "icon": "credit-card",
+                    "default_state": true
+                },
+                {
+                    "type": "debt_payments",
+                    "title": "Debt Payments",
+                    "description": "Simulate reocurring debt payments out of the From Envelope on an amoratization schedule",
+                    "icon": "credit-card",
+                    "default_state": true
+                },
+                {
+                    "type": "deposit_debt",
+                    "title": "Deposit Debt",
+                    "description": "Simulate the loan being deposited into the From Envelope",
+                    "icon": "credit-card",
+                    "default_state": true
+                },
+                {
+                    "type": "final_payment_correction",
+                    "title": "Final Payment Correction",
+                    "description": "Simulate a small correction on the final payment due to ammoratization schedule inaccuracies",
+                    "icon": "credit-card",
+                    "default_state": true
+                }
+            ],
             "parameters": [
                 {
                     "type": "start_time",
@@ -932,7 +1023,7 @@
                     "display_name": "Principal",
                     "parameter_units": "usd",
                     "description": "Principal amount of the loan",
-                    "default": 10000,
+                    "default": 100,
                     "editable": true
                 },
                 {
@@ -982,6 +1073,36 @@
             "default_title": "Personal Loan",
             "icon": "credit-card",
             "disclaimer": "This event uses loan amortization, calculating monthly payments and interest. It does not account for missed payments, prepayments, or changes in interest rates.",
+            "event_functions_parts": [
+                {
+                    "type": "pay_off_loan",
+                    "title": "Pay Off Loan",
+                    "description": "Simulate the debt being paid off by your debt payments",
+                    "icon": "credit-card",
+                    "default_state": true
+                },
+                {
+                    "type": "debt_payments",
+                    "title": "Debt Payments",
+                    "description": "Simulate reocurring transfer of money out of the Envelope",
+                    "icon": "credit-card",
+                    "default_state": true
+                },
+                {
+                    "type": "deposit_debt",
+                    "title": "Deposit Debt",
+                    "description": "Simulate the loan being deposited into the Envelope",
+                    "icon": "credit-card",
+                    "default_state": true
+                },
+                {
+                    "type": "final_payment_correction",
+                    "title": "Final Payment Correction",
+                    "description": "Simulate a small correction on the final payment due to ammoratization schedule inaccuracies",
+                    "icon": "credit-card",
+                    "default_state": true
+                }
+            ],
             "parameters": [
                 {
                     "type": "start_time",
@@ -1012,7 +1133,7 @@
                     "display_name": "Principal",
                     "parameter_units": "usd",
                     "description": "Principal amount of the loan",
-                    "default": 10000,
+                    "default": 100,
                     "editable": true
                 },
                 {
@@ -1054,6 +1175,15 @@
             "default_title": "Purchase",
             "icon": "shopping-cart",
             "disclaimer": "This event records a one-time purchase or expense from a selected envelope. It does not account for recurring costs, taxes, or the impact on other envelopes.",
+            "event_functions_parts": [
+                {
+                    "type": "outflow",
+                    "title": "Outflow",
+                    "description": "Take money from the source envelope",
+                    "icon": "arrow-down",
+                    "default_state": true
+                }
+            ],
             "parameters": [
                 {
                     "type": "start_time",
@@ -1110,6 +1240,15 @@
             "default_title": "Gift",
             "icon": "gift",
             "disclaimer": "This event adds a one-time monetary gift to a chosen envelope. It does not simulate taxes, recurring gifts, or non-cash gifts.",
+            "event_functions_parts": [
+                {
+                    "type": "inflow",
+                    "title": "Inflow",
+                    "description": "Move money into the destination envelope",
+                    "icon": "arrow-up",
+                    "default_state": true
+                }
+            ],
             "parameters": [
                 {
                     "type": "start_time",
@@ -1164,6 +1303,85 @@
             "description": "Set your typical monthly budget for common expense categories.",
             "icon": "dollar-bill",
             "disclaimer": "This event allows you to set up recurring monthly expenses for common budget categories.",
+            "event_functions_parts": [
+                {
+                    "type": "update_budget_with_inflation",
+                    "title": "Update Budget with Inflation",
+                    "description": "Update the monthly budget to increase over time with system inflation. If turned off then will simulate monthly budget staying the same.",
+                    "icon": "dollar-sign",
+                    "default_state": true
+                },
+                {
+                    "type": "outflow_groceries",
+                    "title": "Outflow Groceries",
+                    "description": "Simulate reocurring transfer of money out of the Envelope",
+                    "icon": "arrow-down",
+                    "default_state": true
+                },
+                {
+                    "type": "outflow_utilities",
+                    "title": "Outflow Utilities",
+                    "description": "Simulate reocurring transfer of money out of the Envelope",
+                    "icon": "arrow-down",
+                    "default_state": true
+                },
+                {
+                    "type": "outflow_rent",
+                    "title": "Outflow Rent",
+                    "description": "Simulate reocurring transfer of money out of the Envelope",
+                    "icon": "arrow-down",
+                    "default_state": true
+                },
+                {
+                    "type": "outflow_transportation",
+                    "title": "Outflow Transportation",
+                    "description": "Simulate reocurring transfer of money out of the Envelope",
+                    "icon": "arrow-down",
+                    "default_state": true
+                },
+                {
+                    "type": "outflow_insurance",
+                    "title": "Outflow Insurance",
+                    "description": "Simulate reocurring transfer of money out of the Envelope",
+                    "icon": "arrow-down",
+                    "default_state": true
+                },
+                {
+                    "type": "outflow_healthcare",
+                    "title": "Outflow Healthcare",
+                    "description": "Simulate reocurring transfer of money out of the Envelope",
+                    "icon": "arrow-down",
+                    "default_state": true
+                },
+                {
+                    "type": "outflow_dining_out",
+                    "title": "Outflow Dining Out",
+                    "description": "Simulate reocurring transfer of money out of the Envelope",
+                    "icon": "arrow-down",
+                    "default_state": true
+                },
+                {
+                    "type": "outflow_entertainment",
+                    "title": "Outflow Entertainment",
+                    "description": "Simulate reocurring transfer of money out of the Envelope",
+                    "icon": "arrow-down",
+                    "default_state": true
+                },
+                {
+                    "type": "outflow_personal_care",
+                    "title": "Outflow Personal Care",
+                    "description": "Simulate reocurring transfer of money out of the Envelope",
+                    "icon": "arrow-down",
+                    "default_state": true
+                },
+                {
+                    "type": "outflow_miscellaneous",
+                    "title": "Outflow Miscellaneous",
+                    "description": "Simulate reocurring transfer of money out of the Envelope",
+                    "icon": "arrow-down",
+                    "default_state": true
+                }
+            ],
             "parameters": [
                 {
                     "type": "start_time",
@@ -1302,7 +1520,18 @@
                             "type": "key",
                             "display_name": "Category",
                             "parameter_units": "enum",
-                            "options": ["groceries", "utilities", "rent", "transportation", "insurance", "healthcare", "dining_out", "entertainment", "personal_care", "miscellaneous"],
+                            "options": [
+                                "groceries",
+                                "utilities",
+                                "rent",
+                                "transportation",
+                                "insurance",
+                                "healthcare",
+                                "dining_out",
+                                "entertainment",
+                                "personal_care",
+                                "miscellaneous"
+                            ],
                             "description": "Category to update.",
                             "default": "groceries",
                             "editable": true
@@ -1332,6 +1561,36 @@
             "default_title": "First Job",
             "icon": "briefcase",
             "disclaimer": "This event simulates salaried employment, calculating net pay after taxes and 401k contributions. It does not model job loss, promotions, or non-salary compensation.",
+            "event_functions_parts": [
+                {
+                    "type": "inflow",
+                    "title": "Pay Day",
+                    "description": "Paycheck being deposited in designated Account",
+                    "icon": "arrow-up",
+                    "default_state": true
+                },
+                {
+                    "type": "tax_withholdings",
+                    "title": "Tax Withholdings",
+                    "description": "Taxes being withhled from the account according to the state and federal tax pecentage",
+                    "icon": "arrow-down",
+                    "default_state": true
+                },
+                {
+                    "type": "p_401k_contribution",
+                    "title": "401k Contribution",
+                    "description": "401k contribution being taken out of Pay Check and placed in 401K account with math",
+                    "icon": "arrow-down",
+                    "default_state": true
+                },
+                {
+                    "type": "salary_in_taxable_income",
+                    "title": "Salary in Taxable Income",
+                    "description": "Salary being added to Taxable Income",
+                    "icon": "arrow-up",
+                    "default_state": true
+                }
+            ],
             "parameters": [
                 {
                     "type": "start_time",
@@ -1379,6 +1638,14 @@
                     "parameter_units": "percentage",
                     "description": "State income tax rate.",
                     "default": 0.05,
+                    "editable": true
+                },
+                {
+                    "type": "local_income_tax",
+                    "display_name": "Local Tax Rate",
+                    "parameter_units": "percentage",
+                    "description": "Local income tax rate.",
+                    "default": 0.01,
                     "editable": true
                 },
                 {
@@ -1469,7 +1736,7 @@
                     "onboarding_stage": "full",
                     "display_event": true,
                     "is_recurring": false,
-                    "can_be_reocurring": true,
+                    "can_be_reocurring": false,
                     "icon": "arrow-up",
                     "description": "Receive an increase in salary.",
                     "default_title": "Salary Raise",
@@ -1483,27 +1750,55 @@
                             "editable": true
                         },
                         {
-                            "type": "end_time",
-                            "display_name": "End Date",
+                            "type": "salary",
+                            "display_name": "New Annual Salary",
+                            "parameter_units": "usd",
+                            "description": "New annual salary after raise.",
+                            "default": 65000,
+                            "editable": true
+                        }
+                    ]
+                },
+                {
+                    "type": "reoccurring_raise",
+                    "display_type": "Reoccurring Raise",
+                    "onboarding_stage": "full",
+                    "display_event": true,
+                    "is_recurring": true,
+                    "can_be_reocurring": true,
+                    "icon": "arrow-up",
+                    "description": "Receive a recurring raise",
+                    "parameters": [
+                        {
+                            "type": "start_time",
+                            "display_name": "Raise Effective Date",
                             "parameter_units": "date",
-                            "description": "When the recurring raise ends (only used if recurring)",
-                            "default": 3650,
+                            "description": "When the raise takes effect",
+                            "default": 365,
                             "editable": true
                         },
                         {
                             "type": "frequency_days",
                             "display_name": "Frequency (Days)",
                             "parameter_units": "days",
-                            "description": "Number of days between each raise (only used if recurring)",
+                            "description": "Number of days between each raise",
                             "default": 365,
                             "editable": true
                         },
                         {
-                            "type": "salary",
-                            "display_name": "New Annual Salary",
+                            "type": "end_time",
+                            "display_name": "End Date",
+                            "parameter_units": "date",
+                            "description": "When the raise ends",
+                            "default": 3650,
+                            "editable": true
+                        },
+                        {
+                            "type": "salary_increase",
+                            "display_name": "Salary Increase",
                             "parameter_units": "usd",
-                            "description": "New annual salary after raise.",
-                            "default": 65000,
+                            "description": "Salary increase amount.",
+                            "default": 5000,
                             "editable": true
                         }
                     ]
@@ -1576,6 +1871,36 @@
             "description": "Start earning an hourly wage from employment.",
             "icon": "clock",
             "disclaimer": "This event simulates hourly wage employment, including taxes and 401k contributions. It does not account for overtime, tips, or job loss.",
+            "event_functions_parts": [
+                {
+                    "type": "inflow",
+                    "title": "Pay Day",
+                    "description": "Paycheck being deposited in designated Account",
+                    "icon": "arrow-up",
+                    "default_state": true
+                },
+                {
+                    "type": "tax_withholdings",
+                    "title": "Tax Withholdings",
+                    "description": "Taxes being withheld from the account according to the state and federal tax percentage",
+                    "icon": "arrow-down",
+                    "default_state": true
+                },
+                {
+                    "type": "p_401k_contribution",
+                    "title": "401k Contribution",
+                    "description": "401k contribution being taken out of Pay Check and placed in 401K account with match",
+                    "icon": "arrow-down",
+                    "default_state": true
+                },
+                {
+                    "type": "salary_in_taxable_income",
+                    "title": "Include in Taxable Income",
+                    "description": "Include wages in taxable income for tax tracking",
+                    "icon": "arrow-up",
+                    "default_state": true
+                }
+            ],
             "parameters": [
                 {
                     "type": "start_time",
@@ -1634,6 +1959,14 @@
                     "editable": true
                 },
                 {
+                    "type": "state_income_tax",
+                    "display_name": "State Tax Rate",
+                    "parameter_units": "percentage",
+                    "description": "State income tax rate.",
+                    "default": 0.05,
+                    "editable": true
+                },
+                {
                     "type": "social_security_tax",
                     "display_name": "Social Security Tax Rate",
                     "parameter_units": "percentage",
@@ -1680,6 +2013,38 @@
                     "description": "Envelope where 401k contributions are tracked",
                     "default": "Other (Retirement)",
                     "editable": true
+                },
+                {
+                    "type": "taxable_income_key",
+                    "display_name": "Taxable Income Envelope",
+                    "parameter_units": "envelope",
+                    "description": "Envelope where taxable income is tracked",
+                    "default": "Taxable Income",
+                    "editable": false
+                },
+                {
+                    "type": "federal_withholdings_key",
+                    "display_name": "Federal Withholdings Envelope",
+                    "parameter_units": "envelope",
+                    "description": "Envelope where federal withholdings are tracked",
+                    "default": "Federal Withholdings",
+                    "editable": false
+                },
+                {
+                    "type": "state_withholdings_key",
+                    "display_name": "State Withholdings Envelope",
+                    "parameter_units": "envelope",
+                    "description": "Envelope where state withholdings are tracked",
+                    "default": "State Withholdings",
+                    "editable": false
+                },
+                {
+                    "type": "local_withholdings_key",
+                    "display_name": "Local Withholdings Envelope",
+                    "parameter_units": "envelope",
+                    "description": "Envelope where local withholdings are tracked",
+                    "default": "Local Withholdings",
+                    "editable": false
                 }
             ],
             "updating_events": [
@@ -1923,6 +2288,43 @@
             "description": "Transition from employment to retirement with recurring transfers from 401K and ROTH IRA to cash, including taxable income tracking.",
             "icon": "moon",
             "disclaimer": "This event simulates regular transfers from a 401K and ROTH IRA retirement envelope to cash, with corresponding taxable income tracking. It does not account for complex tax implications or required minimum distributions. This does account for a 25% tax 401K withholding when transfering.",
+            "event_functions_parts": [
+                {
+                    "type": "money_transfer",
+                    "title": "Retirement Income",
+                    "description": "Money being transferred from 401K to cash",
+                    "icon": "arrow-up",
+                    "default_state": true
+                },
+                {
+                    "type": "money_transfer_roth_ira",
+                    "title": "Retirement Income ROTH IRA",
+                    "description": "Money being transferred from ROTH IRA to cash",
+                    "icon": "arrow-up",
+                    "default_state": true
+                },
+                {
+                    "type": "withholding_money_401k",
+                    "title": "Tax Withholding from 401K by Plan Administrator",
+                    "description": "Money withheld for taxes by the 401K plan administrator when funds are withdrawn",
+                    "icon": "arrow-down",
+                    "default_state": true
+                },
+                {
+                    "type": "401K_penalty",
+                    "title": "401K Penalty",
+                    "description": "If money is transfered before 59.5 years old, then a penalty is applied to the withdrawal",
+                    "icon": "arrow-down",
+                    "default_state": true
+                },
+                {
+                    "type": "roth_ira_penalty",
+                    "title": "ROTH IRA Penalty",
+                    "description": "If money is transfered before 59.5 years old, then a penalty is applied to the withdrawal",
+                    "icon": "arrow-down",
+                    "default_state": true
+                }
+            ],
             "parameters": [
                 {
                     "type": "start_time",
@@ -2034,6 +2436,50 @@
             "description": "Purchase a home with mortgage terms.",
             "icon": "home",
             "disclaimer": "This event estimates the financial impact of purchasing a home based on key inputs including purchase price, down payment, mortgage term, interest rate, appreciation rate, and property tax rate. It generates a monthly payment and amortization schedule using standard fixed-rate mortgage formulas. The calculation does not account for additional homeownership costs such as HOA fees, maintenance, insurance, closing costs, or utilities.",
+            "event_functions_parts": [
+                {
+                    "type": "downpayment",
+                    "title": "Down Payment",
+                    "description": "Money being taken out of account to place a downpayment on the home",
+                    "icon": "arrow-up",
+                    "default_state": true
+                },
+                {
+                    "type": "mortgage_payment",
+                    "title": "Mortgage Payment",
+                    "description": "Morgage Payments payed on amoratization scheudle mortgage",
+                    "icon": "arrow-down",
+                    "default_state": true
+                },
+                {
+                    "type": "property_tax",
+                    "title": "Property Tax",
+                    "description": "Property Tax being taken out in portions each month. Mortgage escrow",
+                    "icon": "arrow-down",
+                    "default_state": true
+                },
+                {
+                    "type": "home_asset",
+                    "title": "Home Asset",
+                    "description": "Home being added to the asset account with appreciation rate",
+                    "icon": "arrow-up",
+                    "default_state": true
+                },
+                {
+                    "type": "morgage_loan",
+                    "title": "Morgage Loan",
+                    "description": "A debt account simulating the morgage loan with APR rate specified into an amoratization schedule",
+                    "icon": "arrow-down",
+                    "default_state": true
+                },
+                {
+                    "type": "final_home_payment_correction",
+                    "title": "Final Home Payment Correction",
+                    "description": "A small correction on the final payment due to amoratization schedule inaccuracies",
+                    "icon": "arrow-down",
+                    "default_state": true
+                }
+            ],
             "parameters": [
                 {
                     "type": "start_time",
@@ -2154,7 +2600,7 @@
                             "display_name": "Extra Payment Amount",
                             "parameter_units": "usd",
                             "description": "Extra amount paid.",
-                            "default": 10000,
+                            "default": 100,
                             "editable": true
                         },
                         {
@@ -2271,6 +2717,43 @@
             "description": "Purchase a car with or without a loan.",
             "icon": "car",
             "disclaimer": "This event models the purchase of a car, including loan terms and down payment. It does not include insurance, registration, maintenance, or resale value.",
+            "event_functions_parts": [
+                {
+                    "type": "downpayment",
+                    "title": "Down Payment",
+                    "description": "Money being taken out of account to place a downpayment on the car",
+                    "icon": "arrow-up",
+                    "default_state": true
+                },
+                {
+                    "type": "loan_payment",
+                    "title": "Loan Payment",
+                    "description": "Money being taken out of account to pay the loan",
+                    "icon": "arrow-down",
+                    "default_state": true
+                },
+                {
+                    "type": "car_asset",
+                    "title": "Car Asset",
+                    "description": "Car being added to the asset account with depreciaation rate specifed by the envelope",
+                    "icon": "arrow-up",
+                    "default_state": true
+                },
+                {
+                    "type": "car_loan",
+                    "title": "Car Loan",
+                    "description": "A debt account simulating the car loan with APR rate specified into an amoratization schedule",
+                    "icon": "arrow-down",
+                    "default_state": true
+                },
+                {
+                    "type": "final_car_payment_correction",
+                    "title": "Final Car Payment Correction",
+                    "description": "A small correction on the final payment due to amoratization schedule inaccuracies",
+                    "icon": "arrow-down",
+                    "default_state": true
+                }
+            ],
             "parameters": [
                 {
                     "type": "start_time",
@@ -2430,6 +2913,15 @@
             "description": "Have a child and incur related early-life costs.",
             "icon": "baby",
             "disclaimer": "This event records the birth of a child and initial costs. It does not simulate ongoing expenses, tax credits, or changes in household income.",
+            "event_functions_parts": [
+                {
+                    "type": "outflow",
+                    "title": "Initial Costs",
+                    "description": "Money being taken out of account to pay the initial costs",
+                    "icon": "arrow-down",
+                    "default_state": true
+                }
+            ],
             "parameters": [
                 {
                     "type": "start_time",
@@ -2573,6 +3065,15 @@
             "description": "Get married and incur event-related expenses.",
             "icon": "ring",
             "disclaimer": "This event logs a one-time marriage cost. It does not affect taxes, household size, or simulate ongoing marital expenses.",
+            "event_functions_parts": [
+                {
+                    "type": "outflow",
+                    "title": "Wedding Cost",
+                    "description": "Money being taken out of account to pay the wedding cost",
+                    "icon": "arrow-down",
+                    "default_state": true
+                }
+            ],
             "parameters": [
                 {
                     "type": "start_time",
@@ -2612,6 +3113,15 @@
             "description": "Divorce settlement and legal costs.",
             "icon": "split",
             "disclaimer": "This event records a one-time divorce settlement and legal fees. It does not simulate asset division, custody, or ongoing support payments.",
+            "event_functions_parts": [
+                {
+                    "type": "outflow",
+                    "title": "Divorce Cost",
+                    "description": "Money being taken out of account to pay the divorce cost",
+                    "icon": "arrow-down",
+                    "default_state": true
+                }
+            ],
             "parameters": [
                 {
                     "type": "start_time",
@@ -2634,7 +3144,7 @@
                     "display_name": "Attorney Fees",
                     "parameter_units": "usd",
                     "description": "Legal costs paid to attorneys.",
-                    "default": 10000,
+                    "default": 100,
                     "editable": true
                 },
                 {
@@ -2659,6 +3169,15 @@
             "description": "Death of the individual and end-of-life costs.",
             "icon": "skull",
             "disclaimer": "This event marks the end of the simulation for the individual. It does not model estate distribution, survivor benefits, or funeral costs.",
+            "event_functions_parts": [
+                {
+                    "type": "declare_accounts",
+                    "title": "Declare Accounts to 0",
+                    "description": "All Accounts are set to 0",
+                    "icon": "list",
+                    "default_state": true
+                }
+            ],
             "parameters": [
                 {
                     "type": "start_time",
@@ -2968,7 +3487,7 @@
                     "display_name": "Investment Amount",
                     "parameter_units": "usd",
                     "description": "Amount of money to invest.",
-                    "default": 10000,
+                    "default": 100,
                     "editable": true
                 },
                 {
@@ -3034,46 +3553,84 @@
                     ]
                 },
                 {
-                    "type": "Reoccuring Contribution",
-                    "display_type": "Reoccuring Contribution",
+                    "type": "transfer_out",
+                    "display_type": "Transfer Out",
                     "onboarding_stage": "full",
                     "display_event": true,
-                    "is_recurring": true,
-                    "can_be_reocurring": true,
-                    "icon": "dollar-bill",
-                    "description": "Put in reoccuring deposits",
+                    "is_recurring": false,
+                    "can_be_reocurring": false,
+                    "icon": "arrow-right",
+                    "description": "Transfer money out of an envelope to another envelope.",
                     "parameters": [
                         {
                             "type": "start_time",
-                            "display_name": "Contribution Start Date",
+                            "display_name": "Transfer Date",
                             "parameter_units": "date",
-                            "description": "When reoccuring payments begin",
+                            "description": "When the transfer occurs",
                             "default": 0,
                             "editable": true
                         },
                         {
-                            "type": "end_time",
-                            "display_name": "Contribution End Date",
-                            "parameter_units": "date",
-                            "description": "When reoccuring payments end",
-                            "default": 3650,
-                            "editable": true
-                        },
-                        {
-                            "type": "frequency_days",
-                            "display_name": "Contribution Frequency",
-                            "parameter_units": "days",
-                            "description": "Number of days between each contribution.",
-                            "default": 30,
-                            "editable": true
-                        },
-                        {
                             "type": "amount",
-                            "display_name": "Contribution Amount",
+                            "display_name": "Transfer Amount",
                             "parameter_units": "usd",
-                            "description": "Amount put in.",
-                            "default": 200,
+                            "description": "Amount to transfer.",
+                            "default": 100,
                             "editable": true
+                        },
+                        {
+                            "type": "to_key",
+                            "display_name": "To Envelope",
+                            "parameter_units": "envelope",
+                            "description": "Envelope to which the transfer is applied.",
+                            "default": "Other (Cash)",
+                            "editable": true
+                        },
+                        {
+                            "type": "short_term_capital_gains_envelope",
+                            "display_name": "Short Term Capital Gains Envelope",
+                            "parameter_units": "envelope",
+                            "description": "Envelope to track short term capital gains.",
+                            "default": "Short Term Capital Gains",
+                            "editable": true
+                        },
+                        {
+                            "type": "long_term_capital_gains_envelope",
+                            "display_name": "Long Term Capital Gains Envelope",
+                            "parameter_units": "envelope",
+                            "description": "Envelope to track long term capital gains.",
+                            "default": "Long Term Capital Gains",
+                            "editable": true
+                        }
+                    ]
+                },
+                {
+                    "type": "sell_all",
+                    "display_type": "Sell All",
+                    "parameters": [
+                        {
+                            "type": "start_time",
+                            "display_name": "Sale Date",
+                            "parameter_units": "date",
+                            "default": 0
+                        },
+                        {
+                            "type": "to_key",
+                            "display_name": "To Envelope",
+                            "parameter_units": "envelope",
+                            "default": "Other (Cash)"
+                        },
+                        {
+                            "type": "short_term_capital_gains_envelope",
+                            "display_name": "Short Term Gains Envelope",
+                            "parameter_units": "envelope",
+                            "default": "Short Term Capital Gains"
+                        },
+                        {
+                            "type": "long_term_capital_gains_envelope",
+                            "display_name": "Long Term Gains Envelope",
+                            "parameter_units": "envelope",
+                            "default": "Long Term Capital Gains"
                         }
                     ]
                 }
@@ -3112,7 +3669,7 @@
                     "display_name": "Initial Deposit",
                     "parameter_units": "usd",
                     "description": "Initial deposit into the account.",
-                    "default": 10000,
+                    "default": 100,
                     "editable": true
                 },
                 {
@@ -3130,82 +3687,6 @@
                     "description": "Envelope for savings balance.",
                     "default": "Other (Savings)",
                     "editable": true
-                }
-            ]
-        },
-        {
-            "type": "pay_taxes",
-            "display_type": "Tax Payment",
-            "display_event": false,
-            "is_recurring": false,
-            "can_be_reocurring": false,
-            "weight": 100,
-            "category": "Taxes & Government",
-            "description": "Annual payment of federal and state taxes.",
-            "icon": "file-text",
-            "disclaimer": "This event models a one-time tax payment. It does not estimate the taxed amount.",
-            "parameters": [
-                {
-                    "type": "start_time",
-                    "display_name": "Payment Date",
-                    "parameter_units": "date",
-                    "description": "When the tax payment is made",
-                    "default": 0,
-                    "editable": true
-                },
-                {
-                    "type": "total_tax_due",
-                    "display_name": "Tax Amount",
-                    "parameter_units": "usd",
-                    "description": "Amount owed in taxes. Add updating event of a tax refund.",
-                    "default": 8000,
-                    "editable": true
-                },
-                {
-                    "type": "from_key",
-                    "display_name": "From Envelope",
-                    "parameter_units": "envelope",
-                    "description": "Envelope where taxes are paid from",
-                    "default": "Other (Cash)",
-                    "editable": true
-                }
-            ],
-            "updating_events": [
-                {
-                    "type": "receive_tax_refund",
-                    "display_type": "Tax Refund",
-                    "onboarding_stage": "full",
-                    "display_event": true,
-                    "is_recurring": false,
-                    "can_be_reocurring": false,
-                    "icon": "wallet",
-                    "description": "Receive refund from overpaid taxes.",
-                    "parameters": [
-                        {
-                            "type": "start_time",
-                            "display_name": "Refund Date",
-                            "parameter_units": "date",
-                            "description": "When the tax refund is received",
-                            "default": 0,
-                            "editable": true
-                        },
-                        {
-                            "type": "amount",
-                            "display_name": "Refund Amount",
-                            "parameter_units": "usd",
-                            "description": "Amount of tax refund received.",
-                            "default": 1500,
-                            "editable": true
-                        },
-                        {
-                            "type": "to_key",
-                            "display_name": "To Envelope",
-                            "parameter_units": "envelope",
-                            "description": "Envelope where refund is received",
-                            "default": "Other (Cash)",
-                            "editable": true
-                        }
-                    ]
                 }
             ]
         },
@@ -3324,132 +3805,6 @@
                     "description": "Envelope where ROTH IRA principle is tracked.",
                     "default": "ROTH IRA Principle",
                     "editable": false
-                }
-            ]
-        },
-        {
-            "type": "tax_payment_estimated",
-            "display_type": "Tax Payment (Estimated)",
-            "onboarding_stage": "full",
-            "display_event": true,
-            "is_recurring": false,
-            "can_be_reocurring": true,
-            "category": "Taxes & Government",
-            "weight": 100,
-            "description": "Estimate your annual tax payment based on salary and filing status.",
-            "icon": "file-text",
-            "disclaimer": "This event provides a simplified estimate of your annual tax payment based on a few key parameters. It does not account for deductions, credits, investment income, self-employment, or other tax situations. This estimate cannot be used for tax filing or official purposes.",
-            "parameters": [
-                {
-                    "type": "start_time",
-                    "display_name": "Tax Year Start",
-                    "parameter_units": "date",
-                    "description": "Start of the tax year.",
-                    "default": 0,
-                    "editable": true
-                },
-                {
-                    "type": "end_time",
-                    "display_name": "Tax Year End",
-                    "parameter_units": "date",
-                    "description": "End of the tax year.",
-                    "default": 29200,
-                    "editable": true
-                },
-                {
-                    "type": "yearly_income",
-                    "display_name": "Taxable yearly income",
-                    "parameter_units": "usd",
-                    "description": "Total taxable income.",
-                    "default": 60000,
-                    "editable": true
-                },
-                {
-                    "type": "filing_status",
-                    "display_name": "Filing Status",
-                    "parameter_units": "enum",
-                    "description": "Tax filing status.",
-                    "default": "Single",
-                    "options": [
-                        "Single",
-                        "Married Filing Jointly",
-                        "Married Filing Separately",
-                        "Head of Household",
-                        "Qualifying Widow(er)"
-                    ],
-                    "editable": true
-                },
-                {
-                    "type": "number_of_dependents",
-                    "display_name": "Number of Dependents",
-                    "parameter_units": "number",
-                    "description": "Number of dependents claimed.",
-                    "default": 0,
-                    "editable": true
-                },
-                {
-                    "type": "retirement_contributions",
-                    "display_name": "Retirement Contributions",
-                    "parameter_units": "usd",
-                    "description": "Total tax-deductible retirement contributions.",
-                    "default": 0,
-                    "editable": true
-                },
-                {
-                    "type": "itemized_deductions",
-                    "display_name": "Itemized Deductions",
-                    "parameter_units": "usd",
-                    "description": "Total itemized deductions claimed.",
-                    "default": 0,
-                    "editable": true
-                },
-                {
-                    "type": "capital_gains",
-                    "display_name": "Capital Gains",
-                    "parameter_units": "usd",
-                    "description": "Total taxable capital gains.",
-                    "default": 0,
-                    "editable": true
-                },
-                {
-                    "type": "federal_tax_rate",
-                    "display_name": "Federal Tax Rate",
-                    "parameter_units": "percentage",
-                    "description": "Estimated federal tax rate.",
-                    "default": 0.12,
-                    "editable": true
-                },
-                {
-                    "type": "state_tax_rate",
-                    "display_name": "State Tax Rate",
-                    "parameter_units": "percentage",
-                    "description": "Estimated state tax rate.",
-                    "default": 0.05,
-                    "editable": true
-                },
-                {
-                    "type": "federal_income_tax_withheld",
-                    "display_name": "Federal Income Tax Withheld",
-                    "parameter_units": "usd",
-                    "description": "Total federal income tax already withheld.",
-                    "default": 0,
-                    "editable": true
-                },
-                {
-                    "type": "state_income_tax_withheld",
-                    "display_name": "State Income Tax Withheld",
-                    "parameter_units": "usd",
-                    "description": "Total state income tax already withheld.",
-                    "default": 0,
-                    "editable": true
-                },
-                {
-                    "type": "from_key",
-                    "display_name": "From Envelope",
-                    "parameter_units": "envelope",
-                    "description": "Envelope where estimated taxes are paid from.",
-                    "default": "Other (Cash)",
-                    "editable": true
                 }
             ]
         },
@@ -3820,6 +4175,22 @@
                     "parameter_units": "envelope",
                     "description": "Envelope where IRS registered account is tracked",
                     "default": "Other (Cash)",
+                    "editable": true
+                },
+                {
+                    "type": "long_term_capital_gains_key",
+                    "display_name": "Long Term Gains Envelope",
+                    "parameter_units": "envelope",
+                    "description": "Envelope where long term capital gains are tracked",
+                    "default": "Long Term Capital Gains",
+                    "editable": true
+                },
+                {
+                    "type": "short_term_capital_gains_key",
+                    "display_name": "Short Term Gains Envelope",
+                    "parameter_units": "envelope",
+                    "description": "Envelope where short term capital gains are tracked",
+                    "default": "Short Term Capital Gains",
                     "editable": true
                 },
                 {

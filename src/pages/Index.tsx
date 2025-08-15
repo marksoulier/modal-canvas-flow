@@ -42,13 +42,14 @@ export default function Index() {
     loadPlanFromFile,
     savePlanToFile,
     updatePlanTitle,
-    loadPlan,
     lockPlan,
     addEvent,
     copyPlanToLock,
     isExampleViewing,
     isCompareMode,
-    setCompareMode
+    setCompareMode,
+    updatePlanDirectly,
+    triggerSimulation
   } = usePlan();
 
   // Modal states
@@ -115,7 +116,7 @@ export default function Index() {
   // Check for first Google sign-in on app startup
   useEffect(() => {
     const isFirstGoogleSignin = localStorage.getItem('first-google-signin');
-    console.log('isFirstGoogleSignin', isFirstGoogleSignin);
+    //console.log('isFirstGoogleSignin', isFirstGoogleSignin);
     if (isFirstGoogleSignin === 'true' && user) {
       // Clear the flag immediately
       localStorage.removeItem('first-google-signin');
@@ -141,13 +142,9 @@ export default function Index() {
   // Auto-open onboarding modal when at user_info stage
   useEffect(() => {
     // Only proceed if we're not loading and the onboarding state is user_info
-    if (!isLoading && onboarding_state === 'user_info' && !onboardingOpen) {
+    if (!isLoading && onboarding_state === 'user_info') {
       // Wait for 1 second after the state is loaded before opening the modal
-      const timer = setTimeout(() => {
-        setOnboardingOpen(true);
-      }, 1000);
-      // Cleanup timer on unmount
-      return () => clearTimeout(timer);
+      setOnboardingOpen(true);
     }
   }, [isLoading, onboarding_state]);
 
@@ -313,16 +310,21 @@ export default function Index() {
     if (isAddingEnvelope) {
       updatedEnvelopes = [...plan.envelopes, envelope];
     } else if (editingEnvelope) {
-      updatedEnvelopes = plan.envelopes.map(e => e === editingEnvelope ? envelope : e);
+      updatedEnvelopes = plan.envelopes.map(e => e.name === editingEnvelope.name ? envelope : e);
     } else {
       updatedEnvelopes = plan.envelopes;
     }
-    // Save to plan
+    // Update plan directly to preserve locked plan and visualization state
     const updatedPlan = { ...plan, envelopes: updatedEnvelopes };
-    loadPlan(updatedPlan);
+    updatePlanDirectly(updatedPlan);
+    // Close modal and reset state
     setAddEnvelopeModalOpen(false);
     setEditingEnvelope(null);
     setIsAddingEnvelope(false);
+    // Trigger simulation after a short delay to ensure plan is updated
+    setTimeout(() => {
+      triggerSimulation();
+    }, 100);
   };
 
   // Modify the event library open handler

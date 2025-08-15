@@ -6,12 +6,14 @@
   "homepage": "https://app.lever-ai.com",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
-    "build:dev": "vite build --mode development",
+    "build": "npm run generate-types && vite build",
+    "build:dev": "npm run generate-types && vite build --mode development",
     "lint": "eslint .",
     "preview": "vite preview",
     "predeploy": "npm run build",
-    "deploy": "gh-pages -d dist"
+    "deploy": "gh-pages -d dist",
+    "generate-types": "tsx scripts/generate-types.ts",
+    "watch-types": "tsx scripts/generate-types.ts --watch"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",
@@ -94,6 +96,7 @@
     "lovable-tagger": "^1.1.7",
     "postcss": "^8.4.47",
     "tailwindcss": "^3.4.11",
+    "tsx": "^4.20.4",
     "typescript": "^5.5.3",
     "typescript-eslint": "^8.0.1",
     "vite": "^5.4.1"

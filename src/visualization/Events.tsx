@@ -1,5 +1,5 @@
 import type { Plan, Event, UpdatingEvent, Schema } from '../contexts/PlanContext';
-import { dateStringToDaysSinceBirth, getEventWeightFromSchema } from '../contexts/PlanContext';
+import { dateStringToDaysSinceBirth, getEventWeightFromSchema, usePlan } from '../contexts/PlanContext';
 
 export interface DatedEvent {
     date: number;
@@ -62,8 +62,12 @@ export function getAllEventsByDateWithLocked(plan: Plan, lockedPlan?: Plan | nul
     const map: { [date: number]: DatedEvent[] } = {};
     if (!plan) return map;
 
+    const { show_all } = usePlan();
+
     const processPlan = (p: Plan, isShadow: boolean) => {
-        for (const event of p.events) {
+        // Filter out hidden events if show_all is false
+        const events = show_all ? p.events : p.events.filter(event => !event.hide);
+        for (const event of events) {
             const startTimeParam = event.parameters.find(pr => pr.type === 'start_time');
             if (startTimeParam && typeof startTimeParam.value === 'string') {
                 const date = dateStringToDaysSinceBirth(startTimeParam.value, p.birth_date);
@@ -108,7 +112,9 @@ export function getAllEventsByDateWithLocked(plan: Plan, lockedPlan?: Plan | nul
             }
 
             if (event.updating_events) {
-                for (const updatingEvent of event.updating_events) {
+                // Filter out hidden updating events if show_all is false
+                const updatingEvents = show_all ? event.updating_events : event.updating_events.filter(ue => !ue.hide);
+                for (const updatingEvent of updatingEvents) {
                     const startTimeParamUE = updatingEvent.parameters.find(pr => pr.type === 'start_time');
                     if (startTimeParamUE && typeof startTimeParamUE.value === 'string') {
                         const date = dateStringToDaysSinceBirth(startTimeParamUE.value, p.birth_date);

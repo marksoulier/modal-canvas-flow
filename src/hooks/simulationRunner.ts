@@ -5,11 +5,11 @@ import {
     buy_house, buy_car, have_kid, marriage, divorce, pass_away,
     buy_health_insurance, buy_life_insurance,
     receive_government_aid, invest_money,
-    high_yield_savings_account, pay_taxes, buy_groceries, manual_correction,
+    high_yield_savings_account, buy_groceries, manual_correction,
     get_wage_job, transfer_money, income_with_changing_parameters,
     declare_accounts, purchase,
-    monthly_budgeting, roth_ira_contribution, tax_payment_estimated,
-    reoccuring_spending_inflation_adjusted, loan_amortization, loan,
+    monthly_budgeting, roth_ira_contribution,
+    reoccuring_spending_inflation_adjusted, loan,
     federal_subsidized_loan, federal_unsubsidized_loan, private_student_loan,
     usa_tax_system
 } from './baseFunctions';
@@ -56,8 +56,11 @@ export async function runSimulation(
     visibleRange?: { startDate: number, endDate: number }
 ): Promise<Datum[]> {
     try {
+
+        // Timer for validation
         const schemaMap = extractSchema(schema);
         const issues = validateProblem(plan, schemaMap, schema, plan);
+
         if (issues.length > 0) {
             console.error("❌ Validation issues found:");
             for (const issue of issues) console.error(issue);
@@ -73,11 +76,12 @@ export async function runSimulation(
             visibleRange: visibleRange // Add visible range to simulation settings
         };
 
+        // Timer for parsing events
         const parsedEvents = parseEvents(plan);
 
         const envelopes = initializeEnvelopes(plan, simulation_settings);
-        // Precompute canonical time points for the whole sim (reused across features)
-        const precomputedTimePoints = computeTimePoints(startDate, endDate, interval, simulation_settings.visibleRange, currentDay);
+        // Precompute canonical time points once and store for consumers
+        const precomputedTimePoints: number[] = computeTimePoints(startDate, endDate, interval, simulation_settings.visibleRange, currentDay);
         envelopes.simulation_settings.timePoints = precomputedTimePoints;
         //console.log('Initialized envelopes:', envelopes);
         // Collect manual_correction events to process at the end
@@ -87,6 +91,7 @@ export async function runSimulation(
         // Collect plan updates from events
         const planUpdates: Array<{ eventId: number, paramType: string, value: number }> = [];
 
+        // Timer for applying events
         for (const event of parsedEvents) {
             //console.log("Event: ", event)
 
@@ -129,7 +134,6 @@ export async function runSimulation(
                 case 'receive_government_aid': receive_government_aid(event, envelopes); break;
                 case 'invest_money': invest_money(event, envelopes); break;
                 case 'high_yield_savings_account': high_yield_savings_account(event, envelopes); break;
-                case 'pay_taxes': pay_taxes(event, envelopes); break;
                 case 'buy_groceries': buy_groceries(event, envelopes); break;
                 case 'transfer_money': transfer_money(event, envelopes, (updates) => {
                     planUpdates.push(...updates);
@@ -139,8 +143,8 @@ export async function runSimulation(
                 case 'pass_away': pass_away(event, envelopes); break;
                 case 'monthly_budgeting': monthly_budgeting(event, envelopes); break;
                 case 'roth_ira_contribution': roth_ira_contribution(event, envelopes); break;
-                case 'tax_payment_estimated': tax_payment_estimated(event, envelopes); break;
-                case 'loan_amortization': loan_amortization(event, envelopes); break;
+                //case 'tax_payment_estimated': tax_payment_estimated(event, envelopes); break;
+                //case 'loan_amortization': loan_amortization(event, envelopes); break;
                 case 'loan': loan(event, envelopes); break;
                 case 'federal_subsidized_loan': federal_subsidized_loan(event, envelopes, (updates) => {
                     planUpdates.push(...updates);
@@ -201,12 +205,14 @@ export async function runSimulation(
 
         //console.log("allEvalEnvelopes", allEvalEnvelopes);
 
+
+        // Timer for results evaluation
         let allResults;
         if (plan.adjust_for_inflation) {
             const inflationRate = plan.inflation_rate;
-            allResults = evaluateResults(allEvalEnvelopes, startDate, endDate, interval, currentDay, inflationRate, simulation_settings.visibleRange, precomputedTimePoints);
+            allResults = evaluateResults(allEvalEnvelopes, startDate, endDate, interval, currentDay, inflationRate, precomputedTimePoints, simulation_settings.visibleRange);
         } else {
-            allResults = evaluateResults(allEvalEnvelopes, startDate, endDate, interval, currentDay, undefined, simulation_settings.visibleRange, precomputedTimePoints);
+            allResults = evaluateResults(allEvalEnvelopes, startDate, endDate, interval, currentDay, undefined, precomputedTimePoints, simulation_settings.visibleRange);
         }
 
         // Now split the results into networth and non-networth for visualization

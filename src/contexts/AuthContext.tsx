@@ -126,11 +126,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
     // Update onboarding state function
     const updateOnboardingState = async (newState: OnboardingState, persist: boolean = true) => {
-        console.log('🔄 ONBOARDING STATE CHANGE:', {
-            from: onboarding_state,
-            to: newState,
-            timestamp: new Date().toISOString()
-        });
+        // console.log('🔄 ONBOARDING STATE CHANGE:', {
+        //     from: onboarding_state,
+        //     to: newState,
+        //     timestamp: new Date().toISOString()
+        // });
 
         setOnboardingState(newState);
 
@@ -139,11 +139,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Persist to database for anonymous users
         try {
             const anonId = getOrCreateAnonId();
-            console.log('💾 SAVING ONBOARDING STATE TO DB:', {
-                anonId,
-                onboarding_state: newState,
-                timestamp: new Date().toISOString()
-            });
+            // console.log('💾 SAVING ONBOARDING STATE TO DB:', {
+            //     anonId,
+            //     onboarding_state: newState,
+            //     timestamp: new Date().toISOString()
+            // });
 
             const { error } = await supabase
                 .from('anonymous_users')
@@ -157,7 +157,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             if (error) {
                 console.error('❌ Error persisting onboarding state:', error);
             } else {
-                console.log('✅ ONBOARDING STATE SAVED SUCCESSFULLY:', newState);
+                //console.log('✅ ONBOARDING STATE SAVED SUCCESSFULLY:', newState);
             }
         } catch (error) {
             console.error('❌ Error updating onboarding state:', error);
@@ -167,7 +167,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Fetch user data from database
     const fetchUserData = async (userId: string) => {
         try {
-            console.log('🔄 Fetching3 user data for:', userId);
+            //console.log('🔄 Fetching3 user data for:', userId);
             // Add explicit user_id filter in addition to RLS for performance
             const { data: profile, error: profileError } = await supabase
                 .from('user_profiles')
@@ -205,9 +205,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             // Create profile if it doesn't exist
             if (!profile || (profileError as any)?.code === 'PGRST116') {
                 try {
-                    console.log('🔄 Creating user profile for:', userId);
+                    //console.log('🔄 Creating user profile for:', userId);
                     const anonId = getOrCreateAnonId();
-                    console.log('🔄 Anon ID:', anonId);
+                    //console.log('🔄 Anon ID:', anonId);
                     const { error: insertError } = await supabase
                         .from('user_profiles')
                         .insert({ user_id: userId, plan_type: 'free', anonymous_anon: anonId });
@@ -228,36 +228,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Load onboarding state on initialization
     useEffect(() => {
         const loadOnboardingState = async () => {
-            console.log('🚀 INITIALIZING ONBOARDING STATE FROM DB...');
+            //console.log('🚀 INITIALIZING ONBOARDING STATE FROM DB...');
             try {
                 // This will create anon_key if it doesn't exist
                 const anonId = getOrCreateAnonId();
-                console.log('🆔 ANON ID:', anonId);
+                //console.log('🆔 ANON ID:', anonId);
 
                 const anonData = await fetchAnonymousOnboarding();
-                console.log('📥 FETCHED ANONYMOUS DATA:', anonData);
+                //console.log('📥 FETCHED ANONYMOUS DATA:', anonData);
 
                 if (anonData?.onboarding_data && typeof anonData.onboarding_data === 'object') {
                     const onboardingData = anonData.onboarding_data as any;
                     if (onboardingData.onboarding_state) {
-                        console.log('✅ ONBOARDING STATE LOADED FROM DB:', {
-                            loaded_state: onboardingData.onboarding_state,
-                            timestamp: new Date().toISOString()
-                        });
+                        // console.log('✅ ONBOARDING STATE LOADED FROM DB:', {
+                        //     loaded_state: onboardingData.onboarding_state,
+                        //     timestamp: new Date().toISOString()
+                        // });
                         setOnboardingState(onboardingData.onboarding_state);
                     } else {
-                        console.log('⚠️ NO ONBOARDING STATE FOUND IN DB, INITIALIZING TO user_info');
+                        //console.log('⚠️ NO ONBOARDING STATE FOUND IN DB, INITIALIZING TO user_info');
                         await updateOnboardingState('user_info');
                     }
                 } else {
-                    console.log('🆕 NEW USER - NO ONBOARDING DATA FOUND, INITIALIZING TO user_info');
+                    //console.log('🆕 NEW USER - NO ONBOARDING DATA FOUND, INITIALIZING TO user_info');
                     await updateOnboardingState('user_info');
                 }
+                setIsLoading(false);
             } catch (error) {
                 console.error('❌ Error loading onboarding state:', error);
                 // Fallback to default state on error
-                console.log('🔄 FALLBACK: Setting onboarding state to user_info');
+                //console.log('🔄 FALLBACK: Setting onboarding state to user_info');
                 setOnboardingState('user_info');
+                setIsLoading(false);
             }
         };
 
@@ -270,12 +272,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
             (event, session) => {
                 setUser(session?.user ?? null);
-                setIsLoading(false);
-
                 // Use setTimeout to avoid deadlock when calling other Supabase functions
                 if (session?.user) {
                     setTimeout(async () => {
-                        console.log('🔄 Fetching user data for:', session.user.id);
+                        //console.log('🔄 Fetching user data for:', session.user.id);
                         await fetchUserData(session.user.id);
                     }, 0);
                 } else {
@@ -288,10 +288,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         supabase.auth.getSession().then(({ data: { session } }) => {
             setUser(session?.user ?? null);
             if (session?.user) {
-                console.log('🔄 Fetching2 user data for:', session.user.id);
+                //console.log('🔄 Fetching2 user data for:', session.user.id);
                 fetchUserData(session.user.id);
-            } else {
-                setIsLoading(false);
             }
         });
 
@@ -604,10 +602,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     // Upsert onboarding data for anonymous user
     const upsertAnonymousOnboarding = async (onboardingData: any) => {
-        console.log('💾 SAVING ONBOARDING DATA TO DB:', {
-            data: onboardingData,
-            timestamp: new Date().toISOString()
-        });
+        // console.log('💾 SAVING ONBOARDING DATA TO DB:', {
+        //     data: onboardingData,
+        //     timestamp: new Date().toISOString()
+        // });
         const anonId = getOrCreateAnonId();
         //console.log("anonId", anonId);
 
@@ -680,7 +678,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             toast.error('Failed to save onboarding progress.');
             return false;
         }
-        console.log('✅ ONBOARDING DATA SAVED SUCCESSFULLY TO DB');
+        //console.log('✅ ONBOARDING DATA SAVED SUCCESSFULLY TO DB');
         return true;
     };
 
