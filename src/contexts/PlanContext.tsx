@@ -211,9 +211,20 @@ export interface Envelope {
     account_type: string;
 }
 
+export interface SimulationResult {
+    date: number;
+    value: number;
+    parts: Record<string, number>;
+    nonNetworthParts?: Record<string, number>;
+}
+
 export interface Plan {
     title: string;
     birth_date: string;
+    location: string;
+    degree: string;
+    occupation: string;
+    goals: string;
     inflation_rate: number;
     adjust_for_inflation: boolean;
     events: Event[];
@@ -221,6 +232,8 @@ export interface Plan {
     retirement_goal: number; // New field for retirement goal
     view_start_date?: string; // Date when the view starts (ISO string)
     view_end_date?: string; // Date when the view ends (ISO string)
+    simulation_results?: SimulationResult[]; // Store simulation results
+    simulation_results_locked?: SimulationResult[]; // Store simulation results for locked plan
 }
 
 export interface SchemaParameter {
@@ -269,6 +282,10 @@ export interface Schema {
     inflation_rate: number;
     adjust_for_inflation: boolean;
     birth_date: string;
+    location: string;
+    degree: string;
+    occupation: string;
+    goals: string;
     categories: string[];
     parameter_units_list: string[];
     events: SchemaEvent[];
@@ -283,6 +300,10 @@ interface PlanContextType {
     show_all: boolean;
     setCompareMode: (enabled: boolean) => void;
     toggleEventVisibility: (eventId: number) => void; // Add method to toggle event visibility
+    updateLocation: (location: string) => void;
+    updateDegree: (degree: string) => void;
+    updateOccupation: (occupation: string) => void;
+    updateGoals: (goals: string) => void;
     loadPlan: (planData: Plan) => void;
     savePlan: () => string;
     loadPlanFromFile: (file: File) => Promise<void>;
@@ -1337,6 +1358,58 @@ export function PlanProvider({ children }: PlanProviderProps) {
         });
     }, [plan]);
 
+    // Update location
+    const updateLocation = useCallback((location: string) => {
+        if (!plan) {
+            throw new Error('No plan data available');
+        }
+        setPlan(prevPlan => {
+            if (!prevPlan) return null;
+            const updatedPlan = { ...prevPlan, location };
+            addToStack(updatedPlan);
+            return updatedPlan;
+        });
+    }, [plan, addToStack]);
+
+    // Update degree
+    const updateDegree = useCallback((degree: string) => {
+        if (!plan) {
+            throw new Error('No plan data available');
+        }
+        setPlan(prevPlan => {
+            if (!prevPlan) return null;
+            const updatedPlan = { ...prevPlan, degree };
+            addToStack(updatedPlan);
+            return updatedPlan;
+        });
+    }, [plan, addToStack]);
+
+    // Update occupation
+    const updateOccupation = useCallback((occupation: string) => {
+        if (!plan) {
+            throw new Error('No plan data available');
+        }
+        setPlan(prevPlan => {
+            if (!prevPlan) return null;
+            const updatedPlan = { ...prevPlan, occupation };
+            addToStack(updatedPlan);
+            return updatedPlan;
+        });
+    }, [plan, addToStack]);
+
+    // Update goals
+    const updateGoals = useCallback((goals: string) => {
+        if (!plan) {
+            throw new Error('No plan data available');
+        }
+        setPlan(prevPlan => {
+            if (!prevPlan) return null;
+            const updatedPlan = { ...prevPlan, goals };
+            addToStack(updatedPlan);
+            return updatedPlan;
+        });
+    }, [plan, addToStack]);
+
     // Set adjust_for_inflation flag
     const setAdjustForInflation = useCallback((value: boolean) => {
         if (!plan) {
@@ -1804,6 +1877,10 @@ export function PlanProvider({ children }: PlanProviderProps) {
         plan_locked, // <-- add to context value
         schema,
         toggleEventVisibility, // Add the new function
+        updateLocation,
+        updateDegree,
+        updateOccupation,
+        updateGoals,
         loadPlan,
         savePlan,
         loadPlanFromFile,

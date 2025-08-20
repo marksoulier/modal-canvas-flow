@@ -39,7 +39,7 @@ import type {
 import { getAllEventsByDateWithLocked } from './Events';
 import type { Plan } from '../contexts/PlanContext';
 
-const DEBUG = true;
+const DEBUG = false;
 const IS_ANIMATION_ENABLED = true;
 const ZOOM_ANIMATION_DURATION = 750; // milliseconds
 const SIMULATION_ANIMATION_DURATION = 500; // milliseconds
@@ -580,7 +580,14 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
 
       // Store the simulation data
       setNetWorthData(simulationResult);
-      //console.log('📊 Simulation results length:', simulationResult.length);
+
+      // Store simulation results in the plan
+      // Store simulation results while preserving the original plan structure
+      const updatedPlanWithResults = {
+        ...plan, // Use original plan to preserve events
+        simulation_results: simulationResult
+      };
+      updatePlanDirectly(updatedPlanWithResults);
 
       // Run simulation for locked plan if it exists and compare mode is on
       if (plan_locked && isCompareMode) {
@@ -629,7 +636,13 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
           );
 
           setLockedNetWorthData(lockedResult);
-          //console.log('📊 Locked simulation results length:', lockedResult.length);
+
+          // Store simulation results in the locked plan
+          const updatedLockedPlanWithResults = {
+            ...plan_locked, // Use original locked plan to preserve events
+            simulation_results_locked: lockedResult
+          };
+          updateLockedPlanDirectly(updatedLockedPlanWithResults);
         } catch (err) {
           console.error('Locked plan simulation failed:', err);
           setLockedNetWorthData([]);

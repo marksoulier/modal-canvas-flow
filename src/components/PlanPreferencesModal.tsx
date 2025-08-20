@@ -25,7 +25,22 @@ const PlanPreferencesModal: React.FC<PlanPreferencesModalProps> = ({
     onAddEnvelope,
     onManageEnvelopes,
 }) => {
-    const { plan, updatePlanTitle, updateBirthDate, setAdjustForInflation, updatePlanInflationRate, updateRetirementGoal, restartPlan, show_all, setShowAll, triggerSimulation } = usePlan();
+    const {
+        plan,
+        updatePlanTitle,
+        updateBirthDate,
+        setAdjustForInflation,
+        updatePlanInflationRate,
+        updateRetirementGoal,
+        restartPlan,
+        show_all,
+        setShowAll,
+        triggerSimulation,
+        updateLocation,
+        updateDegree,
+        updateOccupation,
+        updateGoals
+    } = usePlan();
     const [isEditingTitle, setIsEditingTitle] = useState(false);
     const [tempTitle, setTempTitle] = useState('');
     const titleInputRef = useRef<HTMLInputElement>(null);
@@ -159,6 +174,66 @@ const PlanPreferencesModal: React.FC<PlanPreferencesModalProps> = ({
                                 placeholder="Select birth date"
                                 showAgeInput={false}
                             />
+                        </div>
+
+                        {/* Personal Information Section */}
+                        <div className="space-y-3">
+                            <h3 className="text-lg font-medium text-gray-900">Personal Information</h3>
+
+                            {/* Location */}
+                            <div className="space-y-2">
+                                <label className="block text-sm font-medium text-gray-700">
+                                    Location
+                                </label>
+                                <input
+                                    type="text"
+                                    value={plan?.location || ''}
+                                    onChange={(e) => updateLocation(e.target.value)}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    placeholder="e.g., San Francisco, CA"
+                                />
+                            </div>
+
+                            {/* Degree */}
+                            <div className="space-y-2">
+                                <label className="block text-sm font-medium text-gray-700">
+                                    Degree
+                                </label>
+                                <input
+                                    type="text"
+                                    value={plan?.degree || ''}
+                                    onChange={(e) => updateDegree(e.target.value)}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    placeholder="e.g., Bachelor's in Computer Science"
+                                />
+                            </div>
+
+                            {/* Occupation */}
+                            <div className="space-y-2">
+                                <label className="block text-sm font-medium text-gray-700">
+                                    Occupation
+                                </label>
+                                <input
+                                    type="text"
+                                    value={plan?.occupation || ''}
+                                    onChange={(e) => updateOccupation(e.target.value)}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    placeholder="e.g., Software Engineer"
+                                />
+                            </div>
+
+                            {/* Goals */}
+                            <div className="space-y-2">
+                                <label className="block text-sm font-medium text-gray-700">
+                                    Goals
+                                </label>
+                                <textarea
+                                    value={plan?.goals || ''}
+                                    onChange={(e) => updateGoals(e.target.value)}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[100px]"
+                                    placeholder="Enter your financial and personal goals..."
+                                />
+                            </div>
                         </div>
 
                         {/* Event Visibility Section */}

@@ -247,15 +247,12 @@ export interface update_monthly_budgetParams {
   amount: number;
 }
 
-export type get_jobFunctionTypes = "inflow" | "tax_withholdings" | "401k_contribution" | "401k_match" | "social_security_tax" | "medicare_tax" | "salary_in_taxable_income";
+export type get_jobFunctionTypes = "inflow" | "tax_withholdings" | "p_401k_contribution" | "salary_in_taxable_income";
 
 export interface get_jobFunctionState extends EventFunctionState {
   "inflow"?: boolean;
   "tax_withholdings"?: boolean;
-  "401k_contribution"?: boolean;
-  "401k_match"?: boolean;
-  "social_security_tax"?: boolean;
-  "medicare_tax"?: boolean;
+  "p_401k_contribution"?: boolean;
   "salary_in_taxable_income"?: boolean;
 }
 
@@ -301,16 +298,13 @@ export interface change_401k_contributionParams {
   p_401k_contribution: number;
 }
 
-export type get_wage_jobFunctionTypes = "inflow" | "outflow" | "401k_contribution" | "401k_match" | "social_security_tax" | "medicare_tax" | "wage_in_taxable_income";
+export type get_wage_jobFunctionTypes = "inflow" | "tax_withholdings" | "p_401k_contribution" | "salary_in_taxable_income";
 
 export interface get_wage_jobFunctionState extends EventFunctionState {
   "inflow"?: boolean;
-  "outflow"?: boolean;
-  "401k_contribution"?: boolean;
-  "401k_match"?: boolean;
-  "social_security_tax"?: boolean;
-  "medicare_tax"?: boolean;
-  "wage_in_taxable_income"?: boolean;
+  "tax_withholdings"?: boolean;
+  "p_401k_contribution"?: boolean;
+  "salary_in_taxable_income"?: boolean;
 }
 
 export interface get_wage_jobParams {
@@ -321,12 +315,17 @@ export interface get_wage_jobParams {
   hours_per_week: number;
   pay_period: number;
   federal_income_tax: number;
+  state_income_tax: number;
   social_security_tax: number;
   medicare_tax: number;
   p_401k_contribution: number;
   employer_match: number;
   to_key: string;
   p_401k_key: string;
+  taxable_income_key?: string;
+  federal_withholdings_key?: string;
+  state_withholdings_key?: string;
+  local_withholdings_key?: string;
 }
 
 export interface get_a_raiseParams {
@@ -632,22 +631,6 @@ export interface roth_ira_contributionParams {
   from_key: string;
   to_key?: string;
   roth_ira_principle_key?: string;
-}
-
-export interface tax_payment_estimatedParams {
-  start_time: number;
-  end_time: number;
-  yearly_income: number;
-  filing_status: string;
-  number_of_dependents: number;
-  retirement_contributions: number;
-  itemized_deductions: number;
-  capital_gains: number;
-  federal_tax_rate: number;
-  state_tax_rate: number;
-  federal_income_tax_withheld: number;
-  state_income_tax_withheld: number;
-  from_key: string;
 }
 
 export interface federal_subsidized_loanParams {

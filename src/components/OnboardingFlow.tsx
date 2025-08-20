@@ -48,7 +48,7 @@ const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ isOpen, onComplete }) =
   });
   const [loading, setLoading] = useState(true);
   const { upsertAnonymousOnboarding, fetchAnonymousOnboarding, logAnonymousButtonClick } = useAuth();
-  const { updateBirthDate } = usePlan();
+  const { updateBirthDate, updateLocation, updateDegree, updateOccupation, updateGoals } = usePlan();
 
   // Fetch onboarding data on mount
   React.useEffect(() => {
@@ -80,7 +80,7 @@ const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ isOpen, onComplete }) =
 
   const handleNext = async () => {
 
-    // After step 3 (personal info), save birthdate to plan and add tax system event
+    // After step 3 (personal info), save all user data to plan
     if (currentStep === 3) {
       // Check for invalid birth date or today or in the future
       if (data.birthDate === '' || data.birthDate === new Date().toISOString().split('T')[0] || data.birthDate > new Date().toISOString().split('T')[0]) {
@@ -92,7 +92,52 @@ const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ isOpen, onComplete }) =
       const birthDateString = newBirthDate.toISOString().split('T')[0];
       console.log("birthDateString", birthDateString);
 
+      // Update birth date
       updateBirthDate(birthDateString);
+
+      // Update location
+      if (data.location) {
+        updateLocation(data.location);
+      }
+
+      // Combine education level and field for degree
+      const degreeString = data.education && data.educationField
+        ? `${data.education} in ${data.educationField}`
+        : data.education || data.educationField || '';
+      if (degreeString) {
+        updateDegree(degreeString);
+      }
+
+      // Use education field as occupation
+      if (data.educationField) {
+        updateOccupation(data.educationField);
+      }
+
+      // Combine all goals into a single string
+      const allGoals = [
+        ...data.goals.map(goal => {
+          switch (goal) {
+            case 'understanding': return 'Better understanding of current finances';
+            case 'management': return 'Better asset management';
+            case 'budgeting': return 'Budgeting';
+            case 'peace': return 'Peace of mind';
+            default: return goal;
+          }
+        }),
+        ...data.financialGoals.map(goal => {
+          switch (goal) {
+            case 'house': return 'Buying a house';
+            case 'retirement': return 'Comfortable retirement';
+            case 'vacation': return 'Dream vacation';
+            case 'aspirations': return 'Other financial aspirations';
+            default: return goal;
+          }
+        })
+      ].join(', ');
+
+      if (allGoals) {
+        updateGoals(allGoals);
+      }
     }
 
     // Move to next step or finish

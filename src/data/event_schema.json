@@ -207,6 +207,10 @@
         "non-networth-account"
     ],
     "birth_date": "2001-09-11",
+    "location": "New York",
+    "degree": "Bachelor's",
+    "occupation": "Software Engineer",
+    "goals": "Retire at 65",
     "categories": [
         "Cash",
         "Debt",

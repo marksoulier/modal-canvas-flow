@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import type { Plan, Envelope } from '../contexts/PlanContext';
-import { Menu, Plus, Save, FileText, FolderOpen, User, Edit3, HelpCircle, Split } from 'lucide-react';
+import { Menu, Plus, Save, FileText, FolderOpen, User, Edit3, HelpCircle, Split, Sparkles } from 'lucide-react';
 import { RefreshCw, Copy } from 'lucide-react';
 import {
   DropdownMenu,
@@ -23,6 +23,7 @@ import { Visualization } from '../visualization/Visualization';
 import { usePlan, getEnvelopeDisplayName } from '../contexts/PlanContext';
 import { useAuth } from '../contexts/AuthContext';
 import ErrorToast from '../components/ErrorToast';
+import AiSummaryModal from '../components/AiSummaryModal';
 import PlanPreferencesModal from '../components/PlanPreferencesModal';
 import OnboardingFlow from '../components/OnboardingFlow';
 import OnboardingProgress from '../components/OnboardingProgress';
@@ -78,6 +79,7 @@ export default function Index() {
 
   // Add state for exit viewing mode dialog
   const [exitViewingModalOpen, setExitViewingModalOpen] = useState(false);
+  const [aiModalOpen, setAiModalOpen] = useState(false);
   const [isExiting, setIsExiting] = useState(false);
   const [selectedDayOffset, setSelectedDayOffset] = useState<number | undefined>();
 
@@ -539,6 +541,13 @@ export default function Index() {
                 <User className="mr-2 h-4 w-4" />
                 Account
               </DropdownMenuItem>
+              {/* <DropdownMenuItem
+                onClick={() => checkViewingMode(() => setAiModalOpen(true))}
+                className="cursor-pointer"
+              >
+                <Sparkles className="mr-2 h-4 w-4" />
+                AI Summary
+              </DropdownMenuItem> */}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -690,6 +699,12 @@ export default function Index() {
         onClose={() => setExitViewingModalOpen(false)}
         onConfirm={handleExitViewingMode}
         isLoading={isExiting}
+      />
+
+      {/* AI Summary Modal */}
+      <AiSummaryModal
+        isOpen={aiModalOpen}
+        onClose={() => setAiModalOpen(false)}
       />
 
       {/* Onboarding Progress Component - shows after modal completion */}

@@ -66,7 +66,8 @@ export function getAllEventsByDateWithLocked(plan: Plan, lockedPlan?: Plan | nul
 
     const processPlan = (p: Plan, isShadow: boolean) => {
         // Filter out hidden events if show_all is false
-        const events = show_all ? p.events : p.events.filter(event => !event.hide);
+        // const events = show_all ? p.events : p.events.filter(event => !event.hide);
+        const events = p.events;
         for (const event of events) {
             const startTimeParam = event.parameters.find(pr => pr.type === 'start_time');
             if (startTimeParam && typeof startTimeParam.value === 'string') {
