@@ -147,11 +147,9 @@ const HelpModal: React.FC<HelpModalProps> = ({ isOpen, onClose, onRestartOnboard
                     <div className="bg-muted/30 rounded-lg p-6">
                       <div className="text-center space-y-4">
                         <div className="text-lg font-medium">Need Help?</div>
-                        <div className="text-muted-foreground">Visit our website for support</div>
+                        <div className="text-muted-foreground">Email our support team</div>
                         <div className="text-xl font-semibold text-primary">
-                          <a href="https://lever-ai.com" target="_blank" rel="noopener noreferrer" className="hover:underline">
-                            lever-ai.com
-                          </a>
+                            contact@lever-ai.com
                         </div>
                       </div>
                     </div>

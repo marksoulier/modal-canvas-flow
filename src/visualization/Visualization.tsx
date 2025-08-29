@@ -11,6 +11,7 @@ import { curveLinear, curveStepAfter } from '@visx/curve';
 import { LinearGradient } from '@visx/gradient';
 import { TooltipWithBounds, defaultStyles } from '@visx/tooltip';
 import { runSimulation } from '../hooks/simulationRunner';
+import { useInteractionManager } from '../hooks/useInteractionManager';
 import { usePlan, getEnvelopeCategory, getEnvelopeDisplayName, dateStringToDaysSinceBirth, daysSinceBirthToDateString, getEffectiveEventId } from '../contexts/PlanContext';
 import { useAuth } from '../contexts/AuthContext';
 import {
@@ -310,6 +311,9 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
     displayType: string;
     description: string;
   } | null>(null);
+
+  // Centralized interaction manager (used for click suppression and future unification)
+  const interactionMgr = useInteractionManager({});
 
   // Animation states
   const [animationProgress, setAnimationProgress] = useState(0);
@@ -612,14 +616,14 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
                 // Deep clone locked plan before applying updates to avoid mutating shared references
                 const updatedPlan = JSON.parse(JSON.stringify(plan_locked));
                 updates.forEach(update => {
-                  const event = updatedPlan.events.find(e => e.id === update.eventId);
+                  const event = updatedPlan.events.find((e: { id: number }) => e.id === update.eventId);
                   if (event) {
-                    const param = event.parameters.find(p => p.type === update.paramType);
+                    const param = event.parameters.find((p: { type: string }) => p.type === update.paramType);
                     if (param) {
-                      const eventSchema = schema.events.find(e => e.type === event.type);
+                      const eventSchema = schema.events.find((e: { type: string }) => e.type === event.type);
                       let paramSchema;
                       if (eventSchema) {
-                        paramSchema = eventSchema.parameters.find(p => p.type === param.type);
+                        paramSchema = eventSchema.parameters.find((p: { type: string }) => p.type === param.type);
                       }
                       if (paramSchema && paramSchema.parameter_units === 'date') {
                         param.value = daysSinceBirthToDateString(update.value, plan_locked.birth_date);
@@ -1545,9 +1549,19 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
                   }
 
                   // Only handle chart clicks if we're not clicking an annotation and haven't dragged
-                  if (e.button === 0 && !isClickingAnnotation && !hasDraggedFromLeftClick && closestPoint && onChartClick) {
+                  if (
+                    e.button === 0 &&
+                    !interactionMgr.isClickSuppressed() &&
+                    !isClickingAnnotation &&
+                    !hasDraggedFromLeftClick &&
+                    closestPoint &&
+                    onChartClick
+                  ) {
                     onChartClick(closestPoint.date);
                   }
+
+                  // Clear any suppression after handling pointer up
+                  interactionMgr.clearSuppression();
 
                   // Reset left click tracking
                   setLeftClickStartPos(null);
@@ -2053,19 +2067,25 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
                             ) : (
                               <ContextMenu>
                                 <ContextMenuTrigger asChild>
-                                  <div>
+                                  <div
+                                    onContextMenu={() => {
+                                      // As soon as context menu opens, suppress subsequent click
+                                      interactionMgr.afterMenuAction();
+                                    }}
+                                  >
                                     <div
                                       style={{ width: baseSize, height: baseSize, transform: `scale(${scale})`, transformOrigin: 'top left' }}
                                       onMouseDown={isRecurringInstance ? undefined : (e) => {
                                         setIsClickingAnnotation(true);
                                       }}
                                       onMouseUp={(e) => {
-                                        if (!hasDragged && e.button === 0) {
+                                        if (!hasDragged && e.button === 0 && !interactionMgr.isClickSuppressed()) {
                                           const clickTargetId = parentEventId ?? event.id;
                                           onAnnotationClick?.(clickTargetId);
                                         }
                                         setHasDragged(false);
                                         setTimeout(() => setIsClickingAnnotation(false), 100);
+                                        interactionMgr.clearSuppression();
                                       }}
                                     >
                                       <TimelineAnnotation
@@ -2084,6 +2104,13 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
                                       variant="destructive"
                                       size="sm"
                                       className="w-full h-7 text-xs justify-start bg-red-50 text-red-600 border-red-200 hover:bg-red-100 hover:text-red-700"
+                                      onMouseDown={(e) => {
+                                        e.stopPropagation();
+                                        interactionMgr.afterMenuAction();
+                                      }}
+                                      onMouseUp={(e) => {
+                                        e.stopPropagation();
+                                      }}
                                       onClick={() => {
                                         deleteEvent(event.id);
                                         onAnnotationDelete?.(event.id);
