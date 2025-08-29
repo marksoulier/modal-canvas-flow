@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent } from './ui/card';
 import { Button } from './ui/button';
 import { ChevronRight, ChevronLeft } from 'lucide-react';
@@ -21,7 +21,7 @@ interface OnboardingStage {
 interface OnboardingProgressProps {
   className?: string;
   onAuthRequired?: () => void;
-  onExitViewingMode?: () => void;
+  onShowTaxPremium?: () => void;
 }
 
 const ONBOARDING_STAGES: OnboardingStage[] = [
@@ -75,24 +75,22 @@ const ONBOARDING_STAGES: OnboardingStage[] = [
   }
 ] as const;
 
-const OnboardingProgress: React.FC<OnboardingProgressProps> = ({ className = '', onAuthRequired, onExitViewingMode }) => {
+const OnboardingProgress: React.FC<OnboardingProgressProps> = ({ className = '', onAuthRequired, onShowTaxPremium }) => {
   const [isExpanded, setIsExpanded] = useState(true);
   const [showVideoModal, setShowVideoModal] = useState(false);
   const [selectedStageKey, setSelectedStageKey] = useState<string>('');
   const { onboarding_state, advanceOnboardingStage, getOnboardingStateNumber, updateOnboardingState } = useAuth();
-  const { handleZoomToWindow, isUxTester } = usePlan();
+  const { handleZoomToWindow } = usePlan();
 
   const currentStageIndex = getOnboardingStateNumber(onboarding_state);
 
   const handleStageClick = async (stageKey: string) => {
     console.log('handleStageClick', stageKey);
 
-    // Special handling for tax_system stage - open exit viewing modal instead of advancing
-    if (stageKey === 'tax_system' && !isUxTester) {
-      console.log('🧾 Tax system stage clicked - opening exit viewing modal');
-      if (onExitViewingMode) {
-        onExitViewingMode();
-      }
+    // Special handling for tax_system stage - show premium feature modal
+    if (stageKey === 'tax_system') {
+      console.log('🧾 Tax system stage clicked - opening premium feature modal');
+      onShowTaxPremium?.();
       return; // Don't proceed with normal stage advancement
     }
 
@@ -123,9 +121,8 @@ const OnboardingProgress: React.FC<OnboardingProgressProps> = ({ className = '',
 
   const handleVideoComplete = async () => {
     // Advance to the next stage after completing video content
-    const stageIndex = getOnboardingStateNumber(selectedStageKey as OnboardingState);
     const nextStage = await advanceOnboardingStage();
-    if (nextStage === 'full' && onAuthRequired && !isUxTester) {
+    if (nextStage === 'full' && onAuthRequired) {
       onAuthRequired();
     }
   };
@@ -271,7 +268,7 @@ const OnboardingProgress: React.FC<OnboardingProgressProps> = ({ className = '',
                           onClick={async (e: React.MouseEvent) => {
                             e.stopPropagation();
                             // If this is the last stage, trigger onAuthRequired
-                            if (index === ONBOARDING_STAGES.length - 2 && onAuthRequired && !isUxTester) {
+                            if (index === ONBOARDING_STAGES.length - 2 && onAuthRequired) {
                               await handleStageClick(stage.key);
                               onAuthRequired();
                             } else {
@@ -323,6 +320,8 @@ const OnboardingProgress: React.FC<OnboardingProgressProps> = ({ className = '',
         onComplete={handleVideoComplete}
         stageKey={selectedStageKey}
       />
+
+
     </>
   );
 };

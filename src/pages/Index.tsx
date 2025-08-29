@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import type { Plan, Envelope } from '../contexts/PlanContext';
-import { Menu, Plus, Save, FileText, FolderOpen, User, Edit3, HelpCircle, Split, Sparkles } from 'lucide-react';
+import { Menu, Plus, Save, FileText, FolderOpen, User, Edit3, HelpCircle, Split, Sparkles, Receipt } from 'lucide-react';
 import { RefreshCw, Copy } from 'lucide-react';
 import {
   DropdownMenu,
@@ -31,10 +31,11 @@ import { extractSchema, validateProblem } from '../hooks/schemaChecker';
 import { formatNumber } from '../visualization/viz_utils';
 import PremiumConfirmationModal from '../components/PremiumConfirmationModal';
 import ExitViewingModeDialog from '../components/ExitViewingModeDialog';
+import PremiumFeatureModal from '../components/PremiumFeatureModal';
 
 export default function Index() {
   // Auth context
-  const { user, signOut: authSignOut, logAnonymousButtonClick, onboarding_state, isOnboardingAtOrAbove, isLoading } = useAuth();
+  const { user, signOut: authSignOut, logAnonymousButtonClick, onboarding_state, isOnboardingAtOrAbove, isLoading, isPremium } = useAuth();
 
   // Plan context
   const {
@@ -76,6 +77,8 @@ export default function Index() {
   const [editingEnvelope, setEditingEnvelope] = useState<Envelope | null>(null);
   const [isAddingEnvelope, setIsAddingEnvelope] = useState(false);
   const [premiumConfirmationOpen, setPremiumConfirmationOpen] = useState(false);
+  const [aiPremiumModalOpen, setAiPremiumModalOpen] = useState(false);
+  const [taxPremiumModalOpen, setTaxPremiumModalOpen] = useState(false);
 
   // Add state for exit viewing mode dialog
   const [exitViewingModalOpen, setExitViewingModalOpen] = useState(false);
@@ -303,6 +306,15 @@ export default function Index() {
     setEditingEnvelope(null);
     setAddEnvelopeModalOpen(true);
     setIsAddingEnvelope(true);
+  };
+
+  // Handler for AI Summary button click
+  const handleAiSummaryClick = () => {
+    if (isPremium) {
+      setAiModalOpen(true);
+    } else {
+      setAiPremiumModalOpen(true);
+    }
   };
 
   // Handler to save envelope (add or edit)
@@ -541,13 +553,19 @@ export default function Index() {
                 <User className="mr-2 h-4 w-4" />
                 Account
               </DropdownMenuItem>
-              {/* <DropdownMenuItem
-                onClick={() => checkViewingMode(() => setAiModalOpen(true))}
-                className="cursor-pointer"
-              >
-                <Sparkles className="mr-2 h-4 w-4" />
-                AI Summary
-              </DropdownMenuItem> */}
+              {isOnboardingAtOrAbove('assets') && (
+                <DropdownMenuItem
+                  onClick={() => checkViewingMode(handleAiSummaryClick)}
+                  className="cursor-pointer group relative overflow-hidden"
+                >
+                  <div className="absolute inset-0 bg-gradient-to-r from-[#03c6fc]/20 via-[#03c6fc]/10 to-[#03c6fc]/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                  <div className="absolute inset-0 bg-gradient-to-r from-[#03c6fc]/5 via-transparent to-[#03c6fc]/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                  <Sparkles className="mr-2 h-4 w-4 text-[#03c6fc] group-hover:text-[#03c6fc] transition-all duration-300 group-hover:scale-110 group-hover:rotate-12" />
+                  <span className="relative z-10 bg-gradient-to-r from-[#03c6fc] via-[#03c6fc] to-[#03c6fc] bg-clip-text text-transparent group-hover:from-[#03c6fc] group-hover:via-[#03c6fc]/80 group-hover:to-[#03c6fc] transition-all duration-300 font-medium">
+                    AI Recommendations
+                  </span>
+                </DropdownMenuItem>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -707,15 +725,39 @@ export default function Index() {
         onClose={() => setAiModalOpen(false)}
       />
 
+      {/* AI Premium Feature Modal */}
+      <PremiumFeatureModal
+        isOpen={aiPremiumModalOpen}
+        onClose={() => setAiPremiumModalOpen(false)}
+        onOpenSubscription={() => setSubscriptionModalOpen(true)}
+        onOpenAuth={() => setAuthModalOpen(true)}
+        isLoggedIn={!!user}
+        featureName="AI Summary"
+        featureDescription="AI Summary is a premium feature that provides intelligent insights about your financial plan."
+        featureIcon={Sparkles}
+      />
+
+      {/* Tax Settings Premium Feature Modal */}
+      <PremiumFeatureModal
+        isOpen={taxPremiumModalOpen}
+        onClose={() => setTaxPremiumModalOpen(false)}
+        onOpenSubscription={() => setSubscriptionModalOpen(true)}
+        onOpenAuth={() => setAuthModalOpen(true)}
+        isLoggedIn={!!user}
+        featureName="Tax Settings"
+        featureDescription="Configure your tax settings to get accurate projections of your after-tax income and investment returns."
+        featureIcon={Receipt}
+      />
+
       {/* Onboarding Progress Component - shows after modal completion */}
       {onboarding_state !== 'full' && (
         <OnboardingProgress
           onAuthRequired={() => {
-            localStorage.setItem('onboarding-completed', 'true');
+            // localStorage.setItem('onboarding-completed', 'true');
             setAuthModalMode('signUp');
             setAuthModalOpen(true);
           }}
-          onExitViewingMode={() => setExitViewingModalOpen(true)}
+          onShowTaxPremium={() => setTaxPremiumModalOpen(true)}
         />
       )}
     </div>

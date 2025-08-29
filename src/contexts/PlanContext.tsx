@@ -349,7 +349,6 @@ interface PlanContextType {
     updatePlanDirectly: (planData: Plan) => void; // <-- add this new method for direct plan updates without viewing window reset
     updateLockedPlanDirectly: (planData: Plan) => void; // <-- add this new method for direct locked plan updates without viewing window reset
     isExampleViewing: boolean; // Add this new property
-    isUxTester: boolean; // Flag for UX tester mode
     daysSinceBirthToDateString: (days: number, birthDate: string) => string; // Add this for date conversion
     undo: () => void; // <-- add this
     redo: () => void; // <-- add this
@@ -439,7 +438,6 @@ export function PlanProvider({ children }: PlanProviderProps) {
     const [isVisualizationReady, setIsVisualizationReady] = useState(false); // <-- add this new state
     const [shouldTriggerSimulation, setShouldTriggerSimulation] = useState(false);
     const [isExampleViewing, setIsExampleViewing] = useState(false); // Add this new state
-    const [isUxTester, setIsUxTester] = useState(false); // Add this new state
     // Add compare mode state with enhanced setter
     const [isCompareMode, setCompareModeRaw] = useState(false);
 
@@ -607,8 +605,6 @@ export function PlanProvider({ children }: PlanProviderProps) {
                 // Check URL parameters first
                 const urlParams = new URLSearchParams(window.location.search);
                 const planId = urlParams.get('plan_id');
-                const isUxTester = urlParams.get('ux_tester') === 'true';
-                setIsUxTester(isUxTester);
 
                 console.log('🔍 Checking URL parameters:', { planId });
 
@@ -1963,7 +1959,6 @@ export function PlanProvider({ children }: PlanProviderProps) {
             setPlanLocked(deepClonePlan(planData));
         },
         isExampleViewing, // Add this to the context value
-        isUxTester, // Expose UX tester flag in context
         daysSinceBirthToDateString, // Add this for date conversion
         isCompareMode,
         setCompareMode,
