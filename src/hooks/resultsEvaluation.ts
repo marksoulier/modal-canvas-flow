@@ -98,7 +98,11 @@ export function computeTimePoints(
     }
     if (currentDay) {
         const idx = points.findIndex(t => t === currentDay);
-        if (idx !== -1) points.splice(idx, 0, currentDay);
+        if (idx === -1) {
+            // Current day is not in the points array, add it
+            points.push(currentDay);
+            points.sort((a, b) => a - b); // Sort to maintain chronological order
+        }
     }
     return points;
 }

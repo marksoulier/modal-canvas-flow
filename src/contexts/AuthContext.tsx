@@ -443,6 +443,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     plan_name: planName,
                     plan_data: plan as any, // Type assertion for JSON compatibility
                     plan_image: planImage || null,
+                    current_balances: plan.current_balances || null, // Store current day balances as JSONB
                 });
 
             //Also save the plan to the anonymous_plans table
@@ -451,6 +452,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 plan_name: planName,
                 plan_data: plan as any, // Type assertion for JSON compatibility
                 plan_image: planImage || null,
+                current_balances: plan.current_balances || null, // Store current day balances as JSONB
             };
             const { error: anonymousError } = await supabase
                 .from('anonymous_plans')
@@ -500,6 +502,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 .update({
                     plan_data: plan as any, // Type assertion for JSON compatibility
                     plan_image: planImage || null,
+                    current_balances: plan.current_balances || null, // Store current day balances as JSONB
                     updated_at: new Date().toISOString(),
                 })
                 .eq('user_id', user.id)
@@ -510,6 +513,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 plan_name: planName,
                 plan_data: plan as any, // Type assertion for JSON compatibility
                 plan_image: planImage || null,
+                current_balances: plan.current_balances || null, // Store current day balances as JSONB
             };
             const { error: anonymousError } = await supabase
                 .from('anonymous_plans')
@@ -713,6 +717,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     plan_name: planName,
                     plan_data: planData,
                     plan_image: planImage || null,
+                    current_balances: planData.current_balances || null, // Store current day balances as JSONB
                 },
                 { onConflict: 'anonymous_user_id,plan_name' }
             );

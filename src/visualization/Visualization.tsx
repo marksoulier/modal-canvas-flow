@@ -312,6 +312,12 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
     description: string;
   } | null>(null);
 
+  // Triplines: dates one window inside the simulated range on each side
+  const leftTripDateRef = useRef<number | null>(null);
+  const rightTripDateRef = useRef<number | null>(null);
+  // Prevent repeated triggers for the same visible window
+  const lastTripTriggerKeyRef = useRef<string | null>(null);
+
   // Centralized interaction manager (used for click suppression and future unification)
   const interactionMgr = useInteractionManager({});
 
@@ -518,6 +524,23 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
       //   getIntervalInDays: getIntervalInDays(intervalToUse)
       // });
 
+      // Save triplines as padded simulation boundaries
+      leftTripDateRef.current = paddedRange.startDate;
+      rightTripDateRef.current = paddedRange.endDate;
+      try {
+        const leftFormatted = formatDate(leftTripDateRef.current, birthDate, 'full', true, false);
+        const rightFormatted = formatDate(rightTripDateRef.current, birthDate, 'full', true, false);
+        // Console log tripline information for debugging
+        console.log('Tripline dates set', {
+          visibleWindowWidthDays: visibleRangeWidth,
+          leftTripDate: leftTripDateRef.current,
+          leftTripDateFormatted: typeof leftFormatted === 'string' ? leftFormatted : String(leftFormatted),
+          rightTripDate: rightTripDateRef.current,
+          rightTripDateFormatted: typeof rightFormatted === 'string' ? rightFormatted : String(rightFormatted),
+          paddedRange,
+          baseRange
+        });
+      } catch (_) { /* no-op */ }
       return paddedRange;
     })() : undefined;
 
@@ -585,11 +608,23 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
       // Store the simulation data
       setNetWorthData(simulationResult);
 
+      // Extract current day balances from simulation results
+      let currentDayBalances: Record<string, number> = {};
+      const currentDayResult = simulationResult.find(result => result.date === currentDay);
+      if (currentDayResult) {
+        // Include both networth and non-networth parts, could be helpful to show todays totals for non-networth parts
+        currentDayBalances = {
+          ...currentDayResult.parts,
+          ...(currentDayResult.nonNetworthParts || {})
+        };
+      }
+
       // Store simulation results in the plan
       // Store simulation results while preserving the original plan structure
       const updatedPlanWithResults = {
         ...plan, // Use original plan to preserve events
-        simulation_results: simulationResult
+        simulation_results: simulationResult,
+        current_balances: currentDayBalances
       };
       updatePlanDirectly(updatedPlanWithResults);
 
@@ -890,6 +925,23 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
 
             // Mark visualization as ready for auto-save
             setVisualizationReady(true);
+            // Tripline trigger: if either tripline falls within the current window, run simulation once
+            if (leftTripDateRef.current !== null || rightTripDateRef.current !== null) {
+              const winStart = actualVisibleRangeNoPadding.startDate;
+              const winEnd = actualVisibleRangeNoPadding.endDate;
+              const maxDay = 80 * 365;
+              const leftTrip = leftTripDateRef.current;
+              const rightTrip = rightTripDateRef.current;
+              const includesLeft = leftTrip !== null && winStart <= leftTrip && leftTrip <= winEnd && leftTrip !== 0;
+              const includesRight = rightTrip !== null && winStart <= rightTrip && rightTrip <= winEnd && rightTrip !== maxDay;
+              if (includesLeft || includesRight) {
+                const triggerKey = `${winStart}-${winEnd}`;
+                if (lastTripTriggerKeyRef.current !== triggerKey) {
+                  lastTripTriggerKeyRef.current = triggerKey;
+                  runSimulationManually(undefined, { startDate: winStart, endDate: winEnd });
+                }
+              }
+            }
           }, [actualVisibleRange.startDate, actualVisibleRange.endDate, actualVisibleRange.startDateFormatted, actualVisibleRange.endDateFormatted, actualVisibleRange.totalDays, actualVisibleRangeNoPadding.startDate, actualVisibleRangeNoPadding.endDate, registerCurrentVisualizationRange, setVisualizationReady]);
 
           // Filter data points to only those in viewport

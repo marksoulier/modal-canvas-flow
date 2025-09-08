@@ -22,6 +22,9 @@ interface Datum {
     parts: {
         [key: string]: number;
     };
+    nonNetworthParts?: {
+        [key: string]: number;
+    };
 }
 
 export function initializeEnvelopes(plan: Plan, simulation_settings: any): Record<string, any> {

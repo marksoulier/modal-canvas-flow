@@ -290,7 +290,7 @@ const DatePicker: React.FC<DatePickerProps> = ({
                 </PopoverContent>
             </Popover>
 
-            <div className="flex-1">
+            <div className="flex-1 bg-white">
                 {!isExpanded ? (
                     <div
                         className={cn(
