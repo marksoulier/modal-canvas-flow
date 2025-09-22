@@ -608,15 +608,47 @@ export function Visualization({ onAnnotationClick, onAnnotationDelete, onNegativ
       // Store the simulation data
       setNetWorthData(simulationResult);
 
-      // Extract current day balances from simulation results
-      let currentDayBalances: Record<string, number> = {};
+      // Extract current day balances from simulation results with enhanced data
+      let currentDayBalances: Record<string, {
+        value: number;
+        displayName: string;
+        category: string;
+        color: { area: string; line: string };
+        isNonNetworth?: boolean;
+      }> = {};
       const currentDayResult = simulationResult.find(result => result.date === currentDay);
       if (currentDayResult) {
-        // Include both networth and non-networth parts, could be helpful to show todays totals for non-networth parts
-        currentDayBalances = {
-          ...currentDayResult.parts,
-          ...(currentDayResult.nonNetworthParts || {})
-        };
+        // Process networth parts
+        Object.entries(currentDayResult.parts).forEach(([envelopeName, value]) => {
+          const category = getEnvelopeCategory(plan, envelopeName) || 'Uncategorized';
+          const displayName = getEnvelopeDisplayName(envelopeName);
+          const color = envelopeColors[envelopeName] || categoryColors[category] || { area: '#ccc', line: '#888' };
+
+          currentDayBalances[envelopeName] = {
+            value,
+            displayName,
+            category,
+            color,
+            isNonNetworth: false
+          };
+        });
+
+        // Process non-networth parts
+        if (currentDayResult.nonNetworthParts) {
+          Object.entries(currentDayResult.nonNetworthParts).forEach(([envelopeName, value]) => {
+            const category = getEnvelopeCategory(plan, envelopeName) || 'Non-Networth';
+            const displayName = getEnvelopeDisplayName(envelopeName);
+            const color = envelopeColors[envelopeName] || categoryColors[category] || { area: '#ff6b6b', line: '#ff4757' };
+
+            currentDayBalances[envelopeName] = {
+              value,
+              displayName,
+              category,
+              color,
+              isNonNetworth: true
+            };
+          });
+        }
       }
 
       // Store simulation results in the plan

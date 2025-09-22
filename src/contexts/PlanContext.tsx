@@ -234,7 +234,13 @@ export interface Plan {
     view_end_date?: string; // Date when the view ends (ISO string)
     simulation_results?: SimulationResult[]; // Store simulation results
     simulation_results_locked?: SimulationResult[]; // Store simulation results for locked plan
-    current_balances?: Record<string, number>; // Store current day balances for all envelopes
+    current_balances?: Record<string, {
+        value: number;
+        displayName: string;
+        category: string;
+        color: { area: string; line: string };
+        isNonNetworth?: boolean;
+    }>; // Store current day balances for all envelopes with enhanced data
 }
 
 export interface SchemaParameter {
