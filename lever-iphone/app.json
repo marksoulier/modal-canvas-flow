@@ -1,0 +1,47 @@
+{
+    "expo": {
+        "name": "Financial Planner",
+        "slug": "financial-planner",
+        "version": "1.0.0",
+        "orientation": "portrait",
+        "icon": "./assets/icon.png",
+        "userInterfaceStyle": "light",
+        "splash": {
+            "image": "./assets/splash.png",
+            "resizeMode": "contain",
+            "backgroundColor": "#f8f9fa"
+        },
+        "assetBundlePatterns": [
+            "**/*"
+        ],
+        "ios": {
+            "supportsTablet": true,
+            "bundleIdentifier": "com.yourname.financialplanner",
+            "infoPlist": {
+                "ITSAppUsesNonExemptEncryption": false
+            }
+        },
+        "android": {
+            "adaptiveIcon": {
+                "foregroundImage": "./assets/adaptive-icon.png",
+                "backgroundColor": "#f8f9fa"
+            },
+            "package": "com.yourname.financialplanner",
+            "permissions": [
+                "android.permission.USE_BIOMETRIC",
+                "android.permission.USE_FINGERPRINT"
+            ]
+        },
+        "web": {
+            "favicon": "./assets/favicon.png"
+        },
+        "plugins": [
+            "expo-local-authentication"
+        ],
+        "extra": {
+            "eas": {
+                "projectId": "1d7a844e-ee1d-4315-8028-0810d86149ad"
+            }
+        }
+    }
+}

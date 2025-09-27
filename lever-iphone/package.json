@@ -1,0 +1,21 @@
+{
+  "name": "lever-iphone",
+  "version": "1.0.0",
+  "description": "",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.57.4",
+    "expo": "^54.0.10",
+    "expo-local-authentication": "^17.0.7",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1",
+    "react-native": "^0.81.4",
+    "react-native-web": "^0.21.1"
+  }
+}

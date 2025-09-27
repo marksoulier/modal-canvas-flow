@@ -356,11 +356,11 @@
             "updating_events": [
                 {
                     "type": "update_amount",
-                    "display_type": "Update Amount",
+                    "display_type": "Update Reocurring Amount",
                     "onboarding_stage": "declare_accounts",
                     "display_event": true,
                     "is_recurring": false,
-                    "can_be_reocurring": true,
+                    "can_be_reocurring": false,
                     "icon": "arrow-up",
                     "description": "Update the amount of the recurring income.",
                     "parameters": [
@@ -373,10 +373,38 @@
                             "editable": true
                         },
                         {
+                            "type": "amount",
+                            "display_name": "Amount",
+                            "parameter_units": "usd",
+                            "description": "Amount received each interval.",
+                            "default": 30,
+                            "editable": true
+                        }
+                    ]
+                },
+                {
+                    "type": "increment_amount",
+                    "display_type": "Increment Reocurring Amount",
+                    "onboarding_stage": "declare_accounts",
+                    "display_event": true,
+                    "is_recurring": false,
+                    "can_be_reocurring": true,
+                    "icon": "arrow-up",
+                    "description": "Increment the amount of the recurring inflow.",
+                    "parameters": [
+                        {
+                            "type": "start_time",
+                            "display_name": "Start Date",
+                            "parameter_units": "date",
+                            "description": "When the additional inflow occurs",
+                            "default": 0,
+                            "editable": true
+                        },
+                        {
                             "type": "end_time",
                             "display_name": "End Date",
                             "parameter_units": "date",
-                            "description": "When the recurring update ends ",
+                            "description": "When the additional inflow ends ",
                             "default": 3650,
                             "editable": true
                         },
@@ -384,16 +412,60 @@
                             "type": "frequency_days",
                             "display_name": "Frequency (Days)",
                             "parameter_units": "days",
-                            "description": "Number of days between each update ",
-                            "default": 365,
+                            "description": "Number of days between each additional inflow ",
+                            "default": 30,
                             "editable": true
                         },
                         {
                             "type": "amount",
                             "display_name": "Amount",
                             "parameter_units": "usd",
-                            "description": "Amount received each interval.",
+                            "description": "Amount of money received",
+                            "default": 5,
+                            "editable": true
+                        }
+                    ]
+                },
+                {
+                    "type": "additional_inflow",
+                    "display_type": "Additional Inflow",
+                    "onboarding_stage": "declare_accounts",
+                    "display_event": true,
+                    "is_recurring": false,
+                    "can_be_reocurring": true,
+                    "icon": "arrow-up",
+                    "description": "Add an additional inflow to the recurring inflow.",
+                    "parameters": [
+                        {
+                            "type": "start_time",
+                            "display_name": "Start Date",
+                            "parameter_units": "date",
+                            "description": "When the additional inflow occurs",
+                            "default": 0,
+                            "editable": true
+                        },
+                        {
+                            "type": "end_time",
+                            "display_name": "End Date",
+                            "parameter_units": "date",
+                            "description": "When the additional inflow ends ",
+                            "default": 3650,
+                            "editable": true
+                        },
+                        {
+                            "type": "frequency_days",
+                            "display_name": "Frequency (Days)",
+                            "parameter_units": "days",
+                            "description": "Number of days between each additional inflow ",
                             "default": 30,
+                            "editable": true
+                        },
+                        {
+                            "type": "amount",
+                            "display_name": "Amount",
+                            "parameter_units": "usd",
+                            "description": "Amount of money received",
+                            "default": 5,
                             "editable": true
                         }
                     ]

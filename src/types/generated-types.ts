@@ -33,6 +33,18 @@ export interface inflowParams {
 
 export interface update_amountParams {
   start_time: number;
+  amount: number;
+}
+
+export interface increment_amountParams {
+  start_time: number;
+  end_time: number;
+  frequency_days: number;
+  amount: number;
+}
+
+export interface additional_inflowParams {
+  start_time: number;
   end_time: number;
   frequency_days: number;
   amount: number;

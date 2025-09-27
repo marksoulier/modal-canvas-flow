@@ -229,6 +229,130 @@ export const gamma = (
     };
 };
 
+// Theta descriptor types (similar to GPU descriptors)
+export type ThetaDescriptor = {
+    type: "T" | "R";
+    t_k: number;
+    t0?: number;
+    dt?: number; // for recurring events
+    tf?: number; // for recurring events
+    f: (params: Record<string, any>, t: number) => Record<string, number>; // Returns variable values
+    params: Record<string, any>;
+    variables?: string[]; // Optional: specify which variables this descriptor affects
+};
+
+// Theta with descriptors (array of functions)
+export type ThetaWithDescriptors = {
+    descriptors: ThetaDescriptor[];
+};
+
+// Add a theta descriptor to a theta
+export const addThetaDescriptor = (
+    theta: ThetaWithDescriptors,
+    descriptor: ThetaDescriptor
+): void => {
+    theta.descriptors.push(descriptor);
+};
+
+// Create a new theta with descriptors
+export const createThetaWithDescriptors = (): ThetaWithDescriptors => {
+    return { descriptors: [] };
+};
+
+// Convert ThetaWithDescriptors to Theta for compatibility with existing GPU descriptors
+export const thetaWithDescriptorsToTheta = (thetaWithDescriptors: ThetaWithDescriptors): Theta => {
+    return (t: number) => evaluateThetaAtTime(thetaWithDescriptors, t);
+};
+
+// Evaluate theta with descriptors at time t
+export const evaluateThetaAtTime = (
+    theta: ThetaWithDescriptors,
+    t: number
+): Record<string, number> => {
+    const result: Record<string, number> = {};
+
+    for (const descriptor of theta.descriptors) {
+        if (descriptor.type === "T") {
+            // Non-recurring event
+            const variableValues = descriptor.f(descriptor.params, descriptor.t_k - (descriptor.t0 || 0));
+            const stepValue = u(t - descriptor.t_k);
+
+            // Apply to specified variables or all variables in the result
+            const targetVars = descriptor.variables || Object.keys(variableValues);
+            for (const varName of targetVars) {
+                if (!(varName in result)) result[varName] = 0;
+                result[varName] += variableValues[varName] * stepValue;
+            }
+        } else if (descriptor.type === "R") {
+            // Recurring event
+            const t_k = descriptor.t_k;
+            const dt = descriptor.dt || 30;
+            const tf = descriptor.tf || 3650;
+            const t0 = descriptor.t0 || 0;
+
+            console.log('Debug R descriptor evaluation:');
+            console.log('t_k:', t_k);
+            console.log('dt:', dt);
+            console.log('tf:', tf);
+            console.log('t0:', t0);
+            console.log('t:', t);
+            for (let occurrenceTime = t_k; occurrenceTime <= t; occurrenceTime += dt) {
+                if (occurrenceTime <= tf) {
+                    const variableValues = descriptor.f(descriptor.params, t_k - t0);
+                    const stepValue = u(t - occurrenceTime);
+
+                    // Apply to specified variables or all variables in the result
+                    const targetVars = descriptor.variables || Object.keys(variableValues);
+                    for (const varName of targetVars) {
+                        if (!(varName in result)) result[varName] = 0;
+                        result[varName] += variableValues[varName] * stepValue;
+                    }
+                }
+            }
+        }
+    }
+
+    return result;
+};
+
+// T function that adds a descriptor instead of returning a function
+export const T_theta = (
+    theta_event: Record<string, number>,
+    f: (params: Record<string, any>, t: number) => Record<string, number>,
+    t0: number = 0,
+    variables?: string[]
+): ThetaDescriptor => {
+    return {
+        type: "T",
+        t_k: theta_event.t_k,
+        t0: t0,
+        f: f,
+        params: theta_event,
+        variables: variables
+    };
+};
+
+// R function that adds a descriptor instead of returning a function
+export const R_theta = (
+    theta_event: Record<string, number>,
+    f: (params: Record<string, any>, t: number) => Record<string, number>,
+    t0: number = 0,
+    dt: number = 30,
+    tf: number = 3650,
+    variables?: string[]
+): ThetaDescriptor => {
+    return {
+        type: "R",
+        t_k: theta_event.t_k,
+        t0: t0,
+        dt: dt,
+        tf: tf,
+        f: f,
+        params: theta_event,
+        variables: variables
+    };
+};
+
 export const inflationAdjust = (
     base: number,
     inflation_rate: number,
@@ -518,31 +642,94 @@ export const inflow = (event: any, envelopes: Record<string, any>, onUpdate: (up
     const [theta_growth_dest] = get_growth_parameters(envelopes, params.to_key);
 
     // updating events update amount
-    let theta = P({ a: params.amount });
+    let theta = createThetaWithDescriptors();
+    // Add initial amount as a T descriptor
+    addThetaDescriptor(theta, T_theta(
+        { t_k: params.start_time, amount: params.amount },
+        (params, t) => ({ a: params.amount }),
+        0,
+        ["a"]
+    ));
     for (const upd of event.updating_events || []) {
         const upd_type = upd.type;
-        const upd_params = upd.parameters || {};
+
         if (upd_type === "update_amount") {
-            // Just use gamma to set the amount to new value at the start time
-            theta = gamma(theta, {
-                a: upd_params.amount
-            }, upd_params.start_time);
+            // Type-safe access to update_amount parameters
+            const upd_params = getTypedUpdatingParams<AllEventTypes.update_amountParams>(upd);
+            //Evaluate the amount at upd_params.start_time see the difference to amount and apply difference
+            const amount_at_start_time = evaluateThetaAtTime(theta, upd_params.start_time).a;
+            const diff = upd_params.amount - amount_at_start_time;
+            // Add a T descriptor for the updated amount
+            addThetaDescriptor(theta, T_theta(
+                { t_k: upd_params.start_time, amount: upd_params.amount },
+                (params, t) => ({ a: diff }),
+                0,
+                ["a"]
+            ));
         }
-
-        if (upd_type === "step_amount") {
+        if (upd_type === "additional_inflow") {
+            // Type-safe access to additional_inflow parameters
+            const upd_params = getTypedUpdatingParams<AllEventTypes.additional_inflowParams>(upd);
+            // just add a inflow 
+            //create a theta for this subevent
+            const theta_subevent = createThetaWithDescriptors();
+            addThetaDescriptor(theta_subevent, T_theta(
+                { t_k: upd_params.start_time, amount: upd_params.amount },
+                (params, t) => ({ a: params.amount }),
+                0,
+                ["a"]
+            ));
+            if (upd.is_recurring) {
+                if (inflowEnabled) {
+                    addGPUDescriptor(envelopes, params.to_key, {
+                        type: "R",
+                        direction: "in",
+                        t0: upd_params.start_time,
+                        dt: upd_params.frequency_days,
+                        tf: upd_params.end_time,
+                        thetaParamKey: "a",
+                        theta: thetaWithDescriptorsToTheta(theta_subevent),
+                        growth: theta_growth_dest
+                    });
+                }
+            }
+            else {
+                if (inflowEnabled) {
+                    addGPUDescriptor(envelopes, params.to_key, {
+                        type: "T",
+                        direction: "in",
+                        t_k: upd_params.start_time,
+                        thetaParamKey: "a",
+                        theta: thetaWithDescriptorsToTheta(theta_subevent),
+                        growth: theta_growth_dest
+                    });
+                }
+            }
+        }
+        if (upd_type === "increment_amount") {
+            // Type-safe access to increment_amount parameters
+            const upd_params = getTypedUpdatingParams<AllEventTypes.increment_amountParams>(upd);
             // Get the current amount at start time
-            const current_amount = theta(upd_params.start_time).a;
-
-            // Apply step increases as a function that will be evaluated when theta is called
-            theta = gamma(theta, {
-                a: stepAdjust(
-                    current_amount,
-                    upd_params.amount,
+            if (upd.is_recurring) {
+                // Add a R descriptor for recurring increment amount
+                addThetaDescriptor(theta, R_theta(
+                    { t_k: upd_params.start_time, amount: upd_params.amount },
+                    (params, t) => ({ a: params.amount }),
+                    upd_params.start_time, // t0
                     upd_params.frequency_days,
-                    upd_params.start_time,
-                    upd_params.end_time  // Pass end_time to stepAdjust
-                )
-            }, upd_params.start_time);
+                    upd_params.end_time,
+                    ["a"]
+                ));
+            }
+            else {
+                // Add a T descriptor for non-recurring increment amount
+                addThetaDescriptor(theta, T_theta(
+                    { t_k: upd_params.start_time, amount: upd_params.amount },
+                    (params, t) => ({ a: params.amount }), // Simple function that returns the increment amount
+                    0,
+                    ["a"]
+                ));
+            }
         }
     }
 
@@ -562,7 +749,7 @@ export const inflow = (event: any, envelopes: Record<string, any>, onUpdate: (up
                 dt: params.frequency_days,
                 tf: params.end_time,
                 thetaParamKey: "a",
-                theta,
+                theta: thetaWithDescriptorsToTheta(theta),
                 growth: theta_growth_dest
             });
         }
@@ -579,7 +766,7 @@ export const inflow = (event: any, envelopes: Record<string, any>, onUpdate: (up
                 direction: "in",
                 t_k: params.start_time,
                 thetaParamKey: "a",
-                theta,
+                theta: thetaWithDescriptorsToTheta(theta),
                 growth: theta_growth_dest
             });
         }
@@ -1930,14 +2117,14 @@ export const pass_away = (event: any, envelopes: Record<string, any>) => {
             // Create the correction function and append it to the envelope
             // GPU NOTE: pass_away correction (T - in/out)
             if (declare_accountsEnabled) {
-            addGPUDescriptor(envelopes, envelope_name, {
-                type: "T",
-                direction: difference > 0 ? "in" : "out",
-                t_k: death_time + 1,
-                thetaParamKey: difference > 0 ? "a" : "b",
-                theta: P(difference > 0 ? { a: Math.abs(difference) } : { b: Math.abs(difference) }),
-                growth: theta_growth_dest
-            });
+                addGPUDescriptor(envelopes, envelope_name, {
+                    type: "T",
+                    direction: difference > 0 ? "in" : "out",
+                    t_k: death_time + 1,
+                    thetaParamKey: difference > 0 ? "a" : "b",
+                    theta: P(difference > 0 ? { a: Math.abs(difference) } : { b: Math.abs(difference) }),
+                    growth: theta_growth_dest
+                });
             }
         }
     }

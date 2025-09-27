@@ -173,6 +173,7 @@ export function parseEvents(problem: any) {
         updating_events: (event.updating_events || []).map((upd: any) => ({
             id: upd.id,
             type: upd.type,
+            is_recurring: upd.is_recurring || false,
             description: upd.description || "",
             parameters: Object.fromEntries(upd.parameters.map((p: any) => [p.type, p.value])),
             event_functions: Object.fromEntries((upd.event_functions || []).map((f: any) => [f.type, f.enabled]))
