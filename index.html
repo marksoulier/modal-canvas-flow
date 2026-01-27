@@ -16,8 +16,8 @@
       debug('Full URL: ' + window.location.href);
       debug('Search params: ' + window.location.search);
 
-      // Check if we're in production or development
-      var isProduction = window.location.hostname === 'app.lever-ai.com';
+      // Check if we're in production or development (including GitHub Pages)
+      var isProduction = window.location.hostname === 'app.lever-ai.com' || window.location.hostname.endsWith('github.io');
       debug('Is production? ' + isProduction);
 
       if (isProduction || window.location.hostname === 'localhost') {
@@ -54,19 +54,19 @@
   
   <!-- Open Graph / Facebook -->
   <meta property="og:type" content="website" />
-  <meta property="og:url" content="https://lever-ai.com/" />
+  <meta property="og:url" content="https://marksoulier.github.io/modal-canvas-flow/" />
   <meta property="og:title" content="Lever - Model Your Financial Future" />
   <meta property="og:description"
     content="Model financial events over time to see how your choices play out. Make informed decisions about retirement, housing, investments, and more with timeline-based financial planning." />
-  <meta property="og:image" content="https://lever-ai.com/logo.png" />
+  <meta property="og:image" content="https://marksoulier.github.io/modal-canvas-flow/logo.png" />
   
   <!-- Twitter -->
   <meta property="twitter:card" content="summary_large_image" />
-  <meta property="twitter:url" content="https://lever-ai.com/" />
+  <meta property="twitter:url" content="https://marksoulier.github.io/modal-canvas-flow/" />
   <meta property="twitter:title" content="Lever - Model Your Financial Future" />
   <meta property="twitter:description"
     content="Model financial events over time to see how your choices play out. Make informed decisions about retirement, housing, investments, and more with timeline-based financial planning." />
-  <meta property="twitter:image" content="https://lever-ai.com/logo.png" />
+  <meta property="twitter:image" content="https://marksoulier.github.io/modal-canvas-flow/logo.png" />
 
   <!-- Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
