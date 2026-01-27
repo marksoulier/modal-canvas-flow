@@ -27,13 +27,13 @@ const SmallScreenOverlay = ({ children }: { children: React.ReactNode }) => {
             This application requires a larger screen for the best experience. Please access it from a laptop or desktop computer at:
           </p>
           <p className="font-mono text-slate-600 mb-6">
-            www.lever-ai.com
+            marksoulier.github.io/modal-canvas-flow
           </p>
           <a
-            href="https://www.lever-ai.com"
+            href="https://marksoulier.github.io/modal-canvas-flow"
             className="inline-flex bg-[#03c6fc]/10 hover:bg-[#03c6fc]/20 text-slate-700 px-5 py-2.5 rounded-lg shadow-sm border border-[#03c6fc]/20 hover:border-[#03c6fc]/40 transition-all duration-200 items-center gap-2 text-sm font-medium"
           >
-            Visit Lever AI
+            Visit Site
           </a>
         </div>
       </div>
@@ -49,7 +49,7 @@ const App = () => (
           <SmallScreenOverlay>
             <Toaster />
             <Sonner />
-            <BrowserRouter basename="/">
+            <BrowserRouter basename="/modal-canvas-flow">
               <Routes>
                 <Route path="/" element={<Index />} />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

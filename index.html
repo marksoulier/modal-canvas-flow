@@ -17,7 +17,7 @@
       debug('Search params: ' + window.location.search);
 
       // Check if we're in production or development
-      var isProduction = window.location.hostname === 'app.lever-ai.com';
+      var isProduction = window.location.hostname === 'app.lever-ai.com' || window.location.hostname.endsWith('github.io');
       debug('Is production? ' + isProduction);
 
       if (isProduction || window.location.hostname === 'localhost') {
