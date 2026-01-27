@@ -17,7 +17,7 @@
       debug('Search params: ' + window.location.search);
 
       // Check if we're in production or development
-      var isProduction = window.location.hostname === 'app.lever-ai.com';
+      var isProduction = window.location.hostname === 'app.lever-ai.com' || window.location.hostname.endsWith('github.io');
       debug('Is production? ' + isProduction);
 
       if (isProduction || window.location.hostname === 'localhost') {
@@ -38,7 +38,7 @@
       }
     })();
   </script>
-  <link rel="icon" type="image/png" href="/favicon.png" />
+  <link rel="icon" type="image/png" href="/modal-canvas-flow/favicon.png" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
   <!-- Primary Meta Tags -->
@@ -74,8 +74,8 @@
   <link
     href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Spline+Sans:wght@300;400;500;600;700&display=swap"
     rel="stylesheet">
-  <script type="module" crossorigin src="/assets/index-DKmxm_dB.js"></script>
-  <link rel="stylesheet" crossorigin href="/assets/index-fMjvJdMh.css">
+  <script type="module" crossorigin src="/modal-canvas-flow/assets/index-4qVwUuSx.js"></script>
+  <link rel="stylesheet" crossorigin href="/modal-canvas-flow/assets/index-fMjvJdMh.css">
 </head>
 
 <body>
